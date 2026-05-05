@@ -101,6 +101,18 @@ const routes = [
     meta: { requiresAuth: true, requiresSuperAdmin: true }
   },
   {
+    path: '/admin/tournaments',
+    name: 'AdminTournaments',
+    component: () => import('../views/admin/TournamentsView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
+    path: '/admin/tournaments/create',
+    name: 'AdminCreateTournament',
+    component: () => import('../views/admin/AdminCreateTournamentFeatureView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
     path: '/admin/system',
     name: 'SystemSettings',
     component: () => import('../views/admin/SystemSettingsView.vue'),
