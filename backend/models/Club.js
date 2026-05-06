@@ -97,7 +97,7 @@ class Club extends BaseModel {
       .update({ member_count: count })
       .eq('id', clubId);
     
-    if (error) throw error;
+    if (error) throw erorr; 
     return true;
   }
 }

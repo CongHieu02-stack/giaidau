@@ -19,8 +19,13 @@
           </div>
           
           <div class="space-y-2">
+            <label class="text-white/80">Số đội tối thiểu</label>
+            <input v-model.number="form.minTeams" type="number" required min="2" class="form-input" placeholder="2">
+          </div>
+
+          <div class="space-y-2">
             <label class="text-white/80">Số đội tối đa</label>
-            <input v-model.number="form.maxTeams" type="number" required class="form-input" placeholder="16">
+            <input v-model.number="form.maxTeams" type="number" required min="2" class="form-input" placeholder="16">
           </div>
           
           <div class="space-y-2">
@@ -71,6 +76,7 @@ const loading = ref(false);
 const form = ref({
   name: '',
   sportCategoryId: '',
+  minTeams: 4,
   maxTeams: 16,
   registrationDeadline: '',
   startDate: '',

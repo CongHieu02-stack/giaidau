@@ -12,7 +12,9 @@ export class Tournament {
     this.sportCategoryId = data.sportCategoryId || data.sport_category_id || null;
     this.sportCategory = data.sportCategory || null;
     this.rules = data.rules || '';
-    this.maxTeams = data.maxTeams || data.max_teams || 0;
+    this.format = data.format || 'round_robin';
+    this.maxTeams = data.maxTeams || data.max_teams || 16;
+    this.minTeams = data.minTeams || data.min_teams || 2;
     this.registrationDeadline = data.registrationDeadline || data.registration_deadline || null;
     this.startDate = data.startDate || data.start_date || null;
     this.endDate = data.endDate || data.end_date || null;
@@ -24,7 +26,7 @@ export class Tournament {
     this.createdBy = data.createdBy || data.created_by || null;
     this.createdAt = data.createdAt || data.created_at || new Date();
     this.updatedAt = data.updatedAt || data.updated_at || new Date();
-    
+
     // Embedded collections
     this.registrations = data.registrations || [];
     this.matches = data.matches || [];
@@ -165,14 +167,14 @@ export class Tournament {
     const numMatchesPerRound = Math.floor(clubs.length / 2);
 
     let matchIndex = 0;
-    
+
     for (let round = 0; round < numRounds; round++) {
       for (let i = 0; i < numMatchesPerRound; i++) {
         const home = clubs[i];
         const away = clubs[clubs.length - 1 - i];
-        
+
         const { date, time, venue } = this.calculateMatchSlot(matchIndex, venues);
-        
+
         matches.push({
           id: generateUUID(),
           tournamentId: this.id,
@@ -189,7 +191,7 @@ export class Tournament {
           awayScore: 0,
           createdAt: new Date()
         });
-        
+
         matchIndex++;
       }
       // Rotate clubs for next round (keep first club fixed)
@@ -260,22 +262,22 @@ export class Tournament {
     return {
       id: this.id,
       name: this.name,
-      sportCategoryId: this.sportCategoryId,
+      sport_category_id: this.sportCategoryId,
       rules: this.rules,
-      maxTeams: this.maxTeams,
-      registrationDeadline: this.registrationDeadline,
-      startDate: this.startDate,
-      endDate: this.endDate,
-      matchDays: this.matchDays,
-      matchTimes: this.matchTimes,
+      format: this.format,
+      max_teams: this.maxTeams,
+      min_teams: this.minTeams,
+      registration_deadline: this.registrationDeadline,
+      start_date: this.startDate,
+      end_date: this.endDate,
+      match_days: this.matchDays,
+      match_times: this.matchTimes,
       status: this.status,
-      cancellationReason: this.cancellationReason,
-      championClubId: this.championClubId,
-      createdBy: this.createdBy,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-      registrationCount: this.registrationCount,
-      approvedCount: this.approvedCount
+      cancellation_reason: this.cancellationReason,
+      champion_club_id: this.championClubId,
+      created_by: this.createdBy,
+      created_at: this.createdAt,
+      updated_at: this.updatedAt
     };
   }
 

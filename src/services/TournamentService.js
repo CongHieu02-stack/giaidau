@@ -19,11 +19,19 @@ export class TournamentService {
   async createTournament(tournamentData, userId) {
     try {
       // Validate required fields
-      const requiredFields = ['name', 'sportCategoryId', 'maxTeams', 'registrationDeadline', 'startDate'];
+      const requiredFields = ['name', 'sportCategoryId', 'maxTeams', 'minTeams', 'registrationDeadline', 'startDate'];
       for (const field of requiredFields) {
         if (!tournamentData[field]) {
           return Result.err(`Missing required field: ${field}`);
         }
+      }
+
+      // Validate team counts
+      if (tournamentData.minTeams < 2) {
+        return Result.err('Minimum teams must be at least 2');
+      }
+      if (tournamentData.maxTeams < tournamentData.minTeams) {
+        return Result.err('Maximum teams must be greater than or equal to minimum teams');
       }
 
       // Validate dates
@@ -274,7 +282,7 @@ export class TournamentService {
   async getTournaments(filters = {}) {
     try {
       const { status, sportCategoryId, search, page = 1, perPage = 10 } = filters;
-      
+
       let query = supabase
         .from('tournaments')
         .select(`
