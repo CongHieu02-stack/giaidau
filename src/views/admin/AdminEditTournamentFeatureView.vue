@@ -1,78 +1,77 @@
 <template>
-  <div class="create-page">
+  <div class="edit-page">
     <div class="page-shell">
       <div class="page-head">
         <div>
           <p class="eyebrow">Admin - Quản lý giải</p>
-          <h1>Thêm giải đấu</h1>
+          <h1>Chỉnh sửa giải</h1>
         </div>
-        <RouterLink :to="basePath" class="ghost-button">
+        <RouterLink :to="basePath" class="secondary-button">
           <i class="pi pi-arrow-left"></i>
           Quay lại
         </RouterLink>
       </div>
 
-      <form class="form-panel" @submit.prevent="handleSubmit">
-        <section class="form-section">
-          <h2>Thông tin cơ bản</h2>
-          <div class="form-grid">
-            <label class="field field-wide">
-              <span>Tên giải đấu</span>
-              <input v-model.trim="form.name" type="text" placeholder="VD: GDU Open 2026" required>
-            </label>
+      <div v-if="loading" class="state-panel">
+        <i class="pi pi-spinner pi-spin"></i>
+        Đang tải thông tin giải đấu...
+      </div>
 
+      <form v-else class="form-panel" @submit.prevent="handleSubmit">
+        <section class="form-section">
+          <h2>Thông tin không chỉnh sửa</h2>
+          <div class="form-grid">
+            <label class="field">
+              <span>Tên giải đấu</span>
+              <input :value="tournament?.name" disabled>
+            </label>
             <label class="field">
               <span>Bộ môn</span>
-              <select v-model="form.sportCategoryId" required>
-                <option value="">Chọn bộ môn</option>
-                <option v-for="sport in sports" :key="sport.id" :value="sport.id">
-                  {{ sport.name }}
-                </option>
-              </select>
+              <input :value="tournament?.sport_category?.name || 'Chưa chọn'" disabled>
             </label>
-
             <label class="field">
-              <span>Hình thức thi đấu</span>
-              <select v-model="form.format">
-                <option value="round_robin">Vòng tròn</option>
-                <option value="knockout">Loại trực tiếp</option>
-                <option value="group_stage">Vòng bảng</option>
-              </select>
+              <span>Trạng thái</span>
+              <input :value="statusLabels[tournament?.status] || tournament?.status" disabled>
             </label>
-
             <label class="field">
-              <span>Số CLB tối thiểu</span>
-              <input v-model.number="form.minTeams" type="number" min="2" :max="form.maxTeams" required>
-            </label>
-
-            <label class="field">
-              <span>Số lượng CLB tham gia</span>
-              <input v-model.number="form.maxTeams" type="number" min="2" required>
+              <span>Số đội đã đăng ký</span>
+              <input :value="tournament?.registration_count || 0" disabled>
             </label>
           </div>
         </section>
 
         <section class="form-section">
-          <h2>Thời gian và lịch thi đấu</h2>
+          <h2>Thông tin được chỉnh sửa</h2>
           <div class="form-grid">
             <label class="field">
+              <span>Số lượng CLB tham gia</span>
+              <input
+                v-model.number="form.maxTeams"
+                type="number"
+                min="2"
+                :disabled="readOnly"
+                required
+              >
+            </label>
+
+            <label class="field">
               <span>Ngày hết hạn đăng ký</span>
-              <input v-model="form.registrationDeadline" type="datetime-local" required>
+              <input v-model="form.registrationDeadline" type="datetime-local" :disabled="readOnly" required>
             </label>
 
             <label class="field">
               <span>Ngày thi đấu</span>
-              <input v-model="form.startDate" type="date" required>
+              <input v-model="form.startDate" type="date" :disabled="readOnly" required>
             </label>
 
             <label class="field">
               <span>Ngày kết thúc</span>
-              <input v-model="form.endDate" type="date">
+              <input v-model="form.endDate" type="date" :disabled="readOnly">
             </label>
 
-            <label class="field">
+            <label class="field field-wide">
               <span>Giờ thi đấu</span>
-              <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" required>
+              <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" :disabled="readOnly" required>
             </label>
           </div>
 
@@ -80,33 +79,33 @@
             <span>Ngày thi đấu trong tuần</span>
             <div class="day-list">
               <label v-for="day in weekDays" :key="day.value" class="day-chip">
-                <input v-model="form.matchDays" type="checkbox" :value="day.value">
+                <input v-model="form.matchDays" type="checkbox" :value="day.value" :disabled="readOnly">
                 <span>{{ day.label }}</span>
               </label>
             </div>
           </div>
-        </section>
 
-        <section class="form-section">
-          <h2>Thể lệ và ghi chú</h2>
-          <label class="field">
+          <label class="field block-field">
             <span>Thể lệ</span>
-            <textarea v-model.trim="form.rules" rows="5" placeholder="Nhập thể lệ để các câu lạc bộ xem trước khi đăng ký" required></textarea>
+            <textarea v-model.trim="form.rules" rows="5" :disabled="readOnly" required></textarea>
           </label>
 
-          <label class="field">
+          <label class="field block-field">
             <span>Lịch thi đấu / yêu cầu địa điểm</span>
-            <textarea v-model.trim="form.scheduleNote" rows="3" placeholder="VD: Thi đấu vào cuối tuần, sân có đèn, mỗi trận 60 phút"></textarea>
+            <textarea v-model.trim="form.scheduleNote" rows="3" :disabled="readOnly"></textarea>
           </label>
         </section>
 
+        <p v-if="readOnly" class="message warning">
+          Giải đã kết thúc hoặc đã hủy nên không thể chỉnh sửa.
+        </p>
         <p v-if="errorMessage" class="message error">{{ errorMessage }}</p>
         <p v-if="successMessage" class="message success">{{ successMessage }}</p>
 
         <div class="actions">
-          <button type="submit" class="primary-button" :disabled="loading">
-            <i :class="loading ? 'pi pi-spinner pi-spin' : 'pi pi-check'"></i>
-            {{ loading ? 'Đang tạo...' : 'Xác nhận tạo giải' }}
+          <button type="submit" class="primary-button" :disabled="saving || readOnly">
+            <i :class="saving ? 'pi pi-spinner pi-spin' : 'pi pi-check'"></i>
+            {{ saving ? 'Đang lưu...' : 'Xác nhận chỉnh sửa' }}
           </button>
           <RouterLink :to="basePath" class="secondary-button">Hủy</RouterLink>
         </div>
@@ -118,75 +117,104 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.js';
 import {
-  createTournamentForAdmin,
-  fetchSportCategories
-} from '../../features/tournaments/adminCreateTournament.js';
+  fetchAdminTournament,
+  updateTournamentForAdmin
+} from '../../features/tournaments/adminTournamentManagement.js';
 
-const router = useRouter();
 const route = useRoute();
-const authStore = useAuthStore();
+const router = useRouter();
 
-const sports = ref([]);
-const loading = ref(false);
+const tournament = ref(null);
+const loading = ref(true);
+const saving = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
 
+const statusLabels = {
+  upcoming: 'Sắp diễn ra',
+  registration_open: 'Mở đăng ký',
+  registration_closed: 'Đóng đăng ký',
+  ongoing: 'Đang diễn ra',
+  completed: 'Đã kết thúc',
+  cancelled: 'Đã hủy'
+};
+
 const weekDays = [
-  { value: 1, label: 'Thu 2' },
-  { value: 2, label: 'Thu 3' },
-  { value: 3, label: 'Thu 4' },
-  { value: 4, label: 'Thu 5' },
-  { value: 5, label: 'Thu 6' },
-  { value: 6, label: 'Thu 7' },
+  { value: 1, label: 'Thứ 2' },
+  { value: 2, label: 'Thứ 3' },
+  { value: 3, label: 'Thứ 4' },
+  { value: 4, label: 'Thứ 5' },
+  { value: 5, label: 'Thứ 6' },
+  { value: 6, label: 'Thứ 7' },
   { value: 0, label: 'CN' }
 ];
 
 const form = reactive({
-  name: '',
-  description: '',
-  sportCategoryId: '',
-  format: 'round_robin',
   rules: '',
-  minTeams: 4,
   maxTeams: 16,
   registrationDeadline: '',
   startDate: '',
   endDate: '',
-  matchDays: [6, 0],
-  matchTimes: '17:00, 19:00',
+  matchDays: [],
+  matchTimes: '',
   scheduleNote: ''
 });
 
-onMounted(async () => {
+const readOnly = computed(() => ['completed', 'cancelled'].includes(tournament.value?.status));
+
+onMounted(loadTournament);
+
+async function loadTournament() {
+  loading.value = true;
+  errorMessage.value = '';
+
   try {
-    if (!authStore.user) {
-      await authStore.fetchUser();
-    }
-    sports.value = await fetchSportCategories();
+    tournament.value = await fetchAdminTournament(route.params.id);
+    form.rules = tournament.value.rules || '';
+    form.maxTeams = tournament.value.max_teams || 16;
+    form.registrationDeadline = toDateTimeLocal(tournament.value.registration_deadline);
+    form.startDate = tournament.value.start_date || '';
+    form.endDate = tournament.value.end_date || '';
+    form.matchDays = tournament.value.match_days || [];
+    form.matchTimes = (tournament.value.match_times || []).map((time) => String(time).slice(0, 5)).join(', ');
+    form.scheduleNote = tournament.value.venue_requirements || '';
   } catch (error) {
-    errorMessage.value = error.message || 'Không tải được danh sách bộ môn.';
+    errorMessage.value = error.message || 'Không tải được thông tin giải đấu.';
+  } finally {
+    loading.value = false;
   }
-});
+}
+
+function toDateTimeLocal(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return offsetDate.toISOString().slice(0, 16);
+}
 
 async function handleSubmit() {
-  loading.value = true;
+  saving.value = true;
   errorMessage.value = '';
   successMessage.value = '';
 
-  const result = await createTournamentForAdmin(form, authStore.user?.id);
+  const result = await updateTournamentForAdmin(
+    route.params.id,
+    form,
+    tournament.value?.registration_count || 0
+  );
 
   if (!result.success) {
     errorMessage.value = result.error;
-    loading.value = false;
+    saving.value = false;
     return;
   }
 
-  successMessage.value = 'Đã tạo giải đấu. Đang chuyển về danh sách...';
+  successMessage.value = 'Đã cập nhật giải đấu. Đang chuyển về danh sách...';
   setTimeout(() => {
     router.push(basePath.value);
   }, 500);
@@ -194,7 +222,7 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.create-page {
+.edit-page {
   min-height: 100%;
   padding: 32px 20px 56px;
   text-align: left;
@@ -205,18 +233,26 @@ async function handleSubmit() {
   margin: 0 auto;
 }
 
-.page-head {
+.page-head,
+.actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 18px;
+}
+
+.page-head {
   margin-bottom: 24px;
+}
+
+.actions {
+  justify-content: flex-start;
 }
 
 .eyebrow {
   color: #a5b4fc;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -236,10 +272,11 @@ h1 {
 h2 {
   margin: 0 0 18px;
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.form-panel {
+.form-panel,
+.state-panel {
   display: grid;
   gap: 18px;
   padding: 24px;
@@ -247,6 +284,13 @@ h2 {
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.72);
   box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
+}
+
+.state-panel {
+  place-items: center;
+  min-height: 180px;
+  color: #e2e8f0;
+  font-weight: 800;
 }
 
 .form-section {
@@ -266,16 +310,19 @@ h2 {
   display: grid;
   gap: 8px;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.field-wide {
+.field-wide,
+.block-field {
   grid-column: 1 / -1;
 }
 
+.block-field {
+  margin-top: 16px;
+}
+
 input,
-select,
 textarea {
   width: 100%;
   min-height: 46px;
@@ -293,11 +340,12 @@ textarea {
   line-height: 1.5;
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-  outline: 2px solid rgba(96, 165, 250, 0.45);
-  border-color: #60a5fa;
+input:disabled,
+textarea:disabled {
+  color: rgba(255, 255, 255, 0.58);
+  background: rgba(15, 23, 42, 0.46);
+  filter: blur(0.2px);
+  cursor: not-allowed;
 }
 
 .day-picker {
@@ -305,7 +353,7 @@ textarea:focus {
   gap: 10px;
   margin-top: 16px;
   color: rgba(255, 255, 255, 0.82);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .day-list {
@@ -341,15 +389,8 @@ textarea:focus {
   background: rgba(37, 99, 235, 0.52);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
 .primary-button,
-.secondary-button,
-.ghost-button {
+.secondary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -368,21 +409,20 @@ textarea:focus {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
 }
 
-.primary-button:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-.secondary-button,
-.ghost-button {
+.secondary-button {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.1);
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .message {
   padding: 12px 14px;
   border-radius: 8px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .message.error {
@@ -395,6 +435,11 @@ textarea:focus {
   background: rgba(22, 163, 74, 0.18);
 }
 
+.message.warning {
+  color: #fde68a;
+  background: rgba(217, 119, 6, 0.18);
+}
+
 @media (max-width: 760px) {
   .page-head,
   .form-grid {
@@ -404,11 +449,6 @@ textarea:focus {
   .page-head {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .form-panel,
-  .form-section {
-    padding: 16px;
   }
 }
 </style>

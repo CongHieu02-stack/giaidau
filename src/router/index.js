@@ -103,13 +103,19 @@ const routes = [
   {
     path: '/admin/tournaments',
     name: 'AdminTournaments',
-    component: () => import('../views/admin/TournamentsView.vue'),
+    component: () => import('../views/admin/AdminTournamentListFeatureView.vue'),
     meta: { requiresAuth: true, requiresSuperAdmin: true }
   },
   {
     path: '/admin/tournaments/create',
     name: 'AdminCreateTournament',
     component: () => import('../views/admin/AdminCreateTournamentFeatureView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
+  {
+    path: '/admin/tournaments/:id/edit',
+    name: 'AdminEditTournament',
+    component: () => import('../views/admin/AdminEditTournamentFeatureView.vue'),
     meta: { requiresAuth: true, requiresSuperAdmin: true }
   },
   {
@@ -129,19 +135,19 @@ const routes = [
   {
     path: '/tournament-admin/tournaments',
     name: 'TournamentAdminTournaments',
-    component: () => import('../views/tournament-admin/TournamentsView.vue'),
+    component: () => import('../views/admin/AdminTournamentListFeatureView.vue'),
     meta: { requiresAuth: true, requiresTournamentAdmin: true }
   },
   {
     path: '/tournament-admin/tournaments/create',
     name: 'TournamentAdminCreateTournament',
-    component: () => import('../views/tournament-admin/CreateTournamentView.vue'),
+    component: () => import('../views/admin/AdminCreateTournamentFeatureView.vue'),
     meta: { requiresAuth: true, requiresTournamentAdmin: true }
   },
   {
     path: '/tournament-admin/tournaments/:id/edit',
     name: 'TournamentAdminEditTournament',
-    component: () => import('../views/tournament-admin/EditTournamentView.vue'),
+    component: () => import('../views/admin/AdminEditTournamentFeatureView.vue'),
     meta: { requiresAuth: true, requiresTournamentAdmin: true }
   },
   {
