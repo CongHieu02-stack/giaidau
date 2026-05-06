@@ -258,63 +258,64 @@ const router = createRouter({
 });
 
 // Navigation guards
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, from) => {
   const authStore = useAuthStore();
 
   // Check if route is public
   if (to.meta.public) {
     // Check if route is for guests only (login, register)
     if (to.meta.guestOnly && authStore.isAuthenticated) {
-      return next('/');
+      return '/';
     }
-    return next();
+    return;
   }
 
   // Check if user is authenticated
   if (!authStore.isAuthenticated) {
-    // Try to fetch user session
-    const hasUser = await authStore.fetchUser();
+    // Try to initialize/fetch user session
+    console.log('[router.beforeEach] not authenticated, initializing auth...');
+    const hasUser = await authStore.initialize();
+    console.log('[router.beforeEach] initialize result:', hasUser);
     if (!hasUser) {
-      return next('/login?redirect=' + encodeURIComponent(to.fullPath));
+      console.warn('[router.beforeEach] redirecting to login');
+      return '/login?redirect=' + encodeURIComponent(to.fullPath);
     }
   }
 
   // Check role-based access
   if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
-    return next('/');
+    return '/';
   }
 
   if (to.meta.requiresTournamentAdmin && !authStore.isTournamentAdmin) {
-    return next('/');
+    return '/';
   }
 
   if (to.meta.requiresClubAdmin && !authStore.isClubAdmin) {
-    return next('/');
+    return '/';
   }
 
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
-    return next('/');
+    return '/';
   }
 
   if (to.meta.requiresClubLeader && !(authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin)) {
-    return next('/');
+    return '/';
   }
 
   if (to.meta.requiresReferee && !(authStore.isReferee || authStore.isTournamentAdmin)) {
-    return next('/');
+    return '/';
   }
 
   // Redirect to appropriate dashboard based on role
   if (to.path === '/dashboard') {
-    if (authStore.isSuperAdmin) return next('/admin');
-    if (authStore.isTournamentAdmin) return next('/tournament-admin');
-    if (authStore.isClubAdmin) return next('/club-admin');
-    if (authStore.isClubLeader || authStore.isClubDeputy) return next('/club');
-    if (authStore.isReferee) return next('/referee');
-    return next('/profile');
+    if (authStore.isSuperAdmin) return '/admin';
+    if (authStore.isTournamentAdmin) return '/tournament-admin';
+    if (authStore.isClubAdmin) return '/club-admin';
+    if (authStore.isClubLeader || authStore.isClubDeputy) return '/club';
+    if (authStore.isReferee) return '/referee';
+    return '/profile';
   }
-
-  next();
 });
 
 export default router;

@@ -9,6 +9,8 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn('Supabase credentials not found. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env file');
+} else {
+  console.log('[supabase] URL loaded:', supabaseUrl.substring(0, 20) + '...');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {

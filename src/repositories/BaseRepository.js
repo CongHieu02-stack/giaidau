@@ -24,7 +24,7 @@ export class BaseRepository {
         .eq('id', id)
         .single()
         .then(({ data, error }) => {
-          if (error) throw error;
+          if (error && error.code !== 'PGRST116') throw error;
           return data ? this.domainClass.fromDB(data) : null;
         })
     );

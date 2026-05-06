@@ -9,6 +9,9 @@ import Tooltip from 'primevue/tooltip';
 // Import router
 import router from './router/index.js';
 
+// Import auth store for eager initialization
+import { useAuthStore } from './stores/auth.js';
+
 // Import root component
 import App from './App.vue';
 
@@ -39,6 +42,11 @@ app.use(PrimeVue, {
 
 // Use plugins
 app.use(pinia);
+
+// Initialize auth before router mounts so session is ready for navigation guards
+const authStore = useAuthStore();
+authStore.initialize();
+
 app.use(router);
 app.use(ToastService);
 app.use(ConfirmationService);

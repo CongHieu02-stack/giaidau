@@ -9,6 +9,7 @@ export class Club {
   constructor(data = {}) {
     this.id = data.id || generateUUID();
     this.name = data.name || '';
+    this.short_name = data.short_name || data.shortName || '';
     this.description = data.description || '';
     this.logoUrl = data.logoUrl || data.logo_url || '';
     this.leaderId = data.leaderId || data.leader_id || null;
@@ -219,16 +220,17 @@ export class Club {
     return {
       id: this.id,
       name: this.name,
-      description: this.description,
-      logoUrl: this.logoUrl,
-      leaderId: this.leaderId,
-      deputyId: this.deputyId,
+      short_name: this.short_name || null,
+      description: this.description || null,
+      logo_url: this.logoUrl || null,
+      leader_id: this.leaderId,
+      deputy_id: this.deputyId || null,
       status: this.status,
-      rejectionReason: this.rejectionReason,
-      suspensionReason: this.suspensionReason,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
-      memberCount: this.memberCount
+      rejection_reason: this.rejectionReason || null,
+      suspension_reason: this.suspensionReason || null,
+      created_at: this.createdAt,
+      updated_at: this.updatedAt,
+      member_count: this.memberCount
     };
   }
 
