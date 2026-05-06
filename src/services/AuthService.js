@@ -297,22 +297,40 @@ export class AuthService {
    */
   async getCurrentUser() {
     try {
-      const { data: { user }, error } = await this.client.auth.getUser();
+      const { data: { session }, error } = await this.client.auth.getSession();
+      console.log('[AuthService.getCurrentUser] session:', session, 'error:', error);
 
-      if (error || !user) {
+      if (error || !session) {
+        console.warn('[AuthService.getCurrentUser] No session');
         return Result.err('No authenticated user');
       }
 
-      const profileResult = await this.userRepo.findById(user.id);
+      const profileResult = await this.userRepo.findById(session.user.id);
+      console.log('[AuthService.getCurrentUser] profileResult:', profileResult);
+
       if (profileResult.isErr()) {
-        return Result.err('Failed to load user profile');
+        console.warn('[AuthService.getCurrentUser] Profile load failed, using fallback');
+        // Fallback: return user with default profile so auth state is not lost
+        return Result.ok({
+          user: session.user,
+          profile: {
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
+            role: 'user',
+            status: 'active'
+          },
+          session
+        });
       }
 
       return Result.ok({
-        user,
-        profile: profileResult.getValue()
+        user: session.user,
+        profile: profileResult.getValue(),
+        session
       });
     } catch (error) {
+      console.error('[AuthService.getCurrentUser] exception:', error);
       return Result.err(error.message);
     }
   }

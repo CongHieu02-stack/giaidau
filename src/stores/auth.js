@@ -14,6 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
   const session = ref(null);
   const loading = ref(false);
   const error = ref(null);
+  const initialized = ref(false);
 
   // Getters - Role checks
   const isAuthenticated = computed(() => !!user.value);
@@ -146,18 +147,32 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchUser() {
     try {
+      console.log('[authStore.fetchUser] calling getCurrentUser...');
       const result = await authService.getCurrentUser();
+      console.log('[authStore.fetchUser] result.isOk:', result.isOk(), 'error:', result.isErr() ? result.getError() : null);
 
       if (result.isOk()) {
         const data = result.getValue();
         user.value = data.user;
         profile.value = data.profile;
+        session.value = data.session || null;
+        console.log('[authStore.fetchUser] success, user set:', !!data.user);
         return true;
       }
       return false;
-    } catch {
+    } catch (err) {
+      console.error('[authStore.fetchUser] exception:', err);
       return false;
     }
+  }
+
+  async function initialize() {
+    if (initialized.value) return isAuthenticated.value;
+    console.log('[authStore.initialize] starting...');
+    const hasUser = await fetchUser();
+    initialized.value = true;
+    console.log('[authStore.initialize] done, hasUser:', hasUser);
+    return hasUser;
   }
 
   async function updateProfile(profileData) {
@@ -256,6 +271,7 @@ export const useAuthStore = defineStore('auth', () => {
     session,
     loading,
     error,
+    initialized,
 
     // Getters
     isAuthenticated,
@@ -279,6 +295,7 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     logout,
     fetchUser,
+    initialize,
     updateProfile,
     changePassword,
     resetPassword,
