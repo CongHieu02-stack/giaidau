@@ -56,7 +56,7 @@
             </div>
           </router-link>
           
-          <router-link to="/club-admin" class="action-card">
+          <router-link to="/club-admin/approvals" class="action-card">
             <div class="action-icon">🏢</div>
             <div class="action-text">
               <div class="action-title">Quản lý CLB</div>

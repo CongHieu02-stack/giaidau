@@ -1,55 +1,389 @@
 <template>
-  <div class="min-h-screen py-8 px-4">
+  <div class="page-wrapper">
     <div class="max-w-7xl mx-auto">
-      <div v-if="loading" class="flex justify-center py-16">
-        <i class="pi pi-spinner pi-spin text-4xl text-white/60"></i>
+
+      <!-- Loading -->
+      <div v-if="loading" class="flex justify-center py-24">
+        <i class="pi pi-spinner pi-spin" style="font-size:2.5rem;color:rgba(255,255,255,0.4)"></i>
       </div>
-      
+
       <div v-else-if="club" class="space-y-6">
-        <div class="glass rounded-2xl p-8">
-          <div class="flex flex-col md:flex-row gap-6">
-            <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl font-bold text-white">
-              {{ getInitials(club.name) }}
+
+        <!-- ── Hero card ── -->
+        <div class="hero-card">
+          <div class="hero-glow"></div>
+          <div class="hero-inner">
+            <!-- Logo -->
+            <div class="club-logo">
+              <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" />
+              <template v-else>{{ getInitials(club.name) }}</template>
             </div>
-            <div class="flex-1">
-              <h1 class="text-3xl font-bold text-white mb-2">{{ club.name }}</h1>
-              <p class="text-white/70 mb-4">{{ club.description || 'Chưa có mô tả' }}</p>
-              <div class="flex items-center gap-4">
+
+            <!-- Info -->
+            <div class="club-info">
+              <div class="club-meta-top">
+                <h1 class="club-title">{{ club.name }}</h1>
                 <span class="status-badge" :class="getStatusClass(club.status)">{{ getStatusText(club.status) }}</span>
-                <span class="text-white/60">{{ club.member_count || 0 }} thành viên</span>
+              </div>
+              <p class="club-desc">{{ club.description || 'Chưa có mô tả' }}</p>
+
+              <!-- Leader -->
+              <div class="leader-row" v-if="leader">
+                <div class="leader-avatar">
+                  <img v-if="leader.avatar_url" :src="leader.avatar_url" :alt="leader.full_name" />
+                  <span v-else>{{ getInitials(leader.full_name || '?') }}</span>
+                </div>
+                <div>
+                  <div class="leader-label">Trưởng câu lạc bộ</div>
+                  <div class="leader-name">{{ leader.full_name || leader.email || 'Không rõ' }}</div>
+                </div>
+              </div>
+
+              <!-- Stats row -->
+              <div class="stats-row">
+                <div class="stat-chip">
+                  <i class="pi pi-users"></i>
+                  <span>{{ members.length }} thành viên</span>
+                </div>
+                <div class="stat-chip">
+                  <i class="pi pi-trophy"></i>
+                  <span>{{ club.tournament_count || 0 }} giải đấu</span>
+                </div>
+              </div>
+
+              <!-- Join / Status button -->
+              <div v-if="authStore.isAuthenticated" class="mt-5">
+                <div v-if="isLeader" class="tag-leader">
+                  <i class="pi pi-star-fill"></i> Trưởng câu lạc bộ
+                </div>
+                <template v-else>
+                  <button v-if="canJoin" @click="handleJoin" :disabled="joining" class="btn-join">
+                    <i v-if="joining" class="pi pi-spinner pi-spin"></i>
+                    <i v-else class="pi pi-user-plus"></i>
+                    {{ joining ? 'Đang gửi...' : 'Tham gia câu lạc bộ' }}
+                  </button>
+                  <div v-else-if="isPending" class="tag-pending">
+                    <i class="pi pi-clock"></i> Đang chờ phê duyệt
+                  </div>
+                  <div v-else-if="isMember" class="tag-member">
+                    <i class="pi pi-check-circle"></i> Đã tham gia
+                  </div>
+                </template>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- ── Members table ── -->
+        <div class="members-card">
+          <div class="members-header">
+            <div class="members-title-wrap">
+              <div class="members-icon"><i class="pi pi-users"></i></div>
+              <h2 class="members-title">Danh sách thành viên</h2>
+            </div>
+            <span class="members-count">{{ members.length }} người</span>
+          </div>
+
+          <div v-if="membersLoading" class="members-loading">
+            <i class="pi pi-spinner pi-spin"></i> Đang tải...
+          </div>
+
+          <div v-else-if="members.length === 0" class="members-empty">
+            <i class="pi pi-user-minus"></i>
+            <p>Câu lạc bộ chưa có thành viên nào</p>
+          </div>
+
+          <div v-else class="members-table-wrap">
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Thành viên</th>
+                  <th>Vai trò</th>
+                  <th>Ngày tham gia</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(m, i) in members" :key="m.id">
+                  <td class="td-num">{{ i + 1 }}</td>
+                  <td class="td-user">
+                    <div class="user-cell">
+                      <div class="user-avatar">
+                        <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
+                        <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
+                      </div>
+                      <div>
+                        <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
+                        <div class="user-email">{{ m.user?.email || '' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="role-badge" :class="getRoleClass(m.role)">{{ getRoleText(m.role) }}</span>
+                  </td>
+                  <td class="td-date">{{ formatDate(m.joined_at) }}</td>
+                  <td>
+                    <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
-      <div v-else class="text-center py-16">
-        <h2 class="text-2xl font-bold text-white">Không tìm thấy câu lạc bộ</h2>
+      <div v-else class="text-center py-24">
+        <h2 style="font-size:1.75rem;font-weight:700;color:white">Không tìm thấy câu lạc bộ</h2>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { clubRepository } from '../../repositories/ClubRepository.js';
+import { useAuthStore } from '../../stores/auth.js';
+import { supabase } from '../../config/supabase.js';
 
 const route = useRoute();
+const authStore = useAuthStore();
+
 const club = ref(null);
+const leader = ref(null);
+const members = ref([]);
 const loading = ref(true);
+const membersLoading = ref(true);
+const joining = ref(false);
+const memberStatus = ref('none');
+
+const isLeader = computed(() => club.value?.leaderId === authStore.user?.id);
+const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
+const isPending = computed(() => memberStatus.value === 'pending');
+const isMember  = computed(() => memberStatus.value === 'member' || memberStatus.value === 'approved');
 
 const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
-const getStatusClass = (s) => ({ 'pending': 'bg-yellow-500/20 text-yellow-400', 'approved': 'bg-green-500/20 text-green-400' }[s] || 'bg-gray-500/20 text-gray-400');
-const getStatusText = (s) => ({ 'pending': 'Chờ duyệt', 'approved': 'Đã duyệt' }[s] || s);
+const getStatusClass = (s) => ({ pending: 'sb-pending', approved: 'sb-approved' }[s] || 'sb-default');
+const getStatusText  = (s) => ({ pending: 'Chờ duyệt', approved: 'Đã duyệt' }[s] || s);
+
+const getRoleText  = (r) => ({ leader: 'Trưởng CLB', deputy: 'Phó CLB', member: 'Thành viên' }[r] || r || 'Thành viên');
+const getRoleClass = (r) => ({ leader: 'role-leader', deputy: 'role-deputy', member: 'role-member' }[r] || 'role-member');
+
+const getMemberStatusText  = (s) => ({ approved: 'Đã duyệt', pending: 'Chờ duyệt', rejected: 'Từ chối', removed: 'Đã xóa' }[s] || s);
+const getMemberStatusClass = (s) => ({ approved: 'ms-approved', pending: 'ms-pending', rejected: 'ms-rejected', removed: 'ms-removed' }[s] || '');
+
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
+
+const handleJoin = async () => {
+  joining.value = true;
+  try {
+    const { error } = await supabase.from('club_members').insert({
+      club_id: club.value.id,
+      user_id: authStore.user.id,
+      role: 'member',
+      status: 'pending',
+      joined_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    memberStatus.value = 'pending';
+  } catch (err) {
+    alert('Lỗi: ' + err.message);
+  } finally {
+    joining.value = false;
+  }
+};
 
 onMounted(async () => {
   const result = await clubRepository.findById(route.params.id);
-  if (result.isOk()) club.value = result.getValue();
+  if (result.isOk()) {
+    club.value = result.getValue();
+
+    // Fetch leader profile
+    if (club.value.leaderId) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, email')
+        .eq('id', club.value.leaderId)
+        .maybeSingle();
+      leader.value = data;
+    }
+
+    // Fetch members
+    const { data: membersData } = await supabase
+      .from('club_members')
+      .select('id, role, status, joined_at, user:profiles(id, full_name, avatar_url, email)')
+      .eq('club_id', club.value.id)
+      .order('joined_at', { ascending: true });
+    members.value = membersData || [];
+    membersLoading.value = false;
+
+    // Check current user membership
+    if (authStore.isAuthenticated) {
+      const { data: myData } = await supabase
+        .from('club_members')
+        .select('status')
+        .eq('club_id', club.value.id)
+        .eq('user_id', authStore.user.id)
+        .maybeSingle();
+      if (myData) memberStatus.value = myData.status;
+    }
+  }
   loading.value = false;
+  membersLoading.value = false;
 });
 </script>
 
 <style scoped>
-.status-badge { padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.page-wrapper { min-height: 100vh; padding: 6rem 1.5rem 3rem; }
+
+/* ── Hero card ── */
+.hero-card {
+  position: relative; overflow: hidden;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.5rem; padding: 2rem;
+}
+.hero-glow {
+  position: absolute; top: -80px; left: -80px;
+  width: 400px; height: 400px; pointer-events: none;
+  background: radial-gradient(circle, rgba(99,102,241,0.12), transparent 70%);
+}
+.hero-inner { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; position: relative; }
+
+.club-logo {
+  width: 120px; height: 120px; border-radius: 1.25rem; flex-shrink: 0; overflow: hidden;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.25rem; font-weight: 800; color: white;
+  box-shadow: 0 8px 32px rgba(99,102,241,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.club-logo img { width: 100%; height: 100%; object-fit: cover; }
+
+.club-info { flex: 1; min-width: 240px; }
+.club-meta-top { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.club-title { font-size: 2rem; font-weight: 800; color: white; line-height: 1.1; }
+
+.status-badge { padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+.sb-pending  { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
+.sb-approved { background: rgba(34,197,94,0.15);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+.sb-default  { background: rgba(107,114,128,0.2); color: #d1d5db; border: 1px solid rgba(107,114,128,0.3); }
+
+.club-desc { font-size: 0.9rem; color: rgba(255,255,255,0.55); margin-bottom: 1.25rem; line-height: 1.6; }
+
+/* Leader */
+.leader-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+.leader-avatar {
+  width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700; color: white;
+}
+.leader-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.leader-label { font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.leader-name  { font-size: 0.95rem; color: white; font-weight: 700; }
+
+/* Stats row */
+.stats-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.stat-chip {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.45rem 1rem; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+  font-size: 0.82rem; color: rgba(255,255,255,0.6);
+}
+.stat-chip .pi { color: #a5b4fc; font-size: 0.85rem; }
+
+/* Join tags */
+.tag-leader, .tag-pending, .tag-member, .btn-join {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.25rem; border-radius: 0.875rem; font-size: 0.875rem; font-weight: 600;
+}
+.tag-leader  { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
+.tag-pending { background: rgba(251,191,36,0.12); color: #fde68a; border: 1px solid rgba(251,191,36,0.2); }
+.tag-member  { background: rgba(34,197,94,0.12);  color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
+.btn-join {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;
+  border: none; cursor: pointer; transition: all 0.25s;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+}
+.btn-join:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+.btn-join:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* ── Members card ── */
+.members-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.5rem; overflow: hidden;
+}
+.members-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.04));
+}
+.members-title-wrap { display: flex; align-items: center; gap: 0.75rem; }
+.members-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; color: white;
+}
+.members-title { font-size: 1.1rem; font-weight: 700; color: white; }
+.members-count {
+  font-size: 0.8rem; color: rgba(255,255,255,0.45); font-weight: 600;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09);
+  padding: 0.3rem 0.8rem; border-radius: 999px;
+}
+
+.members-loading, .members-empty {
+  padding: 3rem; text-align: center; color: rgba(255,255,255,0.35); font-size: 0.9rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+}
+.members-empty .pi { font-size: 2rem; }
+
+/* Table */
+.members-table-wrap { overflow-x: auto; }
+.members-table { width: 100%; border-collapse: collapse; }
+.members-table thead tr {
+  background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.members-table th {
+  padding: 0.875rem 1.25rem; text-align: left;
+  font-size: 0.75rem; font-weight: 700; color: rgba(255,255,255,0.4);
+  text-transform: uppercase; letter-spacing: 0.07em; white-space: nowrap;
+}
+.members-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.2s;
+}
+.members-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.members-table td { padding: 0.875rem 1.25rem; font-size: 0.875rem; color: rgba(255,255,255,0.7); }
+
+.td-num { color: rgba(255,255,255,0.3); font-size: 0.8rem; width: 40px; }
+.td-date { color: rgba(255,255,255,0.4); font-size: 0.8rem; white-space: nowrap; }
+
+.user-cell { display: flex; align-items: center; gap: 0.75rem; }
+.user-avatar {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: white;
+}
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-name  { font-weight: 600; color: white; font-size: 0.875rem; }
+.user-email { font-size: 0.75rem; color: rgba(255,255,255,0.35); }
+
+/* Role badges */
+.role-badge { padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.role-leader { background: rgba(168,85,247,0.2); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+.role-deputy { background: rgba(99,102,241,0.2); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.3); }
+.role-member { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1); }
+
+/* Member status chips */
+.status-chip { padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.ms-approved { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+.ms-pending  { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
+.ms-rejected { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+.ms-removed  { background: rgba(107,114,128,0.2); color: #d1d5db; border: 1px solid rgba(107,114,128,0.3); }
 </style>

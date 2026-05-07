@@ -50,7 +50,7 @@
           <div class="card-glow"></div>
           <div class="club-header">
             <div class="club-logo">
-              <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" />
+              <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" />
               <span v-else class="logo-initials">{{ getInitials(club.name) }}</span>
             </div>
             <span class="status-badge" :class="getStatusClass(club.status)">
@@ -72,8 +72,25 @@
             </div>
           </div>
           <div class="club-footer">
+            <template v-if="authStore.isAuthenticated">
+              <div v-if="club.leaderId === authStore.user?.id" class="btn-leader">
+                <i class="pi pi-star-fill"></i> Trưởng CLB
+              </div>
+              <template v-else>
+                <div v-if="userMemberships[club.id] === 'pending'" class="btn-pending">
+                  <i class="pi pi-clock"></i> Chờ duyệt
+                </div>
+                <div v-else-if="userMemberships[club.id] === 'member' || userMemberships[club.id] === 'approved'" class="btn-joined">
+                  <i class="pi pi-check-circle"></i> Đã tham gia
+                </div>
+                <button v-else @click="handleJoin(club)" :disabled="joiningClubId === club.id" class="btn-join">
+                  <i v-if="joiningClubId === club.id" class="pi pi-spinner pi-spin"></i>
+                  <i v-else class="pi pi-user-plus"></i> Tham gia
+                </button>
+              </template>
+            </template>
             <router-link :to="`/clubs/${club.id}`" class="btn-view">
-              Xem chi tiết <i class="pi pi-arrow-right"></i>
+              Chi tiết <i class="pi pi-arrow-right"></i>
             </router-link>
           </div>
         </div>
@@ -145,6 +162,9 @@ const creating = ref(false);
 const createError = ref('');
 const createForm = ref({ name: '', short_name: '', description: '', logo_url: '' });
 
+const userMemberships = ref({});
+const joiningClubId = ref(null);
+
 const filteredClubs = computed(() => {
   if (!searchQuery.value) return clubs.value;
   const q = searchQuery.value.toLowerCase();
@@ -196,9 +216,43 @@ onMounted(async () => {
   try {
     const result = await clubRepository.findByStatus('approved');
     if (result.isOk()) clubs.value = result.getValue();
+    
+    if (authStore.isAuthenticated) {
+      const { data, error } = await supabase
+        .from('club_members')
+        .select('club_id, status')
+        .eq('user_id', authStore.user.id);
+        
+      if (!error && data) {
+        const memberships = {};
+        data.forEach(m => memberships[m.club_id] = m.status);
+        userMemberships.value = memberships;
+      }
+    }
   } catch (e) { console.error(e); }
   finally { loading.value = false; }
 });
+
+const handleJoin = async (club) => {
+  if (!authStore.isAuthenticated) return;
+  joiningClubId.value = club.id;
+  try {
+    const { error } = await supabase.from('club_members').insert({
+      club_id: club.id,
+      user_id: authStore.user.id,
+      role: 'member',
+      status: 'pending',
+      joined_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    userMemberships.value[club.id] = 'pending';
+  } catch (err) {
+    console.error(err);
+    alert('Lỗi khi tham gia câu lạc bộ: ' + err.message);
+  } finally {
+    joiningClubId.value = null;
+  }
+};
 </script>
 
 <style scoped>
@@ -333,10 +387,10 @@ onMounted(async () => {
 .c-stat-icon.trophies { background: rgba(245,158,11,0.2); color: #fcd34d; }
 
 /* Club Footer */
-.club-footer { padding: 0.875rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); }
+.club-footer { padding: 0.875rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 0.5rem; }
 .btn-view {
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  width: 100%; padding: 0.65rem 1rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
   background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
   color: #a5b4fc; font-size: 0.85rem; font-weight: 600;
   border-radius: 0.75rem; text-decoration: none; transition: all 0.25s;
@@ -344,6 +398,37 @@ onMounted(async () => {
 .btn-view:hover { background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.4); color: #c7d2fe; transform: translateY(-1px); }
 .btn-view .pi { transition: transform 0.2s; }
 .btn-view:hover .pi { transform: translateX(3px); }
+
+.btn-join {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6); border: 1px solid transparent;
+  color: white; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none; transition: all 0.25s; cursor: pointer;
+}
+.btn-join:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.4); transform: translateY(-1px); }
+.btn-join:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-joined {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
+  background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.2);
+  color: #86efac; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none;
+}
+.btn-pending {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
+  background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.2);
+  color: #fde68a; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none;
+}
+.btn-leader {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
+  background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.2);
+  color: #c084fc; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none;
+}
 
 /* Skeleton */
 .skeletons { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }

@@ -317,7 +317,7 @@ router.beforeEach(async (to, from) => {
     return '/';
   }
 
-  if (to.meta.requiresClubAdmin && !authStore.isClubAdmin) {
+  if (to.meta.requiresClubAdmin && !authStore.isClubAdmin && !authStore.isSuperAdmin) {
     return '/';
   }
 
