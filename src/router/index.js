@@ -67,6 +67,32 @@ const routes = [
     meta: { public: true }
   },
 
+  // Static Pages (Public)
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('../views/shared/AboutView.vue'),
+    meta: { public: true }
+  },
+  {
+    path: '/help',
+    name: 'Help',
+    component: () => import('../views/shared/HelpView.vue'),
+    meta: { public: true }
+  },
+  {
+    path: '/privacy',
+    name: 'Privacy',
+    component: () => import('../views/shared/PrivacyView.vue'),
+    meta: { public: true }
+  },
+  {
+    path: '/terms',
+    name: 'Terms',
+    component: () => import('../views/shared/TermsView.vue'),
+    meta: { public: true }
+  },
+
   // User Routes (Authenticated)
   {
     path: '/profile',
