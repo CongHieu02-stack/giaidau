@@ -39,7 +39,7 @@ export class UserRepository extends BaseRepository {
     }
 
     const referees = refereesResult.getValue().filter(r => r.status === 'active');
-    
+
     // Get busy referees for the given date/time
     const { data: busyReferees, error } = await this.client
       .from('matches')
@@ -53,10 +53,10 @@ export class UserRepository extends BaseRepository {
     }
 
     const busyRefereeIds = new Set((busyReferees || []).map(m => m.referee_id));
-    
+
     // Filter out busy referees
     const availableReferees = referees.filter(r => !busyRefereeIds.has(r.id));
-    
+
     return Result.ok(availableReferees);
   }
 
@@ -65,7 +65,7 @@ export class UserRepository extends BaseRepository {
    */
   async search(query, options = {}) {
     const { role, status, limit = 20 } = options;
-    
+
     let supabaseQuery = this.client
       .from(this.tableName)
       .select('*')
@@ -119,29 +119,54 @@ export class UserRepository extends BaseRepository {
    * Update user role
    */
   async updateRole(userId, newRole) {
-    const { data, error } = await this.client
+    console.log('[UserRepository] updateRole called:', { userId, newRole });
+
+    // First check if user exists
+    const { data: existing, error: fetchError } = await this.client
       .from(this.tableName)
-      .update({ role: newRole, updated_at: new Date() })
+      .select('id, role')
       .eq('id', userId)
-      .select()
       .single();
 
-    if (error) {
-      return Result.err(error.message);
+    console.log('[UserRepository] fetch existing user:', { existing, fetchError });
+
+    if (fetchError) {
+      return Result.err('Lỗi kiểm tra người dùng: ' + fetchError.message);
     }
 
-    return Result.ok(this.domainClass.fromDB(data));
+    if (!existing) {
+      return Result.err('Không tìm thấy người dùng với ID: ' + userId);
+    }
+
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .update({ role: newRole, updated_at: new Date().toISOString() })
+      .eq('id', userId)
+      .select();
+
+    console.log('[UserRepository] updateRole result:', { data, error });
+
+    if (error) {
+      return Result.err('Lỗi cập nhật vai trò: ' + error.message + (error.details ? ' | ' + error.details : '') + (error.hint ? ' | Gợi ý: ' + error.hint : ''));
+    }
+
+    if (!data || data.length === 0) {
+      // RLS policy likely blocked the update even though user exists
+      return Result.err('Không có quyền cập nhật vai trò (RLS Policy). Vui lòng kiểm tra cấu hình Supabase.');
+    }
+
+    return Result.ok(this.domainClass.fromDB(data[0]));
   }
 
   /**
    * Update user status
    */
   async updateStatus(userId, status, reason = null) {
-    const updateData = { 
-      status, 
-      updated_at: new Date() 
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
     };
-    
+
     if (reason) {
       updateData.suspension_reason = reason;
     }
@@ -150,14 +175,17 @@ export class UserRepository extends BaseRepository {
       .from(this.tableName)
       .update(updateData)
       .eq('id', userId)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       return Result.err(error.message);
     }
 
-    return Result.ok(this.domainClass.fromDB(data));
+    if (!data || data.length === 0) {
+      return Result.err('Không tìm thấy người dùng');
+    }
+
+    return Result.ok(this.domainClass.fromDB(data[0]));
   }
 }
 

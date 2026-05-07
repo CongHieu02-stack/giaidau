@@ -31,23 +31,62 @@
             <i class="pi pi-chevron-down"></i>
           </button>
           
-          <div v-if="showDropdown" class="dropdown">
+          <div v-if="showDropdown" class="dropdown" @click.stop>
+            <!-- Header with avatar -->
             <div class="dropdown-header">
-              <div class="dropdown-user-name">{{ authStore.userDisplayName }}</div>
-              <div class="dropdown-user-role">{{ authStore.userRoleDisplay }}</div>
+              <div class="dropdown-avatar">
+                {{ authStore.userDisplayName?.charAt(0)?.toUpperCase() }}
+              </div>
+              <div class="dropdown-info">
+                <div class="dropdown-user-name">{{ authStore.userDisplayName }}</div>
+                <div class="dropdown-user-role">
+                  <i class="pi pi-circle-fill role-dot"></i>
+                  {{ authStore.userRoleDisplay }}
+                </div>
+              </div>
             </div>
-            <div class="divider"></div>
-            <router-link to="/profile" class="dropdown-link">👤 Hồ sơ</router-link>
-            
-            <!-- Role-specific dashboard links -->
-            <router-link v-if="authStore.isSuperAdmin" to="/admin" class="dropdown-link">⚙️ Dashboard Admin</router-link>
-            <router-link v-if="authStore.isTournamentAdmin" to="/tournament-admin" class="dropdown-link">🏆 QL Giải đấu</router-link>
-            <router-link v-if="authStore.isClubAdmin" to="/club-admin" class="dropdown-link">🏢 QL Câu lạc bộ</router-link>
-            <router-link v-if="authStore.isClubManager" to="/club" class="dropdown-link">🏟️ Câu lạc bộ</router-link>
-            <router-link v-if="authStore.isReferee" to="/referee" class="dropdown-link">⚖️ Trọng tài</router-link>
-            
-            <div class="divider"></div>
-            <button @click="logout" class="dropdown-link logout">🚪 Đăng xuất</button>
+
+            <div class="dropdown-section">
+              <router-link to="/profile" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon profile"><i class="pi pi-user"></i></span>
+                <span class="link-text">Hồ sơ</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+
+              <!-- Role-specific dashboard links -->
+              <router-link v-if="authStore.isSuperAdmin" to="/admin" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon admin"><i class="pi pi-cog"></i></span>
+                <span class="link-text">Dashboard Admin</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+              <router-link v-if="authStore.isTournamentAdmin" to="/tournament-admin" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon tournament"><i class="pi pi-trophy"></i></span>
+                <span class="link-text">QL Giải đấu</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+              <router-link v-if="authStore.isClubAdmin" to="/club-admin" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon club"><i class="pi pi-shield"></i></span>
+                <span class="link-text">QL Câu lạc bộ</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+              <router-link v-if="authStore.isClubManager" to="/club" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon manager"><i class="pi pi-building"></i></span>
+                <span class="link-text">Câu lạc bộ</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+              <router-link v-if="authStore.isReferee" to="/referee" class="dropdown-link" @click="showDropdown = false">
+                <span class="link-icon referee"><i class="pi pi-flag"></i></span>
+                <span class="link-text">Trọng tài</span>
+                <i class="pi pi-chevron-right link-arrow"></i>
+              </router-link>
+            </div>
+
+            <div class="dropdown-footer">
+              <button @click="logout" class="logout-btn">
+                <i class="pi pi-sign-out"></i>
+                <span>Đăng xuất</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -371,66 +410,191 @@ const logout = async () => {
 /* Dropdown */
 .dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 10px);
   right: 0;
-  margin-top: 0.5rem;
-  min-width: 200px;
-  background: rgba(30, 27, 75, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  min-width: 260px;
+  background: rgba(13, 11, 40, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(99, 102, 241, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: dropdownIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
 }
 
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header */
 .dropdown-header {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 1rem 1.125rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dropdown-avatar {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.dropdown-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .dropdown-user-name {
   font-weight: 600;
   color: white;
-  font-size: 0.875rem;
-  max-width: 180px;
+  font-size: 0.9rem;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dropdown-user-role {
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 0.2rem;
 }
 
+.role-dot {
+  font-size: 0.45rem;
+  color: #22c55e;
+  filter: drop-shadow(0 0 4px #22c55e);
+}
+
+/* Section */
+.dropdown-section {
+  padding: 0.5rem;
+}
+
+/* Links */
 .dropdown-link {
-  display: block;
-  padding: 0.5rem 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+  font-weight: 500;
   text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.dropdown-link:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-}
-
-.dropdown-link.logout {
-  color: #f87171;
-  background: none;
+  border-radius: 0.625rem;
+  transition: all 0.18s ease;
+  cursor: pointer;
   border: none;
+  background: none;
   width: 100%;
   text-align: left;
-  cursor: pointer;
   font-family: inherit;
 }
 
-.dropdown-link.logout:hover {
-  background: rgba(248, 113, 113, 0.1);
+.dropdown-link:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: white;
+}
+
+.dropdown-link:hover .link-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* Link icon badges */
+.link-icon {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: transform 0.18s ease;
+}
+
+.dropdown-link:hover .link-icon {
+  transform: scale(1.1);
+}
+
+.link-icon.profile  { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+.link-icon.admin    { background: rgba(239, 68, 68, 0.2);  color: #fca5a5; }
+.link-icon.tournament { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+.link-icon.club     { background: rgba(6, 182, 212, 0.2);  color: #67e8f9; }
+.link-icon.manager  { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+.link-icon.referee  { background: rgba(34, 197, 94, 0.2);  color: #86efac; }
+
+.link-text {
+  flex: 1;
+}
+
+.link-arrow {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.25);
+  opacity: 0;
+  transition: all 0.18s ease;
+}
+
+/* Footer / Logout */
+.dropdown-footer {
+  padding: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.625rem;
+  color: #f87171;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  transform: translateY(-1px);
+}
+
+.logout-btn .pi {
+  font-size: 0.9rem;
 }
 
 /* Mobile Button */

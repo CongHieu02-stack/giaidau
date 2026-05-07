@@ -1,57 +1,54 @@
 <template>
-  <div class="tournament-card group" @click="navigateToDetail">
-    <!-- Image Header -->
-    <div class="card-header">
-      <div class="sport-icon">{{ sportIcon }}</div>
-      <div class="status-badge" :class="statusClass">
+  <div class="t-card" @click="navigateToDetail" :style="{ animationDelay: 'inherit' }">
+    <div class="card-glow"></div>
+
+    <!-- Header -->
+    <div class="card-header" :class="headerClass">
+      <div class="header-pattern"></div>
+      <div class="sport-emoji">{{ sportIcon }}</div>
+      <span class="status-badge" :class="statusClass">
+        <i :class="statusIcon"></i>
         {{ statusText }}
-      </div>
-      <div class="overlay"></div>
+      </span>
     </div>
 
-    <!-- Content -->
-    <div class="card-content">
-      <h3 class="tournament-name">{{ tournament.name }}</h3>
-      
-      <div class="tournament-info">
-        <div class="info-item">
-          <i class="pi pi-tag"></i>
+    <!-- Body -->
+    <div class="card-body">
+      <h3 class="t-name">{{ tournament.name }}</h3>
+
+      <div class="info-list">
+        <div class="info-row">
+          <span class="info-icon sport"><i class="pi pi-tag"></i></span>
           <span>{{ sportName }}</span>
         </div>
-        <div class="info-item">
-          <i class="pi pi-calendar"></i>
+        <div class="info-row">
+          <span class="info-icon date"><i class="pi pi-calendar"></i></span>
           <span>{{ dateDisplay }}</span>
         </div>
-        <div class="info-item">
-          <i class="pi pi-users"></i>
+        <div class="info-row">
+          <span class="info-icon team"><i class="pi pi-users"></i></span>
           <span>{{ registrationDisplay }}</span>
         </div>
       </div>
 
-      <!-- Progress bar for registration -->
-      <div v-if="showProgress" class="registration-progress">
-        <div class="progress-bar">
-          <div 
-            class="progress-fill"
-            :style="{ width: `${progressPercentage}%` }"
-          ></div>
+      <!-- Progress bar -->
+      <div v-if="showProgress" class="prog-wrap">
+        <div class="prog-track">
+          <div class="prog-fill" :style="{ width: progressPercentage + '%' }"></div>
         </div>
-        <span class="progress-text">{{ progressPercentage }}% đã đăng ký</span>
+        <span class="prog-text">{{ progressPercentage }}% đã đăng ký</span>
       </div>
 
-      <!-- Champion display for completed tournaments -->
-      <div v-if="isCompleted && tournament.champion_club" class="champion-section">
-        <i class="pi pi-star-fill text-yellow-400"></i>
+      <!-- Champion -->
+      <div v-if="isCompleted && tournament.champion_club" class="champion-row">
+        <i class="pi pi-star-fill"></i>
         <span>Vô địch: {{ tournament.champion_club.name }}</span>
       </div>
     </div>
 
-    <!-- Hover Action -->
-    <div class="card-action">
-      <button class="action-btn">
-        <span>Xem chi tiết</span>
-        <i class="pi pi-arrow-right"></i>
-      </button>
+    <!-- Footer CTA -->
+    <div class="card-footer">
+      <span class="cta">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
     </div>
   </div>
 </template>
@@ -61,283 +58,206 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { formatDate } from '../../utils/helpers.js';
 
-const props = defineProps({
-  tournament: {
-    type: Object,
-    required: true
-  }
-});
-
+const props = defineProps({ tournament: { type: Object, required: true } });
 const router = useRouter();
 
-const sportIcon = computed(() => {
-  const icons = {
-    'Bóng đá': '⚽',
-    'Bóng rổ': '🏀',
-    'Cầu lông': '🏸',
-    'Pickleball': '🎾',
-    'Tennis': '🎾',
-    'Bóng chuyền': '🏐',
-    'Bơi lội': '🏊',
-    'Điền kinh': '🏃'
-  };
-  return icons[props.tournament.sport_category?.name] || '🏆';
-});
+const sportIcon = computed(() => ({
+  'Bóng đá': '⚽', 'Bóng rổ': '🏀', 'Cầu lông': '🏸',
+  'Pickleball': '🎾', 'Tennis': '🎾', 'Bóng chuyền': '🏐',
+  'Bơi lội': '🏊', 'Điền kinh': '🏃'
+}[props.tournament.sport_category?.name] || '🏆'));
 
-const sportName = computed(() => {
-  return props.tournament.sport_category?.name || 'Thể thao';
-});
+const sportName = computed(() => props.tournament.sport_category?.name || 'Thể thao');
 
-const statusClass = computed(() => {
-  const classes = {
-    'upcoming': 'status-upcoming',
-    'registration_open': 'status-open',
-    'registration_closed': 'status-closed',
-    'ongoing': 'status-ongoing',
-    'completed': 'status-completed',
-    'cancelled': 'status-cancelled'
-  };
-  return classes[props.tournament.status] || 'status-upcoming';
-});
+const headerClass = computed(() => ({
+  'upcoming': 'hdr-upcoming', 'registration_open': 'hdr-open',
+  'registration_closed': 'hdr-closed', 'ongoing': 'hdr-ongoing',
+  'completed': 'hdr-done', 'cancelled': 'hdr-cancel'
+}[props.tournament.status] || 'hdr-upcoming'));
 
-const statusText = computed(() => {
-  const texts = {
-    'upcoming': 'Sắp diễn ra',
-    'registration_open': 'Đang mở đăng ký',
-    'registration_closed': 'Đóng đăng ký',
-    'ongoing': 'Đang diễn ra',
-    'completed': 'Đã kết thúc',
-    'cancelled': 'Đã hủy'
-  };
-  return texts[props.tournament.status] || 'Không xác định';
-});
+const statusClass = computed(() => ({
+  'upcoming': 'sb-upcoming', 'registration_open': 'sb-open',
+  'registration_closed': 'sb-closed', 'ongoing': 'sb-ongoing',
+  'completed': 'sb-done', 'cancelled': 'sb-cancel'
+}[props.tournament.status] || 'sb-upcoming'));
+
+const statusIcon = computed(() => ({
+  'upcoming': 'pi pi-clock', 'registration_open': 'pi pi-user-plus',
+  'registration_closed': 'pi pi-lock', 'ongoing': 'pi pi-play',
+  'completed': 'pi pi-check-circle', 'cancelled': 'pi pi-times-circle'
+}[props.tournament.status] || 'pi pi-clock'));
+
+const statusText = computed(() => ({
+  'upcoming': 'Sắp diễn ra', 'registration_open': 'Đang mở đăng ký',
+  'registration_closed': 'Đóng đăng ký', 'ongoing': 'Đang diễn ra',
+  'completed': 'Đã kết thúc', 'cancelled': 'Đã hủy'
+}[props.tournament.status] || 'Không xác định'));
 
 const dateDisplay = computed(() => {
-  if (props.tournament.start_date && props.tournament.end_date) {
-    return `${formatDate(props.tournament.start_date)} - ${formatDate(props.tournament.end_date)}`;
-  }
+  if (props.tournament.start_date && props.tournament.end_date)
+    return `${formatDate(props.tournament.start_date)} – ${formatDate(props.tournament.end_date)}`;
   return formatDate(props.tournament.start_date) || 'Chưa xác định';
 });
 
 const registrationDisplay = computed(() => {
-  const count = props.tournament.registration_count || 0;
-  const max = props.tournament.max_teams || 0;
-  if (max > 0) {
-    return `${count}/${max} đội`;
-  }
-  return `${count} đội đăng ký`;
+  const c = props.tournament.registration_count || 0;
+  const m = props.tournament.max_teams || 0;
+  return m > 0 ? `${c}/${m} đội` : `${c} đội đăng ký`;
 });
 
-const showProgress = computed(() => {
-  return ['upcoming', 'registration_open'].includes(props.tournament.status) &&
-         props.tournament.max_teams > 0;
-});
+const showProgress = computed(() =>
+  ['upcoming', 'registration_open'].includes(props.tournament.status) && props.tournament.max_teams > 0);
 
 const progressPercentage = computed(() => {
-  const count = props.tournament.registration_count || 0;
-  const max = props.tournament.max_teams || 1;
-  return Math.min(Math.round((count / max) * 100), 100);
+  const c = props.tournament.registration_count || 0;
+  const m = props.tournament.max_teams || 1;
+  return Math.min(Math.round((c / m) * 100), 100);
 });
 
-const isCompleted = computed(() => {
-  return props.tournament.status === 'completed';
-});
-
-const navigateToDetail = () => {
-  router.push(`/tournaments/${props.tournament.id}`);
-};
+const isCompleted = computed(() => props.tournament.status === 'completed');
+const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`);
 </script>
 
 <style scoped>
-.tournament-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
+.t-card {
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.25rem;
   overflow: hidden;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  opacity: 0;
+  animation: fadeUp 0.5s ease forwards;
 }
 
-.tournament-card:hover {
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(20px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+.t-card:hover {
   transform: translateY(-8px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
 }
 
+.card-glow {
+  position: absolute; inset: 0; opacity: 0;
+  background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.12), transparent 65%);
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.t-card:hover .card-glow { opacity: 1; }
+
+/* ── Header ── */
 .card-header {
-  height: 120px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sport-icon {
-  font-size: 4rem;
-  z-index: 1;
-}
-
-.status-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  z-index: 2;
-}
-
-.status-upcoming {
-  background: rgba(156, 163, 175, 0.9);
-  color: white;
-}
-
-.status-open {
-  background: rgba(34, 197, 94, 0.9);
-  color: white;
-}
-
-.status-closed {
-  background: rgba(251, 191, 36, 0.9);
-  color: #92400e;
-}
-
-.status-ongoing {
-  background: rgba(59, 130, 246, 0.9);
-  color: white;
-  animation: pulse 2s infinite;
-}
-
-.status-completed {
-  background: rgba(107, 114, 128, 0.9);
-  color: white;
-}
-
-.status-cancelled {
-  background: rgba(239, 68, 68, 0.9);
-  color: white;
-}
-
-.overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.1));
-}
-
-.card-content {
-  padding: 1.25rem;
-}
-
-.tournament-name {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.75rem;
-  line-height: 1.4;
-}
-
-.tournament-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.info-item i {
-  color: #3b82f6;
-  font-size: 0.875rem;
-}
-
-.registration-progress {
-  margin-top: 1rem;
-}
-
-.progress-bar {
-  height: 6px;
-  background: #e5e7eb;
-  border-radius: 3px;
+  height: 130px; position: relative;
+  display: flex; align-items: center; justify-content: center;
   overflow: hidden;
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-  border-radius: 3px;
-  transition: width 0.5s ease;
+.hdr-upcoming   { background: linear-gradient(135deg,#1e3a5f,#2563eb); }
+.hdr-open       { background: linear-gradient(135deg,#14532d,#16a34a); }
+.hdr-closed     { background: linear-gradient(135deg,#713f12,#d97706); }
+.hdr-ongoing    { background: linear-gradient(135deg,#312e81,#6366f1); }
+.hdr-done       { background: linear-gradient(135deg,#1f2937,#374151); }
+.hdr-cancel     { background: linear-gradient(135deg,#7f1d1d,#ef4444); }
+
+.header-pattern {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
-.progress-text {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: #6b7280;
+.sport-emoji { font-size: 3.5rem; z-index: 1; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4)); }
+
+.status-badge {
+  position: absolute; top: 10px; right: 10px;
+  display: flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700;
+  backdrop-filter: blur(10px); z-index: 2;
 }
 
-.champion-section {
-  margin-top: 1rem;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #fef3c7, #fde68a);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #92400e;
+.sb-upcoming  { background:rgba(96,165,250,0.25); color:#93c5fd; border:1px solid rgba(96,165,250,0.3); }
+.sb-open      { background:rgba(34,197,94,0.25);  color:#86efac; border:1px solid rgba(34,197,94,0.3); }
+.sb-closed    { background:rgba(251,191,36,0.25); color:#fde68a; border:1px solid rgba(251,191,36,0.3); }
+.sb-ongoing   { background:rgba(99,102,241,0.25); color:#a5b4fc; border:1px solid rgba(99,102,241,0.3); animation: pulse 2s infinite; }
+.sb-done      { background:rgba(107,114,128,0.3); color:#d1d5db; border:1px solid rgba(107,114,128,0.3); }
+.sb-cancel    { background:rgba(239,68,68,0.25);  color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
+
+/* ── Body ── */
+.card-body { padding: 1.125rem 1.25rem 0.75rem; }
+
+.t-name {
+  font-size: 1.05rem; font-weight: 700; color: white;
+  margin-bottom: 0.875rem; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
 }
 
-.card-action {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 1rem;
-  background: linear-gradient(to top, rgba(255, 255, 255, 0.95), transparent);
-  opacity: 0;
-  transform: translateY(10px);
-  transition: all 0.3s ease;
+.info-list { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.info-row {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.82rem; color: rgba(255,255,255,0.55);
 }
 
-.tournament-card:hover .card-action {
-  opacity: 1;
-  transform: translateY(0);
+.info-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.7rem; flex-shrink: 0;
+}
+.info-icon.sport  { background:rgba(99,102,241,0.2); color:#a5b4fc; }
+.info-icon.date   { background:rgba(245,158,11,0.2); color:#fcd34d; }
+.info-icon.team   { background:rgba(34,197,94,0.2);  color:#86efac; }
+
+/* Progress */
+.prog-wrap { margin-top: 0.875rem; }
+.prog-track {
+  height: 5px; background:rgba(255,255,255,0.08);
+  border-radius: 999px; overflow:hidden;
+}
+.prog-fill {
+  height:100%;
+  background: linear-gradient(90deg,#6366f1,#8b5cf6);
+  border-radius:999px; transition:width 0.6s ease;
+}
+.prog-text { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; display:block; }
+
+/* Champion */
+.champion-row {
+  margin-top:0.875rem; padding:0.6rem 0.75rem;
+  background:linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.08));
+  border:1px solid rgba(251,191,36,0.2); border-radius:0.625rem;
+  display:flex; align-items:center; gap:0.5rem;
+  font-size:0.8rem; font-weight:600; color:#fde68a;
 }
 
-.action-btn {
-  width: 100%;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
+/* Footer */
+.card-footer {
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex; justify-content: flex-end;
 }
 
-.action-btn:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+.cta {
+  display: flex; align-items: center; gap: 0.375rem;
+  font-size: 0.8rem; font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  transition: all 0.2s;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
+.t-card:hover .cta {
+  color: #a5b4fc;
 }
+
+.t-card:hover .cta .pi {
+  transform: translateX(3px);
+}
+
+.cta .pi { transition: transform 0.2s; }
 </style>

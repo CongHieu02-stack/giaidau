@@ -6,6 +6,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { authService } from '../services/AuthService.js';
 import { UserRole } from '../types/index.js';
+import { User } from '../domain/User.js';
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -264,6 +265,30 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null;
   }
 
+  // Refresh profile from database (call after role change)
+  async function refreshProfile() {
+    if (!user.value?.id) return;
+
+    loading.value = true;
+    try {
+      const { data, error: err } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.value.id)
+        .single();
+
+      if (err) throw err;
+
+      if (data) {
+        profile.value = new User(data);
+      }
+    } catch (err) {
+      console.error('Refresh profile error:', err);
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     // State
     user,
@@ -302,7 +327,8 @@ export const useAuthStore = defineStore('auth', () => {
     hasPermission,
     canManageTournament,
     canManageClub,
-    clearError
+    clearError,
+    refreshProfile
   };
 });
 import { supabase } from '../config/supabase.js';

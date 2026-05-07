@@ -1,116 +1,126 @@
 <template>
-  <div class="min-h-screen py-8 px-4">
+  <div class="page-wrapper">
     <div class="max-w-7xl mx-auto">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 class="text-3xl font-bold text-white mb-2">Câu lạc bộ</h1>
-          <p class="text-white/60">Danh sách các câu lạc bộ đã đăng ký</p>
-        </div>
-        <div class="flex gap-3">
-          <div class="relative">
-            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-white/50"></i>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Tìm kiếm câu lạc bộ..."
-              class="search-input"
-            />
+
+      <!-- Hero -->
+      <div class="page-hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+          <div class="hero-icon"><i class="pi pi-shield"></i></div>
+          <div>
+            <h1 class="hero-title">Câu lạc bộ</h1>
+            <p class="hero-subtitle">Danh sách các câu lạc bộ đã đăng ký</p>
           </div>
-          <button v-if="authStore.isAuthenticated" @click="showCreateModal = true" class="btn-primary">
-            <i class="pi pi-plus mr-2"></i>
-            Tạo CLB
+        </div>
+        <div class="controls-row">
+          <div class="search-wrap">
+            <i class="pi pi-search search-ico"></i>
+            <input v-model="searchQuery" type="text" placeholder="Tìm kiếm câu lạc bộ..." class="search-field" />
+            <button v-if="searchQuery" @click="searchQuery = ''" class="clear-ico"><i class="pi pi-times"></i></button>
+          </div>
+          <button v-if="authStore.isAuthenticated" @click="showCreateModal = true" class="btn-create">
+            <i class="pi pi-plus"></i> Tạo CLB
           </button>
         </div>
       </div>
 
-      <!-- Club Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="club in filteredClubs" :key="club.id" class="club-card">
+      <!-- Stats -->
+      <div class="stats-bar">
+        <div class="stat-pill" v-for="s in statsPills" :key="s.label">
+          <span class="pill-val">{{ s.val }}</span>
+          <span class="pill-label">{{ s.label }}</span>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div v-if="loading" class="skeletons">
+        <div v-for="n in 6" :key="n" class="skeleton-card">
+          <div class="sk-header"></div>
+          <div class="sk-body">
+            <div class="sk-line w60"></div>
+            <div class="sk-line w80"></div>
+            <div class="sk-line w40"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid -->
+      <div v-else-if="filteredClubs.length > 0" class="clubs-grid">
+        <div v-for="(club, i) in filteredClubs" :key="club.id" class="club-card" :style="{ animationDelay: `${i * 0.06}s` }">
+          <div class="card-glow"></div>
           <div class="club-header">
             <div class="club-logo">
               <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" />
-              <div v-else class="logo-placeholder">{{ getInitials(club.name) }}</div>
+              <span v-else class="logo-initials">{{ getInitials(club.name) }}</span>
             </div>
-            <div class="status-badge" :class="getStatusClass(club.status)">
+            <span class="status-badge" :class="getStatusClass(club.status)">
               {{ getStatusText(club.status) }}
-            </div>
+            </span>
           </div>
-          
-          <div class="club-content">
+          <div class="club-body">
             <h3 class="club-name">{{ club.name }}</h3>
-            <p class="club-description">{{ club.description || 'Chưa có mô tả' }}</p>
-            
+            <p class="club-desc">{{ club.description || 'Chưa có mô tả' }}</p>
             <div class="club-stats">
-              <div class="stat">
-                <i class="pi pi-users"></i>
+              <div class="c-stat">
+                <span class="c-stat-icon members"><i class="pi pi-users"></i></span>
                 <span>{{ club.member_count || 0 }} thành viên</span>
               </div>
-              <div class="stat">
-                <i class="pi pi-trophy"></i>
+              <div class="c-stat">
+                <span class="c-stat-icon trophies"><i class="pi pi-trophy"></i></span>
                 <span>{{ club.tournament_count || 0 }} giải đấu</span>
               </div>
             </div>
           </div>
-
           <div class="club-footer">
             <router-link :to="`/clubs/${club.id}`" class="btn-view">
-              Xem chi tiết
-              <i class="pi pi-arrow-right ml-2"></i>
+              Xem chi tiết <i class="pi pi-arrow-right"></i>
             </router-link>
           </div>
         </div>
       </div>
 
-      <!-- Empty State -->
-      <div v-if="filteredClubs.length === 0" class="text-center py-16">
-        <i class="pi pi-users text-6xl text-white/20 mb-4"></i>
-        <p class="text-white/60">Không tìm thấy câu lạc bộ nào</p>
+      <!-- Empty -->
+      <div v-else class="empty-state">
+        <div class="empty-icon"><i class="pi pi-shield"></i></div>
+        <h3>Không tìm thấy câu lạc bộ nào</h3>
+        <p>Thử tìm kiếm với từ khóa khác</p>
       </div>
     </div>
 
-    <!-- Create Club Modal -->
+    <!-- Create Modal -->
     <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
       <div class="modal-panel">
         <div class="modal-header">
-          <h2 class="modal-title">Tạo câu lạc bộ mới</h2>
-          <button @click="showCreateModal = false" class="modal-close">
-            <i class="pi pi-times"></i>
-          </button>
+          <div class="modal-title-wrap">
+            <div class="modal-icon"><i class="pi pi-plus"></i></div>
+            <h2 class="modal-title">Tạo câu lạc bộ mới</h2>
+          </div>
+          <button @click="showCreateModal = false" class="modal-close"><i class="pi pi-times"></i></button>
         </div>
-
-        <form @submit.prevent="handleCreate">
+        <form @submit.prevent="handleCreate" class="modal-body">
           <div class="form-grid">
             <label class="field field-wide">
-              <span>Tên CLB <span class="required">*</span></span>
-              <input v-model.trim="createForm.name" type="text" placeholder="Nhập tên câu lạc bộ" required>
+              <span>Tên CLB <span class="req">*</span></span>
+              <input v-model.trim="createForm.name" type="text" placeholder="Nhập tên câu lạc bộ" required />
             </label>
-
             <label class="field">
               <span>Tên viết tắt</span>
-              <input v-model.trim="createForm.short_name" type="text" placeholder="VD: MU, RM, BAR">
+              <input v-model.trim="createForm.short_name" type="text" placeholder="VD: MU, RM" />
             </label>
-
             <label class="field">
               <span>Logo URL</span>
-              <input v-model.trim="createForm.logo_url" type="url" placeholder="https://example.com/logo.png">
+              <input v-model.trim="createForm.logo_url" type="url" placeholder="https://..." />
             </label>
-
             <label class="field field-wide">
               <span>Mô tả</span>
               <textarea v-model.trim="createForm.description" rows="3" placeholder="Giới thiệu về câu lạc bộ..."></textarea>
             </label>
           </div>
-
-          <div v-if="createError" class="form-error">{{ createError }}</div>
-
+          <div v-if="createError" class="form-error"><i class="pi pi-exclamation-circle"></i> {{ createError }}</div>
           <div class="modal-actions">
-            <button type="button" @click="showCreateModal = false" class="btn-secondary" :disabled="creating">
-              Hủy
-            </button>
-            <button type="submit" class="btn-primary" :disabled="creating">
-              <i v-if="creating" class="pi pi-spinner pi-spin mr-2"></i>
-              <i v-else class="pi pi-check mr-2"></i>
+            <button type="button" @click="showCreateModal = false" class="btn-cancel" :disabled="creating">Hủy</button>
+            <button type="submit" class="btn-submit" :disabled="creating">
+              <i :class="creating ? 'pi pi-spinner pi-spin' : 'pi pi-check'"></i>
               {{ creating ? 'Đang tạo...' : 'Tạo CLB' }}
             </button>
           </div>
@@ -130,106 +140,52 @@ const authStore = useAuthStore();
 const clubs = ref([]);
 const searchQuery = ref('');
 const loading = ref(false);
-
-const filteredClubs = computed(() => {
-  if (!searchQuery.value) return clubs.value;
-  const query = searchQuery.value.toLowerCase();
-  return clubs.value.filter(club => 
-    club.name.toLowerCase().includes(query) ||
-    (club.description && club.description.toLowerCase().includes(query))
-  );
-});
-
-const getInitials = (name) => {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-};
-
-const getStatusClass = (status) => {
-  const classes = {
-    'pending': 'status-pending',
-    'approved': 'status-approved',
-    'rejected': 'status-rejected',
-    'suspended': 'status-suspended',
-    'dissolved': 'status-dissolved'
-  };
-  return classes[status] || 'status-pending';
-};
-
-const getStatusText = (status) => {
-  const texts = {
-    'pending': 'Chờ duyệt',
-    'approved': 'Đã duyệt',
-    'rejected': 'Từ chối',
-    'suspended': 'Tạm khóa',
-    'dissolved': 'Giải thể'
-  };
-  return texts[status] || 'Không xác định';
-};
-
 const showCreateModal = ref(false);
 const creating = ref(false);
 const createError = ref('');
-const createForm = ref({
-  name: '',
-  short_name: '',
-  description: '',
-  logo_url: ''
+const createForm = ref({ name: '', short_name: '', description: '', logo_url: '' });
+
+const filteredClubs = computed(() => {
+  if (!searchQuery.value) return clubs.value;
+  const q = searchQuery.value.toLowerCase();
+  return clubs.value.filter(c => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q));
 });
 
-const resetCreateForm = () => {
-  createForm.value = { name: '', short_name: '', description: '', logo_url: '' };
-  createError.value = '';
-};
+const statsPills = computed(() => [
+  { val: clubs.value.length, label: 'Tổng CLB' },
+  { val: clubs.value.filter(c => c.status === 'approved').length, label: 'Đã duyệt' },
+  { val: clubs.value.filter(c => c.status === 'pending').length, label: 'Chờ duyệt' },
+  { val: clubs.value.reduce((s, c) => s + (c.member_count || 0), 0), label: 'Thành viên' },
+]);
+
+const getInitials = n => n.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+const getStatusClass = s => ({ pending: 'sb-pending', approved: 'sb-approved', rejected: 'sb-rejected', suspended: 'sb-suspended', dissolved: 'sb-dissolved' }[s] || 'sb-pending');
+const getStatusText  = s => ({ pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối', suspended: 'Tạm khóa', dissolved: 'Giải thể' }[s] || 'Không xác định');
+
+const resetForm = () => { createForm.value = { name:'', short_name:'', description:'', logo_url:'' }; createError.value = ''; };
 
 const handleCreate = async () => {
-  if (!createForm.value.name.trim()) {
-    createError.value = 'Vui lòng nhập tên câu lạc bộ';
-    return;
-  }
-
-  creating.value = true;
-  createError.value = '';
-
+  if (!createForm.value.name.trim()) { createError.value = 'Vui lòng nhập tên câu lạc bộ'; return; }
+  creating.value = true; createError.value = '';
   try {
     const now = new Date().toISOString();
-    const payload = {
+    const { data, error } = await supabase.from('clubs').insert({
       name: createForm.value.name.trim(),
       short_name: createForm.value.short_name.trim() || null,
       description: createForm.value.description.trim() || null,
       logo_url: createForm.value.logo_url.trim() || null,
       leader_id: authStore.user?.id || null,
-      status: 'pending',
-      member_count: 0,
-      tournament_count: 0,
-      created_at: now,
-      updated_at: now
-    };
-
-    console.log('[ClubsView] Insert payload:', payload);
-
-    const { data, error } = await supabase
-      .from('clubs')
-      .insert(payload)
-      .select()
-      .single();
-
-    console.log('[ClubsView] Insert response:', { data, error });
-
-    if (error) {
-      console.error('[ClubsView] Supabase error:', error);
-      throw new Error(error.message);
-    }
-
-    if (!data) {
-      throw new Error('Không nhận được dữ liệu sau khi tạo. Có thể do chính sách bảo mật (RLS) chặn thao tác này.');
-    }
-
+      status: 'pending', member_count: 0, tournament_count: 0,
+      created_at: now, updated_at: now
+    }).select().single();
+    if (error) throw new Error(error.message);
+    if (!data) throw new Error('Không nhận được dữ liệu. Có thể do RLS policy.');
     clubs.value.unshift(data);
     showCreateModal.value = false;
-    resetCreateForm();
+    resetForm();
   } catch (err) {
-    console.error('[ClubsView] Create club failed:', err);
-    createError.value = err.message || err?.error_description || 'Tạo câu lạc bộ thất bại';
+    createError.value = err.message || 'Tạo câu lạc bộ thất bại';
   } finally {
     creating.value = false;
   }
@@ -239,321 +195,198 @@ onMounted(async () => {
   loading.value = true;
   try {
     const result = await clubRepository.findByStatus('approved');
-    if (result.isOk()) {
-      clubs.value = result.getValue();
-    }
-  } catch (error) {
-    console.error('Failed to load clubs:', error);
-  } finally {
-    loading.value = false;
-  }
+    if (result.isOk()) clubs.value = result.getValue();
+  } catch (e) { console.error(e); }
+  finally { loading.value = false; }
 });
 </script>
 
 <style scoped>
-.search-input {
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
-  color: white;
-  min-width: 300px;
-}
+.page-wrapper { min-height: 100vh; padding: 6rem 1.5rem 3rem; }
 
-.search-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  background: rgba(255, 255, 255, 0.15);
+/* Hero */
+.page-hero {
+  position: relative; margin-bottom: 1.5rem;
+  padding: 2rem 2rem 1.5rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.5rem; overflow: hidden;
 }
-
-.btn-primary {
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-  font-weight: 600;
-  border-radius: 0.75rem;
-  transition: all 0.3s ease;
+.hero-glow {
+  position: absolute; top: -60px; left: -60px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+  pointer-events: none;
 }
-
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+.hero-content { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.hero-icon {
+  width: 56px; height: 56px; border-radius: 1rem; flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: white;
+  box-shadow: 0 8px 24px rgba(99,102,241,0.4);
 }
+.hero-title { font-size: 2rem; font-weight: 800; color: white; line-height: 1.1; }
+.hero-subtitle { font-size: 0.9rem; color: rgba(255,255,255,0.5); margin-top: 0.25rem; }
 
+.controls-row { display: flex; flex-wrap: wrap; gap: 0.875rem; align-items: center; }
+
+/* Search */
+.search-wrap { position: relative; flex: 1; min-width: 220px; max-width: 380px; }
+.search-ico { position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.35); font-size: 0.9rem; }
+.search-field {
+  width: 100%; padding: 0.7rem 2.5rem 0.7rem 2.5rem;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.875rem; color: white; font-size: 0.875rem; transition: all 0.2s;
+}
+.search-field:focus { outline: none; border-color: rgba(99,102,241,0.5); background: rgba(255,255,255,0.09); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.search-field::placeholder { color: rgba(255,255,255,0.3); }
+.clear-ico {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; cursor: pointer; transition: all 0.2s;
+}
+.clear-ico:hover { background: rgba(239,68,68,0.3); color: #fca5a5; }
+
+.btn-create {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.7rem 1.25rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white; font-size: 0.875rem; font-weight: 600;
+  border-radius: 0.875rem; transition: all 0.25s;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+}
+.btn-create:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+
+/* Stats */
+.stats-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.stat-pill {
+  flex: 1; min-width: 130px; display: flex; flex-direction: column; align-items: center;
+  padding: 0.875rem 1rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: 1rem; transition: all 0.2s;
+}
+.stat-pill:hover { background: rgba(255,255,255,0.06); }
+.pill-val { font-size: 1.75rem; font-weight: 800; color: white; line-height: 1; }
+.pill-label { font-size: 0.75rem; color: rgba(255,255,255,0.45); margin-top: 0.25rem; }
+
+/* Grid */
+.clubs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+
+/* Club Card */
 .club-card {
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.25rem; overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  opacity: 0; animation: fadeUp 0.5s ease forwards;
 }
-
-.club-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.club-card:hover { transform: translateY(-8px); border-color: rgba(99,102,241,0.3); box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.1); }
+.card-glow {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(99,102,241,0.12), transparent 65%);
+  transition: opacity 0.3s;
 }
+.club-card:hover .card-glow { opacity: 1; }
 
+/* Club Header */
 .club-header {
-  padding: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  padding: 1.25rem 1.25rem 1rem;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-
 .club-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  width: 60px; height: 60px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
 }
-
-.club-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.logo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 1.5rem;
-}
+.club-logo img { width: 100%; height: 100%; object-fit: cover; }
+.logo-initials { color: white; font-weight: 800; font-size: 1.375rem; }
 
 .status-badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700;
 }
+.sb-pending  { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
+.sb-approved { background: rgba(34,197,94,0.15);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+.sb-rejected { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
+.sb-suspended{ background: rgba(107,114,128,0.2); color: #d1d5db; border: 1px solid rgba(107,114,128,0.3); }
+.sb-dissolved{ background: rgba(107,114,128,0.15);color: #9ca3af; border: 1px solid rgba(107,114,128,0.2); }
 
-.status-pending {
-  background: #fef3c7;
-  color: #92400e;
+/* Club Body */
+.club-body { padding: 1rem 1.25rem; }
+.club-name { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 0.4rem; }
+.club-desc {
+  font-size: 0.82rem; color: rgba(255,255,255,0.45); margin-bottom: 0.875rem;
+  line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-
-.status-approved {
-  background: #dcfce7;
-  color: #166534;
+.club-stats { display: flex; gap: 1rem; }
+.c-stat { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+.c-stat-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center; font-size: 0.7rem;
 }
+.c-stat-icon.members { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+.c-stat-icon.trophies { background: rgba(245,158,11,0.2); color: #fcd34d; }
 
-.status-rejected {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.status-suspended {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.status-dissolved {
-  background: #f3f4f6;
-  color: #6b7280;
-}
-
-.club-content {
-  padding: 0 1.5rem 1rem;
-}
-
-.club-name {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-}
-
-.club-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  margin-bottom: 1rem;
-  line-height: 1.5;
-}
-
-.club-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-}
-
-.stat i {
-  color: #3b82f6;
-}
-
-.club-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e5e7eb;
-}
-
+/* Club Footer */
+.club-footer { padding: 0.875rem 1.25rem; border-top: 1px solid rgba(255,255,255,0.05); }
 .btn-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-  font-weight: 600;
-  border-radius: 0.75rem;
-  transition: all 0.3s ease;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  width: 100%; padding: 0.65rem 1rem;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+  color: #a5b4fc; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none; transition: all 0.25s;
 }
+.btn-view:hover { background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.4); color: #c7d2fe; transform: translateY(-1px); }
+.btn-view .pi { transition: transform 0.2s; }
+.btn-view:hover .pi { transform: translateX(3px); }
 
-.btn-view:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
+/* Skeleton */
+.skeletons { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.skeleton-card { border-radius: 1.25rem; overflow: hidden; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); animation: shimmer 1.8s infinite; }
+.sk-header { height: 100px; background: rgba(255,255,255,0.06); }
+.sk-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.sk-line { height: 12px; border-radius: 6px; background: rgba(255,255,255,0.07); }
+.w60 { width: 60%; } .w80 { width: 80%; } .w40 { width: 40%; }
+@keyframes shimmer { 0%,100%{opacity:1} 50%{opacity:0.5} }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(2, 6, 23, 0.72);
-  backdrop-filter: blur(6px);
-  padding: 1rem;
-}
+/* Empty */
+.empty-state { text-align: center; padding: 5rem 1rem; }
+.empty-icon { width: 80px; height: 80px; border-radius: 50%; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem; color: rgba(99,102,241,0.5); }
+.empty-state h3 { font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
+.empty-state p { color: rgba(255,255,255,0.4); font-size: 0.875rem; }
 
-.modal-panel {
-  width: min(560px, 100%);
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
-  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.45);
-  overflow: hidden;
-}
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(2,6,23,0.8); backdrop-filter: blur(8px); padding: 1rem; }
+.modal-panel { width: min(560px, 100%); background: rgba(13,11,40,0.98); border: 1px solid rgba(255,255,255,0.1); border-radius: 1.25rem; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(99,102,241,0.1); animation: modalIn 0.25s cubic-bezier(0.16,1,0.3,1); }
+@keyframes modalIn { from{opacity:0;transform:scale(0.94) translateY(-12px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06)); }
+.modal-title-wrap { display: flex; align-items: center; gap: 0.75rem; }
+.modal-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: white; }
+.modal-title { font-size: 1.1rem; font-weight: 700; color: white; }
+.modal-close { width: 34px; height: 34px; border-radius: 8px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.modal-close:hover { background: rgba(255,255,255,0.14); color: white; }
 
-.modal-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #ffffff;
-}
+.modal-body { padding: 1.5rem; }
+.form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; margin-bottom: 1rem; }
+.field { display: flex; flex-direction: column; gap: 0.4rem; color: rgba(255,255,255,0.8); font-size: 0.85rem; font-weight: 600; }
+.field-wide { grid-column: 1 / -1; }
+.field input, .field textarea { padding: 0.65rem 0.875rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.625rem; color: white; font: inherit; transition: all 0.2s; resize: vertical; }
+.field input:focus, .field textarea:focus { outline: none; border-color: rgba(99,102,241,0.5); background: rgba(255,255,255,0.08); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,0.25); }
+.req { color: #f87171; }
+.form-error { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 0.875rem; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); border-radius: 0.625rem; color: #fca5a5; font-size: 0.85rem; margin-bottom: 1rem; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.75rem; }
+.btn-cancel { padding: 0.65rem 1.25rem; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); border-radius: 0.625rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.875rem; }
+.btn-cancel:hover { background: rgba(255,255,255,0.12); }
+.btn-submit { display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.5rem; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; border-radius: 0.625rem; font-weight: 600; cursor: pointer; transition: all 0.25s; font-size: 0.875rem; box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+.btn-cancel:disabled, .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
-.modal-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.modal-close:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  padding: 20px 22px;
-}
-
-.field {
-  display: grid;
-  gap: 6px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.field-wide {
-  grid-column: 1 / -1;
-}
-
-.field input,
-.field textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid rgba(203, 213, 225, 0.25);
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.8);
-  color: #ffffff;
-  font: inherit;
-}
-
-.field input:focus,
-.field textarea:focus {
-  outline: 2px solid rgba(96, 165, 250, 0.45);
-  border-color: #60a5fa;
-}
-
-.required {
-  color: #f87171;
-}
-
-.form-error {
-  margin: 0 22px 12px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(220, 38, 38, 0.18);
-  color: #fecaca;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 14px 22px 18px;
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.6rem 1.1rem;
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
-  font-weight: 600;
-  border-radius: 0.6rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.btn-secondary:disabled,
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-@media (max-width: 520px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
 </style>
