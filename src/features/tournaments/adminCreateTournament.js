@@ -15,12 +15,7 @@ export async function fetchSportCategories() {
   return data || [];
 }
 
-export function parseMatchTimes(value) {
-  return String(value || '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
+
 
 export function validateTournamentForm(form) {
   if (!form.name?.trim()) return 'Vui lòng nhập tên giải đấu.';
@@ -51,15 +46,9 @@ export function validateTournamentForm(form) {
   if (startDate < deadline) return 'Ngày thi đấu phải sau hạn đăng ký.';
   if (endDate && endDate < startDate) return 'Ngày kết thúc phải sau ngày bắt đầu.';
 
-  if (!Array.isArray(form.matchDays) || form.matchDays.length === 0) {
-    return 'Vui lòng chọn ít nhất một ngày thi đấu trong tuần.';
-  }
-
-  const matchTimes = parseMatchTimes(form.matchTimes);
-  if (matchTimes.length === 0) return 'Vui lòng nhập lịch giờ thi đấu.';
-  if (matchTimes.some((time) => !TIME_PATTERN.test(time))) {
-    return 'Giờ thi đấu cần đúng định dạng HH:mm, ví dụ: 17:00, 19:00.';
-  }
+  if (!form.startTime) return 'Vui lòng chọn giờ bắt đầu thi đấu.';
+  if (!TIME_PATTERN.test(form.startTime)) return 'Giờ bắt đầu thi đấu không hợp lệ.';
+  if (form.endTime && !TIME_PATTERN.test(form.endTime)) return 'Giờ kết thúc thi đấu không hợp lệ.';
 
   return '';
 }
@@ -76,8 +65,8 @@ export function buildTournamentPayload(form, createdBy) {
     registration_deadline: form.registrationDeadline,
     start_date: form.startDate,
     end_date: form.endDate || null,
-    match_days: form.matchDays.map(Number),
-    match_times: parseMatchTimes(form.matchTimes),
+    match_days: [],
+    match_times: [form.startTime, form.endTime].filter(Boolean),
     venue_requirements: form.scheduleNote?.trim() || null,
     status: 'registration_open',
     created_by: createdBy || null,
