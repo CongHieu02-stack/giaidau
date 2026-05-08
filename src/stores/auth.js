@@ -7,6 +7,7 @@ import { ref, computed } from 'vue';
 import { authService } from '../services/AuthService.js';
 import { UserRole } from '../types/index.js';
 import { User } from '../domain/User.js';
+import { supabase } from '../config/supabase.js';
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -331,4 +332,3 @@ export const useAuthStore = defineStore('auth', () => {
     refreshProfile
   };
 });
-import { supabase } from '../config/supabase.js';
