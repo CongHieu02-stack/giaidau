@@ -55,7 +55,7 @@
         <section class="form-section">
           <h2>Thời gian và lịch thi đấu</h2>
           <div class="form-grid">
-            <label class="field">
+            <label class="field field-wide">
               <span>Ngày hết hạn đăng ký</span>
               <input v-model="form.registrationDeadline" type="datetime-local" required>
             </label>
@@ -66,25 +66,22 @@
             </label>
 
             <label class="field">
+              <span>Giờ thi đấu</span>
+              <input v-model="form.startTime" type="time" required>
+            </label>
+
+            <label class="field">
               <span>Ngày kết thúc</span>
               <input v-model="form.endDate" type="date">
             </label>
 
             <label class="field">
-              <span>Giờ thi đấu</span>
-              <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" required>
+              <span>Giờ kết thúc</span>
+              <input v-model="form.endTime" type="time">
             </label>
           </div>
 
-          <div class="day-picker">
-            <span>Ngày thi đấu trong tuần</span>
-            <div class="day-list">
-              <label v-for="day in weekDays" :key="day.value" class="day-chip">
-                <input v-model="form.matchDays" type="checkbox" :value="day.value">
-                <span>{{ day.label }}</span>
-              </label>
-            </div>
-          </div>
+
         </section>
 
         <section class="form-section">
@@ -136,15 +133,7 @@ const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
 
-const weekDays = [
-  { value: 1, label: 'Thu 2' },
-  { value: 2, label: 'Thu 3' },
-  { value: 3, label: 'Thu 4' },
-  { value: 4, label: 'Thu 5' },
-  { value: 5, label: 'Thu 6' },
-  { value: 6, label: 'Thu 7' },
-  { value: 0, label: 'CN' }
-];
+
 
 const form = reactive({
   name: '',
@@ -157,8 +146,8 @@ const form = reactive({
   registrationDeadline: '',
   startDate: '',
   endDate: '',
-  matchDays: [6, 0],
-  matchTimes: '17:00, 19:00',
+  startTime: '08:00',
+  endTime: '17:00',
   scheduleNote: ''
 });
 
