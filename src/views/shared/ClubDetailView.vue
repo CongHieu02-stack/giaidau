@@ -254,42 +254,44 @@ const rejectM = async (m) => {
 };
 
 onMounted(async () => {
-  const result = await clubRepository.findById(route.params.id);
-  if (result.isOk()) {
-    club.value = result.getValue();
-
-    // Fetch leader profile
-    if (club.value.leaderId) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, email')
-        .eq('id', club.value.leaderId)
-        .maybeSingle();
-      leader.value = data;
-    }
-
-    // Fetch members
-    const { data: membersData } = await supabase
-      .from('club_members')
-      .select('id, role, status, joined_at, user:profiles(id, full_name, avatar_url, email)')
-      .eq('club_id', club.value.id)
-      .order('joined_at', { ascending: true });
-    members.value = membersData || [];
+  const clubId = route.params.id;
+  if (!clubId) {
+    loading.value = false;
     membersLoading.value = false;
-
-    // Check current user membership
-    if (authStore.isAuthenticated) {
-      const { data: myData } = await supabase
-        .from('club_members')
-        .select('status')
-        .eq('club_id', club.value.id)
-        .eq('user_id', authStore.user.id)
-        .maybeSingle();
-      if (myData) memberStatus.value = myData.status;
-    }
+    return;
   }
-  loading.value = false;
-  membersLoading.value = false;
+
+  try {
+    // Use findWithDetails to fetch club, leader, and members in a single efficient query
+    // This reduces the number of network requests and speeds up initial load
+    const result = await clubRepository.findWithDetails(clubId);
+    
+    if (result.isOk()) {
+      const clubData = result.getValue();
+      club.value = clubData;
+      leader.value = clubData.leader;
+      members.value = clubData.members || [];
+      
+      // Fetch current user membership status if authenticated
+      if (authStore.isAuthenticated && authStore.user) {
+        const { data: myData, error: memberError } = await supabase
+          .from('club_members')
+          .select('status')
+          .eq('club_id', clubId)
+          .eq('user_id', authStore.user.id)
+          .maybeSingle();
+          
+        if (!memberError && myData) {
+          memberStatus.value = myData.status;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error loading club details:', err);
+  } finally {
+    loading.value = false;
+    membersLoading.value = false;
+  }
 });
 </script>
 

@@ -214,47 +214,33 @@ const handleCreate = async () => {
 onMounted(async () => {
   loading.value = true;
   try {
-    const result = await clubRepository.findByStatus('approved');
-    if (result.isOk()) {
-      const clubsList = result.getValue();
-      
-      const clubIds = clubsList.map(c => c.id);
-      if (clubIds.length > 0) {
-        const { data: members } = await supabase
-          .from('club_members')
-          .select('club_id, status')
-          .in('club_id', clubIds);
-          
-        const mCounts = {};
-        if (members) {
-          members.forEach(m => {
-            if (m.status === 'approved' || m.status === 'leader' || m.status === 'deputy' || m.status === 'member') {
-              mCounts[m.club_id] = (mCounts[m.club_id] || 0) + 1;
-            }
-          });
-        }
-        
-        clubsList.forEach(c => {
-          c.member_count = mCounts[c.id] || 0;
-        });
-      }
-      clubs.value = clubsList;
-    }
+    // Parallelize club fetching and membership status check to reduce total loading time
+    const promises = [clubRepository.findWithMemberCount({ filters: { status: 'approved' } })];
     
-    if (authStore.isAuthenticated) {
-      const { data, error } = await supabase
+    if (authStore.isAuthenticated && authStore.user) {
+      promises.push(supabase
         .from('club_members')
         .select('club_id, status')
-        .eq('user_id', authStore.user.id);
-        
-      if (!error && data) {
-        const memberships = {};
-        data.forEach(m => memberships[m.club_id] = m.status);
-        userMemberships.value = memberships;
-      }
+        .eq('user_id', authStore.user.id)
+      );
     }
-  } catch (e) { console.error(e); }
-  finally { loading.value = false; }
+    
+    const [clubsResult, membershipResult] = await Promise.all(promises);
+    
+    if (clubsResult.isOk()) {
+      clubs.value = clubsResult.getValue();
+    }
+    
+    if (membershipResult && !membershipResult.error) {
+      const memberships = {};
+      membershipResult.data.forEach(m => memberships[m.club_id] = m.status);
+      userMemberships.value = memberships;
+    }
+  } catch (e) { 
+    console.error('Error loading clubs:', e); 
+  } finally { 
+    loading.value = false; 
+  }
 });
 
 const handleJoin = async (club) => {

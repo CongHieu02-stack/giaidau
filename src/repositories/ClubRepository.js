@@ -62,16 +62,27 @@ export class ClubRepository extends BaseRepository {
   }
 
   /**
-   * Find clubs with member count
+   * Find clubs with member count and optional filtering
    */
   async findWithMemberCount(options = {}) {
-    const { data, error } = await this.client
+    const { filters = {} } = options;
+    
+    let query = this.client
       .from('clubs')
       .select(`
         *,
+        leader:profiles!clubs_leader_id_fkey(id, full_name),
         member_count:club_members(count)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        query = query.eq(key, value);
+      }
+    });
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       return Result.err(error.message);
@@ -79,7 +90,8 @@ export class ClubRepository extends BaseRepository {
 
     return Result.ok((data || []).map(item => {
       const club = this.domainClass.fromDB(item);
-      club._memberCount = item.member_count;
+      club.member_count = item.member_count?.[0]?.count || 0;
+      club.leader = item.leader;
       return club;
     }));
   }
@@ -110,6 +122,30 @@ export class ClubRepository extends BaseRepository {
     }
 
     return Result.ok(this.domainClass.fromDB(data));
+  }
+
+  /**
+   * Find clubs managed by user (leader or deputy)
+   */
+  async findManagedBy(userId) {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select(`
+        *,
+        leader:profiles!clubs_leader_id_fkey(id, full_name)
+      `)
+      .or(`leader_id.eq.${userId},deputy_id.eq.${userId}`)
+      .eq('status', 'approved');
+
+    if (error) {
+      return Result.err(error.message);
+    }
+
+    return Result.ok((data || []).map(item => {
+      const club = this.domainClass.fromDB(item);
+      club.leaderName = item.leader?.full_name;
+      return club;
+    }));
   }
 
   /**

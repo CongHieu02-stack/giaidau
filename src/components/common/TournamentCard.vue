@@ -47,7 +47,10 @@
     </div>
 
     <!-- Footer CTA -->
-    <div class="card-footer">
+    <div class="card-footer" :class="{ 'has-action': canRegister }">
+      <button v-if="canRegister" @click.stop="onJoinClick" class="join-btn">
+        <i class="pi pi-sign-in"></i> Tham gia
+      </button>
       <span class="cta">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
     </div>
   </div>
@@ -57,9 +60,25 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { formatDate } from '../../utils/helpers.js';
+import { useAuthStore } from '../../stores/auth.js';
 
 const props = defineProps({ tournament: { type: Object, required: true } });
 const router = useRouter();
+const authStore = useAuthStore();
+
+const canRegister = computed(() => {
+  const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
+  return isManager && props.tournament.status === 'registration_open';
+});
+
+const onJoinClick = (e) => {
+  e.stopPropagation();
+  if (!authStore.isAuthenticated) {
+    router.push('/login');
+    return;
+  }
+  router.push(`/tournaments/${props.tournament.id}?register=true`);
+};
 
 const sportIcon = computed(() => ({
   'Bóng đá': '⚽', 'Bóng rổ': '🏀', 'Cầu lông': '🏸',
@@ -94,23 +113,23 @@ const statusText = computed(() => ({
 }[props.tournament.status] || 'Không xác định'));
 
 const dateDisplay = computed(() => {
-  if (props.tournament.start_date && props.tournament.end_date)
-    return `${formatDate(props.tournament.start_date)} – ${formatDate(props.tournament.end_date)}`;
-  return formatDate(props.tournament.start_date) || 'Chưa xác định';
+  if (props.tournament.startDate && props.tournament.endDate)
+    return `${formatDate(props.tournament.startDate)} – ${formatDate(props.tournament.endDate)}`;
+  return formatDate(props.tournament.startDate) || 'Chưa xác định';
 });
 
 const registrationDisplay = computed(() => {
-  const c = props.tournament.registration_count || 0;
-  const m = props.tournament.max_teams || 0;
+  const c = props.tournament.registrationCount || 0;
+  const m = props.tournament.maxTeams || 0;
   return m > 0 ? `${c}/${m} đội` : `${c} đội đăng ký`;
 });
 
 const showProgress = computed(() =>
-  ['upcoming', 'registration_open'].includes(props.tournament.status) && props.tournament.max_teams > 0);
+  ['upcoming', 'registration_open'].includes(props.tournament.status) && props.tournament.maxTeams > 0);
 
 const progressPercentage = computed(() => {
-  const c = props.tournament.registration_count || 0;
-  const m = props.tournament.max_teams || 1;
+  const c = props.tournament.registrationCount || 0;
+  const m = props.tournament.maxTeams || 1;
   return Math.min(Math.round((c / m) * 100), 100);
 });
 
@@ -260,4 +279,23 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 }
 
 .cta .pi { transition: transform 0.2s; }
+
+.card-footer.has-action {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.join-btn {
+  display: flex; align-items: center; gap: 0.375rem;
+  padding: 0.45rem 0.875rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border: none; border-radius: 0.5rem;
+  color: white; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
+
+.join-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
 </style>

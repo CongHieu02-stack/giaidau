@@ -124,11 +124,44 @@
           <div class="right-column">
             <!-- Actions -->
             <div class="section-card" v-if="canRegister">
-              <button class="action-btn primary">
-                <i class="pi pi-sign-in"></i>
-                Đăng ký tham gia
+              <button class="action-btn primary" @click="handleRegister" :disabled="registering">
+                <i :class="registering ? 'pi pi-spinner pi-spin' : 'pi pi-sign-in'"></i>
+                {{ registering ? 'Đang xử lý...' : 'Đăng ký tham gia' }}
               </button>
             </div>
+
+            <!-- Registration Modal -->
+            <Dialog v-model:visible="showRegModal" :header="`Đăng ký tham gia: ${tournament?.name}`" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
+              <div class="flex flex-column gap-3 py-2">
+                <div v-for="club in userClubs" :key="club.id" 
+                     class="club-select-item"
+                     :class="{'selected': selectedClubId === club.id}"
+                     @click="selectedClubId = club.id">
+                  <div class="club-avatar-modal">
+                    <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" class="club-logo-img" />
+                    <span v-else>{{ getInitials(club.name) }}</span>
+                  </div>
+                  <div class="club-select-info">
+                    <div class="flex align-items-center gap-2">
+                      <span class="club-select-name">{{ club.name }}</span>
+                      <span v-if="club.short_name" class="club-select-short">({{ club.short_name }})</span>
+                    </div>
+                    <span class="club-select-leader" v-if="club.leaderName">
+                      <i class="pi pi-user text-xs"></i> {{ club.leaderName }}
+                    </span>
+                    <span class="club-select-status" v-if="selectedClubId === club.id">
+                      <i class="pi pi-check-circle"></i> Đã chọn
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <template #footer>
+                <button class="action-btn secondary" @click="showRegModal = false" :disabled="registering">Hủy</button>
+                <button class="action-btn primary" @click="submitRegistration(selectedClubId)" :disabled="!selectedClubId || registering">
+                  Xác nhận đăng ký
+                </button>
+              </template>
+            </Dialog>
 
             <!-- Registration Status -->
             <div class="section-card">
@@ -217,16 +250,26 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import Dialog from 'primevue/dialog';
 import { useAuthStore } from '../../stores/auth.js';
 import { useTournamentStore } from '../../stores/tournament.js';
 import { formatDate } from '../../utils/helpers.js';
+import { clubRepository } from '../../repositories/ClubRepository.js';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const route = useRoute();
 const authStore = useAuthStore();
 const tournamentStore = useTournamentStore();
+const toast = useToast();
+const confirm = useConfirm();
 
 const tournament = ref(null);
 const loading = ref(true);
+const userClubs = ref([]);
+const registering = ref(false);
+const showRegModal = ref(false);
+const selectedClubId = ref(null);
 
 const statusClass = computed(() => {
   const classes = {
@@ -257,10 +300,53 @@ const approvedRegistrations = computed(() => {
 });
 
 const canRegister = computed(() => {
-  return authStore.isAuthenticated && 
+  const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
+  return isManager && 
          tournament.value?.status === 'registration_open' &&
-         tournament.value?.registration_count < tournament.value?.max_teams;
+         tournament.value?.registrationCount < tournament.value?.maxTeams;
 });
+
+const handleRegister = async () => {
+  if (userClubs.value.length === 0) {
+    toast.add({ severity: 'warn', summary: 'Thông báo', detail: 'Bạn chưa có câu lạc bộ nào được duyệt để đăng ký', life: 3000 });
+    return;
+  }
+
+  if (userClubs.value.length === 1) {
+    const club = userClubs.value[0];
+    confirm.require({
+      message: `Bạn có muốn đăng ký câu lạc bộ "${club.name}" tham gia giải đấu này không?`,
+      header: 'Xác nhận đăng ký',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => submitRegistration(club.id),
+      reject: () => {}
+    });
+  } else {
+    showRegModal.value = true;
+  }
+};
+
+const submitRegistration = async (clubId) => {
+  registering.value = true;
+  try {
+    const result = await tournamentStore.registerClub(tournament.value.id, clubId, authStore.user.id);
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Gửi yêu cầu đăng ký tham gia thành công', life: 3000 });
+      showRegModal.value = false;
+      // Refresh tournament data
+      const fetchResult = await tournamentStore.fetchTournament(tournament.value.id);
+      if (fetchResult.success) {
+        tournament.value = tournamentStore.currentTournament;
+      }
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error || 'Đăng ký thất bại', life: 3000 });
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi đăng ký', life: 3000 });
+  } finally {
+    registering.value = false;
+  }
+};
 
 const getInitials = (name) => {
   if (!name) return '?';
@@ -278,13 +364,45 @@ const formatFormat = (format) => {
 
 onMounted(async () => {
   const id = route.params.id;
-  if (id) {
-    const result = await tournamentStore.fetchTournament(id);
-    if (result.success) {
-      tournament.value = tournamentStore.currentTournament;
-    }
+  if (!id) {
+    loading.value = false;
+    return;
   }
-  loading.value = false;
+
+  try {
+    const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
+    
+    // Fetch tournament data and user clubs in parallel to reduce loading time
+    const promises = [tournamentStore.fetchTournament(id)];
+    
+    if (isManager && authStore.user) {
+      promises.push(clubRepository.findManagedBy(authStore.user.id));
+    }
+    
+    const [tournamentResult, clubsResult] = await Promise.all(promises);
+    
+    if (tournamentResult.success) {
+      tournament.value = tournamentStore.currentTournament;
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: tournamentResult.error || 'Không thể tải thông tin giải đấu', life: 3000 });
+    }
+    
+    if (isManager && clubsResult) {
+      if (clubsResult.isOk()) {
+        userClubs.value = clubsResult.getValue();
+      }
+    }
+
+    // Auto-trigger registration modal if param exists
+    if (route.query.register === 'true' && canRegister.value) {
+      handleRegister();
+    }
+  } catch (err) {
+    console.error('Error loading tournament details:', err);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi tải dữ liệu', life: 3000 });
+  } finally {
+    loading.value = false;
+  }
 });
 </script>
 
@@ -308,7 +426,7 @@ onMounted(async () => {
   width: 4rem;
   height: 4rem;
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -542,7 +660,7 @@ onMounted(async () => {
   font-size: 1.25rem;
   font-weight: 700;
   color: white;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   padding: 0.25rem 1rem;
   border-radius: 0.5rem;
 }
@@ -603,7 +721,7 @@ onMounted(async () => {
   width: 2rem;
   height: 2rem;
   border-radius: 0.375rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -677,7 +795,7 @@ onMounted(async () => {
 }
 
 .action-btn.primary {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: white;
 }
 
@@ -707,7 +825,7 @@ onMounted(async () => {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -812,5 +930,156 @@ onMounted(async () => {
   .meta-row {
     justify-content: center;
   }
+}
+
+.club-select-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.club-select-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.club-select-item.selected {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+  border-color: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.club-avatar-modal {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 1.125rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.club-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.club-select-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1;
+}
+
+.club-select-name {
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.club-select-short {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.club-select-leader {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  margin-top: 0.125rem;
+}
+
+.club-select-status {
+  color: #4ade80;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<style>
+/* Global styles for the teleported Registration Dialog */
+.custom-tournament-dialog.p-dialog {
+  background: #0f172a !important; /* Slate 900 - Solid dark background */
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden;
+}
+
+.custom-tournament-dialog .p-dialog-header {
+  background: #1e293b !important; /* Slate 800 */
+  color: white !important;
+  padding: 1.25rem 1.5rem !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.custom-tournament-dialog .p-dialog-title {
+  font-weight: 700 !important;
+  font-size: 1.125rem !important;
+}
+
+.custom-tournament-dialog .p-dialog-header-icon {
+  color: rgba(255, 255, 255, 0.5) !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.2s !important;
+}
+
+.custom-tournament-dialog .p-dialog-header-icon:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+}
+
+.custom-tournament-dialog .p-dialog-content {
+  background: #0f172a !important;
+  color: white !important;
+  padding: 1.5rem !important;
+}
+
+.custom-tournament-dialog .p-dialog-footer {
+  background: #1e293b !important;
+  padding: 1rem 1.5rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Ensure text inside dialog is visible */
+.custom-tournament-dialog .club-select-name {
+  color: white !important;
+  font-weight: 600;
+}
+
+.custom-tournament-dialog .club-select-short {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.custom-tournament-dialog .club-select-leader {
+  color: rgba(255, 255, 255, 0.4) !important;
 }
 </style>
