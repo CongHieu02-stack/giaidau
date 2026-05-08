@@ -20,18 +20,17 @@
           </p>
           <!-- Social Links -->
           <div class="social-row">
-            <a
+            <button
               v-for="social in socialLinks"
               :key="social.name"
-              :href="social.url"
-              target="_blank"
-              rel="noopener noreferrer"
+              @click="openSocial(social.url)"
               class="social-btn"
               :style="{ '--social-color': social.color, '--social-glow': social.glow }"
               :title="social.name"
+              type="button"
             >
               <i :class="social.icon"></i>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -116,6 +115,12 @@ import { computed } from 'vue';
 
 const currentYear = computed(() => new Date().getFullYear());
 
+function openSocial(url) {
+  if (url && url !== '#') {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
+
 const quickLinks = [
   { path: '/tournaments', label: 'Giải đấu' },
   { path: '/clubs', label: 'Câu lạc bộ' },
@@ -134,9 +139,9 @@ const sports = [
 
 const socialLinks = [
   { name: 'Facebook', icon: 'pi pi-facebook', url: 'https://www.facebook.com/thien.155729/', color: '#1877f2', glow: '29, 119, 242' },
-  { name: 'YouTube',  icon: 'pi pi-youtube',  url: '#', color: '#ff0000', glow: '255, 0, 0' },
-  { name: 'Instagram',icon: 'pi pi-instagram',url: '#', color: '#e4405f', glow: '228, 64, 95' },
-  { name: 'X / Twitter', icon: 'pi pi-twitter', url: '#', color: '#1da1f2', glow: '29, 161, 242' },
+  { name: 'YouTube',  icon: 'pi pi-youtube',  url: 'https://www.youtube.com/@cristiano', color: '#ff0000', glow: '255, 0, 0' },
+  { name: 'Instagram',icon: 'pi pi-instagram',url: 'https://www.instagram.com/cristiano/', color: '#e4405f', glow: '228, 64, 95' },
+  { name: 'X / Twitter', icon: 'pi pi-twitter', url: 'https://www.bing.com/ck/a?!&&p=3e82a5f95187ae8b53931bc56939859631d66ea4a13b7e28cd035a58d7c8a4baJmltdHM9MTc3ODExMjAwMA&ptn=3&ver=2&hsh=4&fclid=3a87f3d4-ba8d-65bb-0eb9-e55ebbeb64d2&psq=x+cristiano+ronaldo&u=a1aHR0cHM6Ly94LmNvbS9jcmlzdGlhbm8', color: '#1da1f2', glow: '29, 161, 242' },
 ];
 </script>
 
@@ -261,6 +266,20 @@ const socialLinks = [
   font-size: 1rem;
   transition: all 0.3s cubic-bezier(.4,0,.2,1);
   text-decoration: none;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.social-btn:focus,
+.social-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.social-btn:active {
+  transform: translateY(-2px) scale(1.04);
 }
 
 .social-btn:hover {

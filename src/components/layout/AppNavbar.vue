@@ -395,7 +395,7 @@ const logout = async () => {
 
 .user-name {
   display: none;
-  max-width: 100px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -452,6 +452,8 @@ const logout = async () => {
   width: 42px;
   height: 42px;
   min-width: 42px;
+  min-height: 42px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex;
