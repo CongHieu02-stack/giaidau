@@ -99,9 +99,10 @@
                 <tr>
                   <th>#</th>
                   <th>Thành viên</th>
-                  <th>Vai trò</th>
-                  <th>Ngày tham gia</th>
-                  <th>Trạng thái</th>
+                  <th class="th-center">Vai trò</th>
+                  <th class="th-center">Ngày tham gia</th>
+                  <th class="th-center">Trạng thái</th>
+                  <th v-if="isLeader" class="th-center">Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,12 +120,35 @@
                       </div>
                     </div>
                   </td>
-                  <td>
+                  <td class="td-center">
                     <span class="role-badge" :class="getRoleClass(m.role)">{{ getRoleText(m.role) }}</span>
                   </td>
-                  <td class="td-date">{{ formatDate(m.joined_at) }}</td>
-                  <td>
+                  <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
+                  <td class="td-center">
                     <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
+                  </td>
+                  <td v-if="isLeader" class="td-center">
+                    <div v-if="m.status === 'pending'" class="action-btns">
+                      <button
+                        class="btn-approve"
+                        :disabled="approvingId === m.id || rejectingId === m.id"
+                        @click="approveM(m)"
+                      >
+                        <i v-if="approvingId === m.id" class="pi pi-spinner pi-spin"></i>
+                        <i v-else class="pi pi-check"></i>
+                        Duyệt
+                      </button>
+                      <button
+                        class="btn-reject"
+                        :disabled="approvingId === m.id || rejectingId === m.id"
+                        @click="rejectM(m)"
+                      >
+                        <i v-if="rejectingId === m.id" class="pi pi-spinner pi-spin"></i>
+                        <i v-else class="pi pi-times"></i>
+                        Từ chối
+                      </button>
+                    </div>
+                    <span v-else class="no-action">—</span>
                   </td>
                 </tr>
               </tbody>
@@ -158,6 +182,8 @@ const loading = ref(true);
 const membersLoading = ref(true);
 const joining = ref(false);
 const memberStatus = ref('none');
+const approvingId = ref(null);
+const rejectingId = ref(null);
 
 const isLeader = computed(() => club.value?.leaderId === authStore.user?.id);
 const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
@@ -192,6 +218,38 @@ const handleJoin = async () => {
     alert('Lỗi: ' + err.message);
   } finally {
     joining.value = false;
+  }
+};
+
+const approveM = async (m) => {
+  approvingId.value = m.id;
+  try {
+    const { error } = await supabase
+      .from('club_members')
+      .update({ status: 'approved' })
+      .eq('id', m.id);
+    if (error) throw error;
+    m.status = 'approved';
+  } catch (err) {
+    alert('Lỗi: ' + err.message);
+  } finally {
+    approvingId.value = null;
+  }
+};
+
+const rejectM = async (m) => {
+  rejectingId.value = m.id;
+  try {
+    const { error } = await supabase
+      .from('club_members')
+      .update({ status: 'rejected' })
+      .eq('id', m.id);
+    if (error) throw error;
+    m.status = 'rejected';
+  } catch (err) {
+    alert('Lỗi: ' + err.message);
+  } finally {
+    rejectingId.value = null;
   }
 };
 
@@ -360,8 +418,30 @@ onMounted(async () => {
 .members-table tbody tr:hover { background: rgba(255,255,255,0.03); }
 .members-table td { padding: 0.875rem 1.25rem; font-size: 0.875rem; color: rgba(255,255,255,0.7); }
 
-.td-num { color: rgba(255,255,255,0.3); font-size: 0.8rem; width: 40px; }
+.td-num  { color: rgba(255,255,255,0.3); font-size: 0.8rem; width: 40px; }
 .td-date { color: rgba(255,255,255,0.4); font-size: 0.8rem; white-space: nowrap; }
+.th-center { text-align: center !important; }
+.td-center  { text-align: center; vertical-align: middle; }
+
+/* Action buttons */
+.action-btns { display: flex; align-items: center; justify-content: center; gap: 0.4rem; flex-wrap: wrap; }
+.btn-approve {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.65rem; border-radius: 0.5rem; font-size: 0.72rem; font-weight: 700;
+  background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.3);
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-approve:hover:not(:disabled) { background: rgba(34,197,94,0.28); color: white; }
+.btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-reject {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.65rem; border-radius: 0.5rem; font-size: 0.72rem; font-weight: 700;
+  background: rgba(239,68,68,0.13); color: #fca5a5; border: 1px solid rgba(239,68,68,0.25);
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-reject:hover:not(:disabled) { background: rgba(239,68,68,0.25); color: white; }
+.btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+.no-action { color: rgba(255,255,255,0.2); font-size: 0.8rem; }
 
 .user-cell { display: flex; align-items: center; gap: 0.75rem; }
 .user-avatar {

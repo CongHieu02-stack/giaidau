@@ -50,7 +50,7 @@
           <div class="card-glow"></div>
           <div class="club-header">
             <div class="club-logo">
-              <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" />
+              <img v-if="club.logoUrl || club.logo_url" :src="club.logoUrl || club.logo_url" :alt="club.name" />
               <span v-else class="logo-initials">{{ getInitials(club.name) }}</span>
             </div>
             <span class="status-badge" :class="getStatusClass(club.status)">
@@ -215,7 +215,31 @@ onMounted(async () => {
   loading.value = true;
   try {
     const result = await clubRepository.findByStatus('approved');
-    if (result.isOk()) clubs.value = result.getValue();
+    if (result.isOk()) {
+      const clubsList = result.getValue();
+      
+      const clubIds = clubsList.map(c => c.id);
+      if (clubIds.length > 0) {
+        const { data: members } = await supabase
+          .from('club_members')
+          .select('club_id, status')
+          .in('club_id', clubIds);
+          
+        const mCounts = {};
+        if (members) {
+          members.forEach(m => {
+            if (m.status === 'approved' || m.status === 'leader' || m.status === 'deputy' || m.status === 'member') {
+              mCounts[m.club_id] = (mCounts[m.club_id] || 0) + 1;
+            }
+          });
+        }
+        
+        clubsList.forEach(c => {
+          c.member_count = mCounts[c.id] || 0;
+        });
+      }
+      clubs.value = clubsList;
+    }
     
     if (authStore.isAuthenticated) {
       const { data, error } = await supabase
