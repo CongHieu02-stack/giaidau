@@ -94,12 +94,23 @@
     <!-- CTA -->
     <section class="section">
       <div class="container">
-        <div class="cta-box">
+        <!-- CTA for Admin/Organizer/Guest -->
+        <div class="cta-box" v-if="!authStore.isRegularUser">
           <h2 class="cta-title">Sẵn sàng tổ chức giải đấu?</h2>
           <p class="cta-desc">Đăng ký miễn phí và bắt đầu tạo giải đấu ngay hôm nay.</p>
           <router-link :to="authStore.isAuthenticated ? '/admin/tournaments/create' : '/register'" class="btn-primary">
             <i class="pi pi-play"></i>
             {{ authStore.isAuthenticated ? 'Tạo giải đấu' : 'Bắt đầu ngay' }}
+          </router-link>
+        </div>
+
+        <!-- CTA for Normal User -->
+        <div class="cta-box" v-else>
+          <h2 class="cta-title">Sẵn sàng tranh tài?</h2>
+          <p class="cta-desc">Tham gia các câu lạc bộ và giải đấu hấp dẫn ngay hôm nay.</p>
+          <router-link to="/tournaments" class="btn-primary">
+            <i class="pi pi-play"></i>
+            Khám phá ngay
           </router-link>
         </div>
       </div>
@@ -108,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useAuthStore } from '../../stores/auth.js';
 import TournamentCard from '../../components/common/TournamentCard.vue';
 import FeatureCard from '../../components/common/FeatureCard.vue';
@@ -157,7 +168,7 @@ const featuredTournaments = ref([
   }
 ]);
 
-const features = ref([
+const allFeatures = [
   {
     icon: 'pi pi-calendar-plus',
     title: 'Tạo giải đấu dễ dàng',
@@ -188,7 +199,14 @@ const features = ref([
     title: 'Thông báo thông minh',
     description: 'Nhận thông báo về lịch thi đấu, kết quả.'
   }
-]);
+];
+
+const features = computed(() => {
+  if (authStore.isRegularUser) {
+    return allFeatures.filter(f => !['Tạo giải đấu dễ dàng', 'Lịch thi đấu tự động'].includes(f.title));
+  }
+  return allFeatures;
+});
 </script>
 
 <style scoped>
