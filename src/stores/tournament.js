@@ -162,6 +162,29 @@ export const useTournamentStore = defineStore('tournament', () => {
     }
   }
 
+  async function registerIndividual(tournamentId, userId) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const result = await tournamentService.registerIndividual(tournamentId, userId);
+
+      if (result.isOk()) {
+        // Refresh tournament data
+        await fetchTournament(tournamentId);
+        return { success: true, data: result.getValue() };
+      } else {
+        error.value = result.getError();
+        return { success: false, error: error.value };
+      }
+    } catch (err) {
+      error.value = err.message;
+      return { success: false, error: error.value };
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function registerClub(tournamentId, clubId, userId) {
     loading.value = true;
     error.value = null;
@@ -285,6 +308,7 @@ export const useTournamentStore = defineStore('tournament', () => {
     createTournament,
     updateTournament,
     cancelTournament,
+    registerIndividual,
     registerClub,
     approveRegistration,
     rejectRegistration,

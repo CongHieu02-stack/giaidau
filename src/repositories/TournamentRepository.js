@@ -90,10 +90,16 @@ export class TournamentRepository extends BaseRepository {
       .from('tournaments')
       .select(`
         *,
-        sport_category:sports_categories(id, name, icon_url),
+        sport_category:sports_categories(id, name, icon_url, type),
         registrations:tournament_registrations(
           id,
           club:clubs(id, name, logo_url),
+          status,
+          registered_at
+        ),
+        players:tournament_players(
+          id,
+          player:profiles(id, full_name, avatar_url),
           status,
           registered_at
         ),

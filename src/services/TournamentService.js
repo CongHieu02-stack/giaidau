@@ -121,6 +121,57 @@ export class TournamentService {
   }
 
   /**
+   * Register individual player for tournament (single sport type)
+   */
+  async registerIndividual(tournamentId, userId) {
+    try {
+      // Get tournament
+      const tournamentResult = await this.tournamentRepo.findById(tournamentId);
+      if (tournamentResult.isErr()) {
+        return Result.err('Tournament not found');
+      }
+
+      const tournament = tournamentResult.getValue();
+
+      if (!tournament.isRegistrationOpen()) {
+        return Result.err('Registration is not open for this tournament');
+      }
+
+      // Check if already registered
+      const { data: existing, error: checkError } = await supabase
+        .from('tournament_players')
+        .select('id')
+        .eq('tournament_id', tournamentId)
+        .eq('player_id', userId);
+
+      if (checkError) throw checkError;
+
+      if (existing && existing.length > 0) {
+        return Result.err('Bạn đã đăng ký tham gia giải đấu này rồi');
+      }
+
+      // Register individual
+      const { data, error } = await supabase
+        .from('tournament_players')
+        .insert({
+          tournament_id: tournamentId,
+          player_id: userId,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return Result.err(error.message);
+      }
+
+      return Result.ok(data);
+    } catch (error) {
+      return Result.err(error.message || 'Failed to register');
+    }
+  }
+
+  /**
    * Register club for tournament
    */
   async registerClub(tournamentId, clubId, userId) {

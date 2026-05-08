@@ -29,6 +29,7 @@ export class Tournament {
 
     // Embedded collections
     this.registrations = data.registrations || [];
+    this.players = data.players || [];
     this.matches = data.matches || [];
   }
 
@@ -227,11 +228,21 @@ export class Tournament {
   }
 
   // Computed properties
+  get isIndividual() {
+    return this.sportCategory?.type === 'single';
+  }
+
   get registrationCount() {
+    if (this.isIndividual) {
+      return this.players.length;
+    }
     return this.registrations.length;
   }
 
   get approvedCount() {
+    if (this.isIndividual) {
+      return this.players.filter(p => p.status === RegistrationStatus.APPROVED || p.status === 'selected').length;
+    }
     return this.registrations.filter(r => r.status === RegistrationStatus.APPROVED).length;
   }
 

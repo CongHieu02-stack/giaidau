@@ -33,7 +33,7 @@
                 </div>
                 <div class="meta-item">
                   <i class="pi pi-users meta-icon"></i>
-                  <span>{{ approvedRegistrations.length }}/{{ tournament.maxTeams }} đội</span>
+                  <span>{{ approvedRegistrations.length }}/{{ tournament.maxTeams }} {{ tournament.isIndividual ? 'người' : 'đội' }}</span>
                 </div>
                 <div class="meta-item">
                   <i class="pi pi-clock meta-icon"></i>
@@ -103,19 +103,27 @@
             <div class="section-card">
               <h2 class="section-title">
                 <i class="pi pi-users section-icon purple"></i>
-                Câu lạc bộ đã đăng ký
+                {{ tournament.isIndividual ? 'Vận động viên đã đăng ký' : 'Câu lạc bộ đã đăng ký' }}
                 <span class="team-count">{{ approvedRegistrations.length }}</span>
               </h2>
 
               <div v-if="approvedRegistrations.length > 0" class="teams-list">
                 <div v-for="reg in approvedRegistrations" :key="reg.id" class="team-row">
-                  <div class="team-avatar-small">{{ getInitials(reg.club?.name) }}</div>
-                  <span class="team-name">{{ reg.club?.name }}</span>
+                  <template v-if="tournament.isIndividual">
+                    <img v-if="reg.player?.avatar_url" :src="reg.player.avatar_url" class="team-avatar-small" style="border-radius: 9999px" />
+                    <div v-else class="team-avatar-small" style="border-radius: 9999px">{{ getInitials(reg.player?.full_name) }}</div>
+                    <span class="team-name">{{ reg.player?.full_name }}</span>
+                  </template>
+                  <template v-else>
+                    <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" class="team-avatar-small" />
+                    <div v-else class="team-avatar-small">{{ getInitials(reg.club?.name) }}</div>
+                    <span class="team-name">{{ reg.club?.name }}</span>
+                  </template>
                 </div>
               </div>
               <div v-else class="empty-teams">
                 <i class="pi pi-users"></i>
-                <p>Chưa có câu lạc bộ nào đăng ký</p>
+                <p>Chưa có {{ tournament.isIndividual ? 'vận động viên' : 'câu lạc bộ' }} nào đăng ký</p>
               </div>
             </div>
           </div>
@@ -124,9 +132,15 @@
           <div class="right-column">
             <!-- Actions -->
             <div class="section-card" v-if="canRegister">
-              <button class="action-btn primary">
+              <button class="action-btn primary" @click="handleRegister">
                 <i class="pi pi-sign-in"></i>
                 Đăng ký tham gia
+              </button>
+            </div>
+            <div class="section-card" v-else-if="isAlreadyRegistered">
+              <button class="action-btn secondary" disabled style="opacity: 0.7; cursor: default;">
+                <i class="pi pi-check" style="color: #4ade80;"></i>
+                Đã đăng ký (Chờ duyệt)
               </button>
             </div>
 
@@ -139,7 +153,7 @@
               <div class="info-rows">
                 <div class="info-row">
                   <span class="info-label">Đã đăng ký</span>
-                  <span class="info-val">{{ approvedRegistrations.length }} đội</span>
+                  <span class="info-val">{{ approvedRegistrations.length }} {{ tournament.isIndividual ? 'người' : 'đội' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Còn trống</span>
@@ -147,11 +161,11 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">Tối thiểu</span>
-                  <span class="info-val">{{ tournament.minTeams }} đội</span>
+                  <span class="info-val">{{ tournament.minTeams }} {{ tournament.isIndividual ? 'người' : 'đội' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Tối đa</span>
-                  <span class="info-val">{{ tournament.maxTeams }} đội</span>
+                  <span class="info-val">{{ tournament.maxTeams }} {{ tournament.isIndividual ? 'người' : 'đội' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Hạn đăng ký</span>
@@ -253,14 +267,49 @@ const statusText = computed(() => {
 });
 
 const approvedRegistrations = computed(() => {
+  if (tournament.value?.isIndividual) {
+    return tournament.value?.players?.filter(p => p.status === 'approved' || p.status === 'selected') || [];
+  }
   return tournament.value?.registrations?.filter(r => r.status === 'approved') || [];
 });
 
-const canRegister = computed(() => {
-  return authStore.isAuthenticated && 
-         tournament.value?.status === 'registration_open' &&
-         tournament.value?.registration_count < tournament.value?.max_teams;
+const isAlreadyRegistered = computed(() => {
+  if (!authStore.isAuthenticated || !tournament.value) return false;
+  
+  if (tournament.value.isIndividual) {
+    return tournament.value.players?.some(p => p.player?.id === authStore.user.id);
+  }
+  
+  return false;
 });
+
+const canRegister = computed(() => {
+  if (!tournament.value) return false;
+  return authStore.isAuthenticated && 
+         tournament.value.status === 'registration_open' &&
+         tournament.value.registrationCount < tournament.value.maxTeams &&
+         !isAlreadyRegistered.value;
+});
+
+const handleRegister = async () => {
+  if (!authStore.isAuthenticated) {
+    alert('Vui lòng đăng nhập để đăng ký!');
+    return;
+  }
+
+  if (tournament.value.isIndividual) {
+    if (confirm('Bạn có chắc chắn muốn đăng ký tham gia giải đấu này với tư cách cá nhân?')) {
+      const result = await tournamentStore.registerIndividual(tournament.value.id, authStore.user.id);
+      if (result.success) {
+        alert('Đăng ký thành công! Vui lòng chờ ban tổ chức duyệt.');
+      } else {
+        alert(result.error || 'Đăng ký thất bại!');
+      }
+    }
+  } else {
+    alert('Chức năng đăng ký cho câu lạc bộ đang được phát triển.');
+  }
+};
 
 const getInitials = (name) => {
   if (!name) return '?';
