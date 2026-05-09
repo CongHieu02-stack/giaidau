@@ -27,6 +27,20 @@ export class VenueRepository extends BaseRepository {
 
     return Result.ok((data || []).map(item => this.domainClass.fromDB(item)));
   }
+
+  /**
+   * Soft delete - hide a venue instead of deleting it
+   */
+  async softDelete(id) {
+    return this.update({ id, status: 'hidden' });
+  }
+
+  /**
+   * Restore a hidden venue
+   */
+  async restore(id) {
+    return this.update({ id, status: 'active' });
+  }
 }
 
 export const venueRepository = new VenueRepository();

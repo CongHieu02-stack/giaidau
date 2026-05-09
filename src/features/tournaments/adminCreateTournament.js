@@ -15,6 +15,19 @@ export async function fetchSportCategories() {
   return data || [];
 }
 
+export async function fetchVenues() {
+  const { data, error } = await supabase
+    .from('venues')
+    .select('id, name, sport_category_id')
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data || [];
+}
+
 export function parseMatchTimes(value) {
   return String(value || '')
     .split(',')
@@ -79,6 +92,7 @@ export function buildTournamentPayload(form, createdBy) {
     match_days: form.matchDays.map(Number),
     match_times: parseMatchTimes(form.matchTimes),
     venue_requirements: form.scheduleNote?.trim() || null,
+    venue_id: form.venueId || null,
     status: 'registration_open',
     created_by: createdBy || null,
     updated_at: new Date().toISOString()

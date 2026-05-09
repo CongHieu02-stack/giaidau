@@ -12,6 +12,7 @@ export class Venue {
     this.capacity = data.capacity || 0;
     this.facilities = data.facilities || '';
     this.contactPhone = data.contactPhone || data.contact_phone || '';
+    this.sportCategoryId = data.sportCategoryId || data.sport_category_id || null;
     this.createdAt = data.createdAt || data.created_at || new Date();
   }
 
@@ -23,6 +24,7 @@ export class Venue {
       capacity: this.capacity,
       facilities: this.facilities,
       contact_phone: this.contactPhone,
+      sport_category_id: this.sportCategoryId,
       created_at: this.createdAt
     };
   }

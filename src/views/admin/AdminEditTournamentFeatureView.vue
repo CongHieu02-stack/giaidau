@@ -73,6 +73,16 @@
               <span>Giờ thi đấu</span>
               <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" :disabled="readOnly" required>
             </label>
+
+            <label class="field">
+              <span>Sân thi đấu</span>
+              <select v-model="form.venueId" :disabled="readOnly">
+                <option value="">Chọn sân đấu (không bắt buộc)</option>
+                <option v-for="venue in filteredVenues" :key="venue.id" :value="venue.id">
+                  {{ venue.name }}
+                </option>
+              </select>
+            </label>
           </div>
 
           <div class="day-picker">
@@ -121,11 +131,13 @@ import {
   fetchAdminTournament,
   updateTournamentForAdmin
 } from '../../features/tournaments/adminTournamentManagement.js';
+import { fetchVenues } from '../../features/tournaments/adminCreateTournament.js';
 
 const route = useRoute();
 const router = useRouter();
 
 const tournament = ref(null);
+const venues = ref([]);
 const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref('');
@@ -133,6 +145,12 @@ const successMessage = ref('');
 const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
+
+const filteredVenues = computed(() => {
+  const sportId = tournament.value?.sport_category_id;
+  if (!sportId) return [];
+  return venues.value.filter(v => v.sport_category_id === sportId);
+});
 
 const statusLabels = {
   upcoming: 'Sắp diễn ra',
@@ -161,7 +179,8 @@ const form = reactive({
   endDate: '',
   matchDays: [],
   matchTimes: '',
-  scheduleNote: ''
+  scheduleNote: '',
+  venueId: ''
 });
 
 const readOnly = computed(() => ['completed', 'cancelled'].includes(tournament.value?.status));
@@ -182,6 +201,8 @@ async function loadTournament() {
     form.matchDays = tournament.value.match_days || [];
     form.matchTimes = (tournament.value.match_times || []).map((time) => String(time).slice(0, 5)).join(', ');
     form.scheduleNote = tournament.value.venue_requirements || '';
+    form.venueId = tournament.value.venue_id || '';
+    venues.value = await fetchVenues();
   } catch (error) {
     errorMessage.value = error.message || 'Không tải được thông tin giải đấu.';
   } finally {
@@ -323,7 +344,8 @@ h2 {
 }
 
 input,
-textarea {
+textarea,
+select {
   width: 100%;
   min-height: 46px;
   padding: 11px 13px;
@@ -341,11 +363,17 @@ textarea {
 }
 
 input:disabled,
-textarea:disabled {
+textarea:disabled,
+select:disabled {
   color: rgba(255, 255, 255, 0.58);
   background: rgba(15, 23, 42, 0.46);
   filter: blur(0.2px);
   cursor: not-allowed;
+}
+
+option {
+  background-color: #0f172a;
+  color: #ffffff;
 }
 
 .day-picker {

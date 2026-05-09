@@ -37,6 +37,9 @@
             <tr v-for="tournament in tournaments" :key="tournament.id">
               <td>
                 <strong>{{ tournament.name }}</strong>
+                <span v-if="tournament.venue" class="venue-note">
+                  <i class="pi pi-map-marker"></i> {{ tournament.venue.name }}
+                </span>
                 <span v-if="tournament.cancellation_reason" class="note">
                   {{ tournament.cancellation_reason }}
                 </span>
@@ -285,11 +288,19 @@ td strong {
   font-weight: 800;
 }
 
-.note {
+.note,
+.venue-note {
   display: block;
   margin-top: 5px;
-  color: #fca5a5;
   font-size: 0.85rem;
+}
+
+.note {
+  color: #fca5a5;
+}
+
+.venue-note {
+  color: #94a3b8;
 }
 
 .empty {
