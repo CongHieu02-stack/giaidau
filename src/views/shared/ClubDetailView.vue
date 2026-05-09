@@ -449,20 +449,14 @@ onMounted(async () => {
 .stat-chip .pi { color: #a5b4fc; font-size: 0.85rem; }
 
 /* Join tags */
-.tag-leader, .tag-pending, .tag-member, .btn-join {
+.tag-leader, .tag-pending, .tag-member {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.6rem 1.25rem; border-radius: 0.875rem; font-size: 0.875rem; font-weight: 600;
 }
 .tag-leader  { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.25); }
 .tag-pending { background: rgba(251,191,36,0.12); color: #fde68a; border: 1px solid rgba(251,191,36,0.2); }
 .tag-member  { background: rgba(34,197,94,0.12);  color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
-.btn-join {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;
-  border: none; cursor: pointer; transition: all 0.25s;
-  box-shadow: 0 4px 16px rgba(99,102,241,0.3);
-}
-.btn-join:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
-.btn-join:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-join { /* uses global .btn-join from src/style.css */ }
 
 .btn-edit {
   display: inline-flex; align-items: center; gap: 0.5rem;

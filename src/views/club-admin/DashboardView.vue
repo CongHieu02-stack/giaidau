@@ -97,7 +97,7 @@
               </td>
               <td>
                 <div class="actions-cell">
-                  <router-link :to="`/club-admin/clubs/${club.id}`" class="action-btn-icon view" title="Xem chi tiết">
+                  <router-link :to="{ path: `/club-admin/clubs/${club.id}`, query: { from: 'dashboard' } }" class="action-btn-icon view" title="Xem chi tiết">
                     <i class="pi pi-eye"></i>
                   </router-link>
                   

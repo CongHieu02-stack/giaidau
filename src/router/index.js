@@ -194,6 +194,13 @@ const routes = [
     component: () => import('../views/tournament-admin/RefereesView.vue'),
     meta: { requiresAuth: true, requiresTournamentAdmin: true }
   },
+  {
+    path: '/tournament-admin/venues',
+    name: 'TournamentAdminVenues',
+    component: () => import('../views/tournament-admin/VenuesView.vue'),
+    meta: { requiresAuth: true, requiresTournamentAdmin: true }
+  },
+ 
 
   // Club Admin Routes
   {
@@ -268,6 +275,7 @@ const routes = [
     component: () => import('../views/shared/NotFoundView.vue'),
     meta: { public: true }
   }
+  //
 ];
 
 // Create router

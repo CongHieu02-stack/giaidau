@@ -60,6 +60,10 @@
           <div class="club-body">
             <h3 class="club-name">{{ club.name }}</h3>
             <p class="club-desc">{{ club.description || 'Chưa có mô tả' }}</p>
+            <div class="club-leader-row" v-if="club.leader?.full_name || club.leaderName">
+              <i class="pi pi-user" style="margin-right:.5rem;color:rgba(255,255,255,0.55)"></i>
+              <span class="club-leader-name">{{ club.leader?.full_name || club.leaderName }}</span>
+            </div>
             <div class="club-stats">
               <div class="c-stat">
                 <span class="c-stat-icon members"><i class="pi pi-users"></i></span>
@@ -387,6 +391,8 @@ const handleJoin = async (club) => {
   font-size: 0.82rem; color: rgba(255,255,255,0.45); margin-bottom: 0.875rem;
   line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.club-leader-row { display: flex; align-items: center; gap: 0.5rem; color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.6rem; }
+.club-leader-name { font-weight: 600; color: rgba(255,255,255,0.85); }
 .club-stats { display: flex; gap: 1rem; }
 .c-stat { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.5); }
 .c-stat-icon {
@@ -404,26 +410,23 @@ const handleJoin = async (club) => {
   background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
   color: #a5b4fc; font-size: 0.85rem; font-weight: 600;
   border-radius: 0.75rem; text-decoration: none; transition: all 0.25s;
+  /* Keep button heights consistent and avoid wrapping when zooming */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px;
 }
 .btn-view:hover { background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.4); color: #c7d2fe; transform: translateY(-1px); }
 .btn-view .pi { transition: transform 0.2s; }
 .btn-view:hover .pi { transform: translateX(3px); }
 
-.btn-join {
-  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-  flex: 1; padding: 0.65rem 0.5rem;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6); border: 1px solid transparent;
-  color: white; font-size: 0.85rem; font-weight: 600;
-  border-radius: 0.75rem; text-decoration: none; transition: all 0.25s; cursor: pointer;
-}
-.btn-join:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.4); transform: translateY(-1px); }
-.btn-join:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn-join { /* moved to global stylesheet */ }
 .btn-joined {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   flex: 1; padding: 0.65rem 0.5rem;
   background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.2);
   color: #86efac; font-size: 0.85rem; font-weight: 600;
   border-radius: 0.75rem; text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px;
 }
 .btn-pending {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
@@ -431,6 +434,8 @@ const handleJoin = async (club) => {
   background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.2);
   color: #fde68a; font-size: 0.85rem; font-weight: 600;
   border-radius: 0.75rem; text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px;
 }
 .btn-leader {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
@@ -438,6 +443,8 @@ const handleJoin = async (club) => {
   background: rgba(168, 85, 247, 0.12); border: 1px solid rgba(168, 85, 247, 0.2);
   color: #c084fc; font-size: 0.85rem; font-weight: 600;
   border-radius: 0.75rem; text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px;
 }
 
 /* Skeleton */

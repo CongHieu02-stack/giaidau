@@ -124,7 +124,7 @@
           <div class="right-column">
             <!-- Actions -->
             <div class="section-card" v-if="canRegister">
-              <button class="action-btn primary" @click="handleRegister" :disabled="registering">
+              <button class="btn-join" @click="handleRegister" :disabled="registering">
                 <i :class="registering ? 'pi pi-spinner pi-spin' : 'pi pi-sign-in'"></i>
                 {{ registering ? 'Đang xử lý...' : 'Đăng ký tham gia' }}
               </button>
@@ -157,7 +157,7 @@
               </div>
               <template #footer>
                 <button class="action-btn secondary" @click="showRegModal = false" :disabled="registering">Hủy</button>
-                <button class="action-btn primary" @click="submitRegistration(selectedClubId)" :disabled="!selectedClubId || registering">
+                <button class="btn-join" @click="submitRegistration(selectedClubId)" :disabled="!selectedClubId || registering">
                   Xác nhận đăng ký
                 </button>
               </template>
@@ -300,8 +300,11 @@ const approvedRegistrations = computed(() => {
 });
 
 const canRegister = computed(() => {
+  // Tournament managers should not be able to register clubs
+  if (authStore.isTournamentManager) return false;
   const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
-  return isManager && 
+  const hasManagedClub = userClubs.value && userClubs.value.length > 0;
+  return (isManager || hasManagedClub) &&
          tournament.value?.status === 'registration_open' &&
          tournament.value?.registrationCount < tournament.value?.maxTeams;
 });
@@ -813,6 +816,9 @@ onMounted(async () => {
 .action-btn.secondary:hover {
   background: rgba(255, 255, 255, 0.12);
 }
+
+/* Reuse club join button style for tournament CTA to keep uniform look */
+.btn-join { /* uses global .btn-join from src/style.css */ }
 
 /* Organizer */
 .organizer-row {
