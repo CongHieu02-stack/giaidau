@@ -61,6 +61,7 @@
               </div>
             </div>
           </div>
+          
           <div class="stat-card" style="--accent:#10b981">
             <div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#6ee7b7"><i class="pi pi-trophy"></i></div>
             <div class="stat-content">

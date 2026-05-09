@@ -39,6 +39,14 @@
               <div class="action-desc">Bổ nhiệm trọng tài cho trận đấu</div>
             </div>
           </router-link>
+
+          <router-link to="/tournament-admin/venues" class="action-card">
+            <div class="action-icon">🏟️</div>
+            <div class="action-text">
+              <div class="action-title">Quản lý sân đấu</div>
+              <div class="action-desc">Thêm và cập nhật sân thi đấu</div>
+            </div>
+          </router-link>
         </div>
       </div>
     </div>

@@ -76,9 +76,29 @@
           <!-- Card Footer -->
           <div class="club-footer">
             <!-- View detail button always shown -->
-            <router-link :to="`/club-admin/clubs/${club.id}`" class="btn-detail">
+            <router-link :to="{ path: `/club-admin/clubs/${club.id}`, query: { from: 'clubs', tab: activeTab } }" class="btn-detail">
               <i class="pi pi-eye"></i> Xem chi tiết
             </router-link>
+
+            <!-- Approve / Reject if pending -->
+            <template v-if="club.status === 'pending'">
+              <button
+                @click="approveClub(club)"
+                :disabled="processingId === club.id"
+                class="btn-approve"
+              >
+                <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
+                <i v-else class="pi pi-check"></i> Duyệt
+              </button>
+              <button
+                @click="openRejectModal(club)"
+                :disabled="processingId === club.id"
+                class="btn-reject"
+              >
+                <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
+                <i v-else class="pi pi-times-circle"></i> Từ chối
+              </button>
+            </template>
 
             <!-- Suspend if approved -->
             <button
@@ -137,6 +157,33 @@
       </div>
     </div>
 
+    <!-- Reject Modal -->
+    <div v-if="rejectModal.show" class="modal-overlay" @click.self="rejectModal.show = false">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-icon reject-icon"><i class="pi pi-times-circle"></i></div>
+            <h2 class="modal-title">Từ chối câu lạc bộ</h2>
+          </div>
+          <button @click="rejectModal.show = false" class="modal-close"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-sub">CLB: <strong>{{ rejectModal.club?.name }}</strong></p>
+          <label class="field-label">
+            <span>Lý do từ chối <span class="req">*</span></span>
+            <textarea v-model="rejectModal.reason" rows="3" placeholder="Nhập lý do từ chối..." class="field-textarea"></textarea>
+          </label>
+          <div class="modal-actions">
+            <button @click="rejectModal.show = false" class="btn-cancel">Hủy</button>
+            <button @click="confirmReject" :disabled="!rejectModal.reason.trim() || processingId === rejectModal.club?.id" class="btn-confirm-reject">
+              <i v-if="processingId === rejectModal.club?.id" class="pi pi-spinner pi-spin"></i>
+              <i v-else class="pi pi-times-circle"></i> Xác nhận từ chối
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast -->
     <Transition name="toast">
       <div v-if="toast.show" class="toast" :class="toast.type">
@@ -153,14 +200,17 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 
 const clubs    = ref([]);
 const loading  = ref(true);
 const processingId = ref(null);
 const activeTab = ref('approved');
+const route = useRoute();
 const toast = ref({ show: false, type: 'success', title: '', message: '' });
 const suspendModal = ref({ show: false, club: null, reason: '' });
+const rejectModal = ref({ show: false, club: null, reason: '' });
 
 const tabs = [
   { key: 'approved',  label: 'Đã duyệt',  icon: 'pi pi-check-circle', color: '#86efac' },
@@ -205,6 +255,30 @@ const confirmSuspend = async () => {
   }
 };
 
+const openRejectModal = (club) => {
+  rejectModal.value = { show: true, club, reason: '' };
+};
+
+const confirmReject = async () => {
+  const { club, reason } = rejectModal.value;
+  if (!reason.trim()) return;
+  processingId.value = club.id;
+  try {
+    const result = await clubRepository.reject(club.id, reason.trim());
+    if (result.isOk()) {
+      rejectModal.value.show = false;
+      showToast('error', 'Đã từ chối', `CLB "${club.name}" đã bị từ chối.`);
+      await loadClubs();
+    } else {
+      showToast('error', 'Lỗi', result.getError());
+    }
+  } catch (err) {
+    showToast('error', 'Lỗi', err.message);
+  } finally {
+    processingId.value = null;
+  }
+};
+
 const restoreClub = async (club) => {
   processingId.value = club.id;
   try {
@@ -222,12 +296,30 @@ const restoreClub = async (club) => {
   }
 };
 
+const approveClub = async (club) => {
+  processingId.value = club.id;
+  try {
+    const result = await clubRepository.approve(club.id);
+    if (result.isOk()) {
+      showToast('success', 'Đã phê duyệt', `CLB "${club.name}" đã được phê duyệt.`);
+      await loadClubs();
+    } else {
+      showToast('error', 'Lỗi', result.getError());
+    }
+  } catch (err) {
+    showToast('error', 'Lỗi', err.message);
+  } finally {
+    processingId.value = null;
+  }
+};
+
 const loadClubs = async () => {
   const result = await clubRepository.findWithMemberCount();
   if (result.isOk()) clubs.value = result.getValue();
 };
 
 onMounted(async () => {
+  if (route.query.tab) activeTab.value = route.query.tab;
   await loadClubs();
   loading.value = false;
 });
@@ -353,6 +445,28 @@ onMounted(async () => {
 }
 .btn-restore:hover { background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.35); color: white; }
 .btn-restore:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-approve {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 0.5rem; border-radius: 0.75rem;
+  background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.18);
+  color: #6ee7b7; font-size: 0.825rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-approve:hover { background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.28); color: white; }
+
+.btn-reject {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 0.5rem; border-radius: 0.75rem;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.16);
+  color: #fca5a5; font-size: 0.825rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-reject:hover { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.28); color: white; }
+.btn-confirm-reject {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg,#ef4444,#f97316); color: white; border-radius: 0.625rem; font-weight: 600; cursor: pointer;
+}
+.btn-confirm-reject:hover { transform: translateY(-1px); }
+.reject-icon { background: linear-gradient(135deg,#ef4444,#f97316); box-shadow: 0 4px 12px rgba(239,68,68,0.2); }
 
 /* Empty */
 .empty-state { text-align: center; padding: 5rem 1rem; }

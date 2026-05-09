@@ -30,6 +30,30 @@
   }
 }
 
+/* Global shared join button to ensure uniform appearance across components */
+.btn-join {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.65rem 0.5rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6); border: 1px solid transparent;
+  color: white; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none; transition: all 0.25s; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px; box-sizing: border-box;
+}
+.btn-join:hover { box-shadow: 0 4px 12px rgba(99,102,241,0.4); transform: translateY(-1px); }
+.btn-join:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Make join buttons stretch inside card footers where multiple CTAs share space */
+.club-footer .btn-join,
+.t-card .card-footer .btn-join {
+  display: flex; flex: 1; align-items: center; justify-content: center;
+}
+
+/* Ensure dialog confirm uses full width */
+.custom-tournament-dialog .btn-join {
+  width: 100%;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;

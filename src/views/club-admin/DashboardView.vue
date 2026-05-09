@@ -53,11 +53,11 @@
         <table v-else-if="filteredClubs.length > 0" class="admin-table">
           <thead>
             <tr>
-              <th>Câu lạc bộ</th>
-              <th>Người quản lý</th>
-              <th>Thành viên</th>
-              <th>Ngày tạo</th>
-              <th>Trạng thái</th>
+              <th class="text-left">Câu lạc bộ</th>
+              <th class="text-left">Người quản lý</th>
+              <th class="text-center">Thành viên</th>
+              <th class="text-center">Ngày tạo</th>
+              <th class="text-center">Trạng thái</th>
               <th class="text-center">Thao tác</th>
             </tr>
           </thead>
@@ -78,26 +78,26 @@
                   </div>
                 </div>
               </td>
-              <td>
+              <td class="text-left">
                 <div class="manager-cell" v-if="club.leader">
                   <span class="manager-name">{{ club.leader.full_name }}</span>
                 </div>
                 <span v-else class="text-white/30 text-xs italic">Chưa cập nhật</span>
               </td>
-              <td>
+              <td class="text-center">
                 <span class="member-count">{{ club.member_count || 0 }} đội viên</span>
               </td>
-              <td>
+              <td class="text-center">
                 <span class="date-cell">{{ formatDate(club.createdAt) }}</span>
               </td>
-              <td>
+              <td class="text-center">
                 <span class="status-badge" :class="getStatusClass(club.status)">
                   {{ getStatusText(club.status) }}
                 </span>
               </td>
               <td>
                 <div class="actions-cell">
-                  <router-link :to="`/club-admin/clubs/${club.id}`" class="action-btn-icon view" title="Xem chi tiết">
+                  <router-link :to="{ path: `/club-admin/clubs/${club.id}`, query: { from: 'dashboard' } }" class="action-btn-icon view" title="Xem chi tiết">
                     <i class="pi pi-eye"></i>
                   </router-link>
                   
@@ -531,7 +531,12 @@ onMounted(loadClubs);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   color: rgba(255, 255, 255, 0.7);
   font-size: 0.875rem;
+  text-align: left; /* Default to left to override global center */
 }
+
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
 
 .admin-table tr:last-child td {
   border-bottom: none;

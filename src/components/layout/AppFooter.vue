@@ -111,9 +111,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
 
-const currentYear = computed(() => new Date().getFullYear());
+
 
 function openSocial(url) {
   if (url && url !== '#') {

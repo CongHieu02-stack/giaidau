@@ -48,7 +48,7 @@
 
     <!-- Footer CTA -->
     <div class="card-footer" :class="{ 'has-action': canRegister }">
-      <button v-if="canRegister" @click.stop="onJoinClick" class="join-btn">
+      <button v-if="canRegister" @click.stop="onJoinClick" class="btn-join">
         <i class="pi pi-sign-in"></i> Tham gia
       </button>
       <span class="cta">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
@@ -57,18 +57,37 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { formatDate } from '../../utils/helpers.js';
 import { useAuthStore } from '../../stores/auth.js';
+import { clubRepository } from '../../repositories/ClubRepository.js';
 
 const props = defineProps({ tournament: { type: Object, required: true } });
 const router = useRouter();
 const authStore = useAuthStore();
 
+const userClubs = ref([]);
+
 const canRegister = computed(() => {
+  // Exclude users who are tournament managers from registering clubs here
+  if (authStore.isTournamentManager) return false;
   const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
-  return isManager && props.tournament.status === 'registration_open';
+  const hasManagedClub = userClubs.value && userClubs.value.length > 0;
+  return (isManager || hasManagedClub) && props.tournament.status === 'registration_open';
+});
+
+onMounted(async () => {
+  if (authStore.isAuthenticated && authStore.user) {
+    try {
+      const res = await clubRepository.findManagedBy(authStore.user.id);
+      if (res && res.isOk && res.isOk()) {
+        userClubs.value = res.getValue();
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 });
 
 const onJoinClick = (e) => {
@@ -285,17 +304,5 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
   align-items: center;
 }
 
-.join-btn {
-  display: flex; align-items: center; gap: 0.375rem;
-  padding: 0.45rem 0.875rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  border: none; border-radius: 0.5rem;
-  color: white; font-size: 0.8rem; font-weight: 600;
-  cursor: pointer; transition: all 0.2s;
-}
-
-.join-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-}
+.btn-join { /* uses global .btn-join from src/style.css */ }
 </style>
