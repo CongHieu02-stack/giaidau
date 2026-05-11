@@ -15,6 +15,12 @@
       <div class="sb-team">
         <div class="sb-logo"><img v-if="match.home_club?.logo_url" :src="match.home_club.logo_url"/><span v-else>{{ initials(match.home_club?.name) }}</span></div>
         <div class="sb-name">{{ match.home_club?.name || 'TBD' }}</div>
+        <!-- Home Events -->
+        <div class="sb-events">
+          <div v-for="ev in homeSummary" :key="ev.id" class="sb-ev-item">
+            {{ eventEmoji(ev.type) }} {{ ev.player?.full_name }} ({{ ev.minute }}')
+          </div>
+        </div>
       </div>
       <div class="sb-score">
         <span class="sc-num">{{ match.home_score ?? 0 }}</span>
@@ -25,6 +31,12 @@
       <div class="sb-team">
         <div class="sb-logo"><img v-if="match.away_club?.logo_url" :src="match.away_club.logo_url"/><span v-else>{{ initials(match.away_club?.name) }}</span></div>
         <div class="sb-name">{{ match.away_club?.name || 'TBD' }}</div>
+        <!-- Away Events -->
+        <div class="sb-events">
+          <div v-for="ev in awaySummary" :key="ev.id" class="sb-ev-item">
+            {{ eventEmoji(ev.type) }} {{ ev.player?.full_name }} ({{ ev.minute }}')
+          </div>
+        </div>
       </div>
     </div>
 
@@ -187,6 +199,20 @@ const initials = (n) => n ? n.split(' ').map(w=>w[0]).join('').toUpperCase().sli
 const eventEmoji = (t) => ({'goal':'⚽','yellow_card':'🟡','red_card':'🔴','substitution_in':'🔄','substitution_out':'↩️','start':'▶️','pause':'⏸','resume':'▶️','end':'⏹'}[t]||'📌');
 const getPlayers = (side) => side==='home' ? homePlayers.value : awayPlayers.value;
 const isPresent = (pid) => attendance.value.some(a => a.player_id === pid && a.is_present);
+
+const homeSummary = computed(() => {
+  return events.value.filter(e => 
+    e.club_id === match.value?.home_club_id && 
+    ['goal', 'yellow_card', 'red_card'].includes(e.type)
+  );
+});
+
+const awaySummary = computed(() => {
+  return events.value.filter(e => 
+    e.club_id === match.value?.away_club_id && 
+    ['goal', 'yellow_card', 'red_card'].includes(e.type)
+  );
+});
 
 function startTimer() {
   stopTimer();
@@ -357,6 +383,23 @@ onUnmounted(stopTimer);
 .sc-num { font-size:3rem; font-weight:900; color:white; line-height:1; }
 .sc-sep { font-size:2rem; color:rgba(255,255,255,0.3); }
 .sc-label { font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; }
+
+.sb-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  width: 100%;
+}
+.sb-ev-item {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-team:first-child .sb-ev-item { text-align: right; }
+.sb-team:last-child .sb-ev-item { text-align: left; }
 
 /* Controls */
 .controls { display:flex; justify-content:center; gap:0.75rem; flex-wrap:wrap; }
