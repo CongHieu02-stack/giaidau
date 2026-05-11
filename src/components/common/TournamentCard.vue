@@ -64,11 +64,12 @@ const authStore = useAuthStore();
 const userClubs = ref([]);
 
 const canRegister = computed(() => {
-  // Exclude users who are tournament managers from registering clubs here
-  if (authStore.isTournamentManager) return false;
+  if (!authStore.isAuthenticated) return true;
   const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
   const hasManagedClub = userClubs.value && userClubs.value.length > 0;
-  return (isManager || hasManagedClub) && props.tournament.status === 'registration_open';
+  return (isManager || hasManagedClub) && 
+         props.tournament.status === 'registration_open' &&
+         (props.tournament.approved_count || 0) < (props.tournament.max_teams || 16);
 });
 
 onMounted(async () => {

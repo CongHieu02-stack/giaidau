@@ -98,8 +98,8 @@ export class Tournament {
       return { success: false, error: 'Registration is not open for this tournament' };
     }
 
-    if (this.registrations.length >= this.maxTeams) {
-      return { success: false, error: 'Tournament has reached maximum number of teams' };
+    if (this.approvedCount >= this.maxTeams) {
+      return { success: false, error: 'Tournament has reached maximum number of approved teams' };
     }
 
     const existing = this.registrations.find(r => r.clubId === club.id);

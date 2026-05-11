@@ -1,5 +1,7 @@
 <template>
-  <div class="min-h-screen py-6 px-4">
+  <div class="tournament-detail-page">
+    <ConfirmDialog />
+    <div class="min-h-screen py-6 px-4">
     <div class="max-w-6xl mx-auto">
       <!-- Loading -->
       <div v-if="loading" class="flex justify-center py-16">
@@ -103,19 +105,57 @@
             <div class="section-card">
               <h2 class="section-title">
                 <i class="pi pi-users section-icon purple"></i>
-                Câu lạc bộ đã đăng ký
+                Câu lạc bộ đã tham gia
                 <span class="team-count">{{ approvedRegistrations.length }}</span>
               </h2>
 
               <div v-if="approvedRegistrations.length > 0" class="teams-list">
                 <div v-for="reg in approvedRegistrations" :key="reg.id" class="team-row">
-                  <div class="team-avatar-small">{{ getInitials(reg.club?.name) }}</div>
+                  <div class="team-avatar-small">
+                    <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" :alt="reg.club.name" class="w-full h-full object-cover">
+                    <span v-else>{{ getInitials(reg.club?.name) }}</span>
+                  </div>
                   <span class="team-name">{{ reg.club?.name }}</span>
                 </div>
               </div>
               <div v-else class="empty-teams">
                 <i class="pi pi-users"></i>
-                <p>Chưa có câu lạc bộ nào đăng ký</p>
+                <p>Chưa có câu lạc bộ nào tham gia</p>
+              </div>
+            </div>
+
+            <!-- Admin: Pending Registrations -->
+            <div v-if="canManage && pendingRegistrations.length > 0" class="section-card admin-section">
+              <h2 class="section-title">
+                <i class="pi pi-clock section-icon yellow"></i>
+                Đăng ký chờ duyệt
+                <span class="team-count yellow">{{ pendingRegistrations.length }}</span>
+              </h2>
+              <div class="teams-list">
+                <div v-for="reg in pendingRegistrations" :key="reg.id" class="team-row pending">
+                  <div class="team-avatar-small">
+                    <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" :alt="reg.club.name" class="w-full h-full object-cover">
+                    <span v-else>{{ getInitials(reg.club?.name) }}</span>
+                  </div>
+                  <div class="flex-1">
+                    <span class="team-name">{{ reg.club?.name }}</span>
+                    <p class="text-xs text-white/40">Gửi lúc: {{ formatDate(reg.registered_at) }}</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="icon-btn-small success" @click="handleApprove(reg.id)" title="Duyệt">
+                      <i class="pi pi-check"></i>
+                    </button>
+                    <button class="icon-btn-small danger" @click="handleReject(reg.id)" title="Từ chối">
+                      <i class="pi pi-times"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4">
+                <RouterLink :to="adminEditPath" class="text-sm text-blue-400 hover:underline">
+                  <i class="pi pi-external-link mr-1"></i>
+                  Quản lý tất cả đăng ký trong Dashboard
+                </RouterLink>
               </div>
             </div>
           </div>
@@ -135,16 +175,16 @@
               <div class="flex flex-column gap-3 py-2">
                 <div v-for="club in userClubs" :key="club.id" 
                      class="club-select-item"
-                     :class="{'selected': selectedClubId === club.id}"
+                     :class="{'selected': selectedClubId === club.id, 'pending-club': club.status !== 'approved'}"
                      @click="selectedClubId = club.id">
                   <div class="club-avatar-modal">
-                    <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" class="club-logo-img" />
+                    <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" class="club-logo-img" />
                     <span v-else>{{ getInitials(club.name) }}</span>
                   </div>
                   <div class="club-select-info">
                     <div class="flex align-items-center gap-2">
                       <span class="club-select-name">{{ club.name }}</span>
-                      <span v-if="club.short_name" class="club-select-short">({{ club.short_name }})</span>
+                      <span v-if="club.status !== 'approved'" class="pending-badge">Chờ duyệt</span>
                     </div>
                     <span class="club-select-leader" v-if="club.leaderName">
                       <i class="pi pi-user text-xs"></i> {{ club.leaderName }}
@@ -171,8 +211,12 @@
               </h3>
               <div class="info-rows">
                 <div class="info-row">
-                  <span class="info-label">Đã đăng ký</span>
+                  <span class="info-label">Đã duyệt</span>
                   <span class="info-val">{{ approvedRegistrations.length }} đội</span>
+                </div>
+                <div v-if="pendingRegistrations.length > 0" class="info-row">
+                  <span class="info-label text-yellow-400">Chờ duyệt</span>
+                  <span class="info-val text-yellow-400">{{ pendingRegistrations.length }} đội</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Còn trống</span>
@@ -245,12 +289,14 @@
       </div>
     </div>
   </div>
+</div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useAuthStore } from '../../stores/auth.js';
 import { useTournamentStore } from '../../stores/tournament.js';
 import { formatDate } from '../../utils/helpers.js';
@@ -259,12 +305,13 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 const tournamentStore = useTournamentStore();
 const toast = useToast();
-const confirm = useConfirm();
+const confirmService = useConfirm();
 
-const tournament = ref(null);
+const tournament = computed(() => tournamentStore.currentTournament);
 const loading = ref(true);
 const userClubs = ref([]);
 const registering = ref(false);
@@ -299,25 +346,59 @@ const approvedRegistrations = computed(() => {
   return tournament.value?.registrations?.filter(r => r.status === 'approved') || [];
 });
 
+const pendingRegistrations = computed(() => {
+  return tournament.value?.registrations?.filter(r => r.status === 'pending') || [];
+});
+
+const canManage = computed(() => {
+  if (!authStore.isAuthenticated || !tournament.value) return false;
+  
+  // Only Tournament Admin (includes Super Admin) or the Creator can manage
+  const isAuthorizedAdmin = authStore.isTournamentAdmin;
+  const isCreator = tournament.value.created_by === authStore.user?.id;
+  
+  return isAuthorizedAdmin || isCreator;
+});
+
+const adminEditPath = computed(() => {
+  if (!tournament.value) return '#';
+  const prefix = authStore.isAdmin ? '/admin' : '/tournament-admin';
+  return `${prefix}/tournaments/${tournament.value.id}/edit`;
+});
+
 const canRegister = computed(() => {
-  // Tournament managers should not be able to register clubs
-  if (authStore.isTournamentManager) return false;
-  const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
-  const hasManagedClub = userClubs.value && userClubs.value.length > 0;
-  return (isManager || hasManagedClub) &&
-         tournament.value?.status === 'registration_open' &&
-         tournament.value?.registrationCount < tournament.value?.maxTeams;
+  // Show registration button if tournament is open and has space
+  if (tournament.value?.status !== 'registration_open') return false;
+  if (approvedRegistrations.value.length >= (tournament.value?.maxTeams || 0)) return false;
+  
+  // Don't show if user is the creator (they use admin controls)
+  if (authStore.user?.id === tournament.value?.created_by) return false;
+  
+  return true;
 });
 
 const handleRegister = async () => {
-  if (userClubs.value.length === 0) {
-    toast.add({ severity: 'warn', summary: 'Thông báo', detail: 'Bạn chưa có câu lạc bộ nào được duyệt để đăng ký', life: 3000 });
+  if (!authStore.isAuthenticated) {
+    toast.add({ severity: 'info', summary: 'Thông báo', detail: 'Vui lòng đăng nhập để đăng ký tham gia', life: 3000 });
+    router.push('/login');
     return;
   }
 
+  if (userClubs.value.length === 0) {
+    toast.add({ severity: 'warn', summary: 'Thông báo', detail: 'Bạn chưa có câu lạc bộ nào để đăng ký. Vui lòng tạo câu lạc bộ trước.', life: 5000 });
+    return;
+  }
+
+  // Filter for approved clubs if we want to enforce approval before registration
+  const approvedClubs = userClubs.value.filter(c => c.status === 'approved');
+  
   if (userClubs.value.length === 1) {
     const club = userClubs.value[0];
-    confirm.require({
+    
+    if (club.status !== 'approved') {
+      toast.add({ severity: 'warn', summary: 'Thông báo', detail: `Câu lạc bộ "${club.name}" của bạn đang chờ duyệt. Bạn vẫn có thể gửi yêu cầu đăng ký tham gia giải.`, life: 5000 });
+    }
+    confirmService.require({
       message: `Bạn có muốn đăng ký câu lạc bộ "${club.name}" tham gia giải đấu này không?`,
       header: 'Xác nhận đăng ký',
       icon: 'pi pi-exclamation-triangle',
@@ -337,10 +418,7 @@ const submitRegistration = async (clubId) => {
       toast.add({ severity: 'success', summary: 'Thành công', detail: 'Gửi yêu cầu đăng ký tham gia thành công', life: 3000 });
       showRegModal.value = false;
       // Refresh tournament data
-      const fetchResult = await tournamentStore.fetchTournament(tournament.value.id);
-      if (fetchResult.success) {
-        tournament.value = tournamentStore.currentTournament;
-      }
+      await tournamentStore.fetchTournament(tournament.value.id);
     } else {
       toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error || 'Đăng ký thất bại', life: 3000 });
     }
@@ -365,6 +443,67 @@ const formatFormat = (format) => {
   return formats[format] || format;
 };
 
+const handleApprove = (regId) => {
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn duyệt câu lạc bộ này tham gia giải đấu?',
+    header: 'Xác nhận duyệt',
+    icon: 'pi pi-check-circle',
+    acceptClass: 'p-button-success',
+    acceptLabel: 'Đồng ý',
+    rejectLabel: 'Hủy',
+    accept: () => {
+      // Execute in background so dialog closes immediately
+      processApprove(regId);
+    }
+  });
+};
+
+const processApprove = async (regId) => {
+  try {
+    const result = await tournamentStore.approveRegistration(tournament.value.id, regId, authStore.user.id);
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã duyệt', life: 1500 });
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error || 'Duyệt thất bại', life: 3000 });
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  }
+};
+
+const handleReject = (regId) => {
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn từ chối câu lạc bộ này?',
+    header: 'Xác nhận từ chối',
+    icon: 'pi pi-times-circle',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Từ chối',
+    rejectLabel: 'Quay lại',
+    accept: () => {
+      const reason = prompt('Nhập lý do từ chối:');
+      if (reason === null) return;
+      if (!reason.trim()) {
+        toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Vui lòng nhập lý do từ chối', life: 3000 });
+        return;
+      }
+      processReject(regId, reason);
+    }
+  });
+};
+
+const processReject = async (regId, reason) => {
+  try {
+    const result = await tournamentStore.rejectRegistration(tournament.value.id, regId, reason, authStore.user.id);
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã từ chối', life: 1500 });
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error || 'Từ chối thất bại', life: 3000 });
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  }
+};
+
 onMounted(async () => {
   const id = route.params.id;
   if (!id) {
@@ -378,19 +517,17 @@ onMounted(async () => {
     // Fetch tournament data and user clubs in parallel to reduce loading time
     const promises = [tournamentStore.fetchTournament(id)];
     
-    if (isManager && authStore.user) {
+    if (authStore.user) {
       promises.push(clubRepository.findManagedBy(authStore.user.id));
     }
     
     const [tournamentResult, clubsResult] = await Promise.all(promises);
     
-    if (tournamentResult.success) {
-      tournament.value = tournamentStore.currentTournament;
-    } else {
+    if (!tournamentResult.success) {
       toast.add({ severity: 'error', summary: 'Lỗi', detail: tournamentResult.error || 'Không thể tải thông tin giải đấu', life: 3000 });
     }
     
-    if (isManager && clubsResult) {
+    if (clubsResult) {
       if (clubsResult.isOk()) {
         userClubs.value = clubsResult.getValue();
       }
@@ -1087,5 +1224,56 @@ onMounted(async () => {
 
 .custom-tournament-dialog .club-select-leader {
   color: rgba(255, 255, 255, 0.4) !important;
+}
+/* ========== ADMIN SECTION ========== */
+.admin-section {
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  background: rgba(234, 179, 8, 0.05);
+}
+
+.team-count.yellow {
+  background: rgba(234, 179, 8, 0.3);
+  color: #fbbf24;
+}
+
+.team-row.pending {
+  border-left: 3px solid #fbbf24;
+}
+
+.icon-btn-small {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.icon-btn-small.success {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.icon-btn-small.success:hover {
+  background: #22c55e;
+  color: white;
+}
+
+.icon-btn-small.danger {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.icon-btn-small.danger:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.text-yellow-400 {
+  color: #fbbf24;
 }
 </style>

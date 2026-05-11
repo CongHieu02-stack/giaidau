@@ -164,7 +164,7 @@ export class TournamentRepository extends BaseRepository {
       .from('tournament_registrations')
       .update({ 
         status: 'approved', 
-        approved_at: new Date() 
+        approved_at: new Date().toISOString() 
       })
       .eq('id', registrationId)
       .eq('tournament_id', tournamentId)

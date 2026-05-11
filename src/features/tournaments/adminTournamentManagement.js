@@ -30,20 +30,26 @@ export async function fetchAdminTournaments() {
 }
 
 export async function fetchAdminTournament(id) {
+  if (!id) throw new Error('Tournament ID is required');
+
   const { data, error } = await supabase
     .from('tournaments')
     .select(`
       *,
       sport_category:sports_categories(id, name),
       venue:venues(id, name),
-      registrations:tournament_registrations(id, status)
+      registrations:tournament_registrations(
+        id, 
+        status, 
+        registered_at,
+        club:clubs(id, name, logo_url)
+      )
     `)
     .eq('id', id)
     .single();
 
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('Không tìm thấy giải đấu');
 
   return {
     ...data,
@@ -136,5 +142,35 @@ export async function cancelTournamentForAdmin(id, reason) {
     return { success: false, error: error.message };
   }
 
+  return { success: true, data };
+}
+export async function approveTournamentRegistration(regId) {
+  const { data, error } = await supabase
+    .from('tournament_registrations')
+    .update({ status: 'approved' })
+    .eq('id', regId)
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  return { success: true, data };
+}
+
+export async function rejectTournamentRegistration(regId, reason) {
+  const { data, error } = await supabase
+    .from('tournament_registrations')
+    .update({ 
+      status: 'rejected',
+      rejection_reason: reason 
+    })
+    .eq('id', regId)
+    .select()
+    .single();
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
   return { success: true, data };
 }
