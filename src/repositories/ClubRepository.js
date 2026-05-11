@@ -72,7 +72,7 @@ export class ClubRepository extends BaseRepository {
       .select(`
         *,
         leader:profiles!clubs_leader_id_fkey(id, full_name),
-        member_count:club_members(count)
+        club_members!left(count)
       `);
 
     // Apply filters
@@ -82,6 +82,9 @@ export class ClubRepository extends BaseRepository {
       }
     });
 
+    // Filter the embedded club_members to only count approved
+    query = query.eq('club_members.status', 'approved');
+
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
@@ -90,7 +93,8 @@ export class ClubRepository extends BaseRepository {
 
     return Result.ok((data || []).map(item => {
       const club = this.domainClass.fromDB(item);
-      club.member_count = item.member_count?.[0]?.count || 0;
+      // Increment by 1 to include the leader who is not in the club_members table
+      club.member_count = (item.club_members?.[0]?.count || 0) + 1;
       club.leader = item.leader;
       return club;
     }));
@@ -121,7 +125,11 @@ export class ClubRepository extends BaseRepository {
       return Result.err(error.message);
     }
 
-    return Result.ok(this.domainClass.fromDB(data));
+    const club = this.domainClass.fromDB(data);
+    club.leader = data.leader || null;
+    club.deputy = data.deputy || null;
+    club.members = data.members || [];
+    return Result.ok(club);
   }
 
   /**

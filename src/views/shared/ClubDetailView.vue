@@ -43,7 +43,7 @@
               <div class="stats-row">
                 <div class="stat-chip">
                   <i class="pi pi-users"></i>
-                  <span>{{ members.length }} thành viên</span>
+                  <span>{{ approvedMembers.length }} thành viên</span>
                 </div>
                 <div class="stat-chip">
                   <i class="pi pi-trophy"></i>
@@ -86,14 +86,14 @@
               <div class="members-icon"><i class="pi pi-users"></i></div>
               <h2 class="members-title">Danh sách thành viên</h2>
             </div>
-            <span class="members-count">{{ members.length }} người</span>
+            <span class="members-count">{{ approvedMembers.length }} người</span>
           </div>
 
           <div v-if="membersLoading" class="members-loading">
             <i class="pi pi-spinner pi-spin"></i> Đang tải...
           </div>
 
-          <div v-else-if="members.length === 0" class="members-empty">
+          <div v-else-if="approvedMembers.length === 0" class="members-empty">
             <i class="pi pi-user-minus"></i>
             <p>Câu lạc bộ chưa có thành viên nào</p>
           </div>
@@ -107,11 +107,10 @@
                   <th class="th-center">Vai trò</th>
                   <th class="th-center">Ngày tham gia</th>
                   <th class="th-center">Trạng thái</th>
-                  <th v-if="isLeader" class="th-center">Hành động</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(m, i) in members" :key="m.id">
+                <tr v-for="(m, i) in approvedMembers" :key="m.id">
                   <td class="td-num">{{ i + 1 }}</td>
                   <td class="td-user">
                     <div class="user-cell">
@@ -132,28 +131,59 @@
                   <td class="td-center">
                     <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
                   </td>
-                  <td v-if="isLeader" class="td-center">
-                    <div v-if="m.status === 'pending'" class="action-btns">
-                      <button
-                        class="btn-approve"
-                        :disabled="approvingId === m.id || rejectingId === m.id"
-                        @click="approveM(m)"
-                      >
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ── Pending requests table (Leader only) ── -->
+        <div v-if="isLeader && pendingMembers.length > 0" class="members-card">
+          <div class="members-header" style="background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(245,158,11,0.04));">
+            <div class="members-title-wrap">
+              <div class="members-icon" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);"><i class="pi pi-clock"></i></div>
+              <h2 class="members-title">Yêu cầu chờ duyệt</h2>
+            </div>
+            <span class="members-count">{{ pendingMembers.length }} người</span>
+          </div>
+
+          <div class="members-table-wrap">
+            <table class="members-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Người dùng</th>
+                  <th class="th-center">Ngày yêu cầu</th>
+                  <th class="th-center">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(m, i) in pendingMembers" :key="m.id">
+                  <td class="td-num">{{ i + 1 }}</td>
+                  <td class="td-user">
+                    <div class="user-cell">
+                      <div class="user-avatar">
+                        <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
+                        <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
+                      </div>
+                      <div>
+                        <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
+                        <div class="user-email">{{ m.user?.email || '' }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
+                  <td class="td-center">
+                    <div class="action-btns">
+                      <button class="btn-approve" :disabled="approvingId === m.id || rejectingId === m.id" @click="approveM(m)">
                         <i v-if="approvingId === m.id" class="pi pi-spinner pi-spin"></i>
-                        <i v-else class="pi pi-check"></i>
-                        Duyệt
+                        <i v-else class="pi pi-check"></i> Duyệt
                       </button>
-                      <button
-                        class="btn-reject"
-                        :disabled="approvingId === m.id || rejectingId === m.id"
-                        @click="rejectM(m)"
-                      >
+                      <button class="btn-reject" :disabled="approvingId === m.id || rejectingId === m.id" @click="rejectM(m)">
                         <i v-if="rejectingId === m.id" class="pi pi-spinner pi-spin"></i>
-                        <i v-else class="pi pi-times"></i>
-                        Từ chối
+                        <i v-else class="pi pi-times"></i> Từ chối
                       </button>
                     </div>
-                    <span v-else class="no-action">—</span>
                   </td>
                 </tr>
               </tbody>
@@ -279,6 +309,37 @@ const handleUpdate = async () => {
 };
 
 const isLeader = computed(() => club.value?.leaderId === authStore.user?.id);
+
+const approvedMembers = computed(() => {
+  const approved = members.value.filter(m => m.status === 'approved');
+  const clubLeaderId = club.value?.leaderId;
+  const clubLeader = club.value?.leader || leader.value;
+
+  if (!clubLeaderId || !clubLeader) return approved;
+
+  // Check if leader is already in approved list
+  const leaderInList = approved.some(m => m.user?.id === clubLeaderId || m.role === 'leader');
+
+  if (!leaderInList) {
+    // Inject leader as first entry
+    const leaderRow = {
+      id: `leader-${clubLeaderId}`,
+      user: clubLeader,
+      role: 'leader',
+      status: 'approved',
+      joined_at: club.value?.createdAt || null
+    };
+    return [leaderRow, ...approved];
+  }
+
+  // Fix role of leader in list if incorrect
+  return approved.map(m =>
+    m.user?.id === clubLeaderId ? { ...m, role: 'leader' } : m
+  );
+});
+
+const pendingMembers = computed(() => members.value.filter(m => m.status === 'pending'));
+
 const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
 const isPending = computed(() => memberStatus.value === 'pending');
 const isMember  = computed(() => memberStatus.value === 'member' || memberStatus.value === 'approved');

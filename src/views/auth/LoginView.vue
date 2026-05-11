@@ -45,13 +45,13 @@
           Đăng ký thành công! Vui lòng đăng nhập.
         </div>
 
-        <form @submit.prevent="handleLogin" class="auth-form">
+        <form @submit.prevent="handleLogin" class="auth-form" autocomplete="off">
           <!-- Email -->
           <div class="field-group">
             <label>Email</label>
             <div class="input-wrap" :class="{ error: errors.email }">
               <i class="pi pi-envelope input-ico"></i>
-              <input v-model="form.email" type="email" placeholder="your@email.com" />
+              <input v-model="form.email" type="email" placeholder="your@email.com" autocomplete="off" />
             </div>
             <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
           </div>
@@ -61,7 +61,7 @@
             <label>Mật khẩu</label>
             <div class="input-wrap" :class="{ error: errors.password }">
               <i class="pi pi-lock input-ico"></i>
-              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="••••••••" />
+              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="••••••••" autocomplete="new-password" />
               <button type="button" class="eye-btn" @click="showPwd = !showPwd">
                 <i :class="showPwd ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
               </button>
@@ -90,14 +90,7 @@
             <span>{{ loading ? 'Đang đăng nhập...' : 'Đăng nhập' }}</span>
           </button>
 
-          <!-- Divider -->
-          <div class="divider"><span>Hoặc</span></div>
 
-          <!-- Google -->
-          <button type="button" class="btn-google">
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
-            Đăng nhập với Google
-          </button>
         </form>
 
         <p class="switch-text">
@@ -300,13 +293,29 @@ const handleLogin = async () => {
   width: 100%; padding: 0.8rem 0.875rem 0.8rem 2.5rem;
   background: transparent; border: none; color: white;
   font-size: 0.9rem; outline: none;
+  border-radius: inherit;
 }
 .input-wrap input::placeholder { color: rgba(255,255,255,0.25); }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #141224 inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 
 .eye-btn {
   position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
   color: rgba(255,255,255,0.35); font-size: 0.85rem; padding: 0.2rem;
   transition: color 0.2s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .eye-btn:hover { color: rgba(255,255,255,0.7); }
 
@@ -337,18 +346,7 @@ const handleLogin = async () => {
 .btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,102,241,0.5); }
 .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.divider { display: flex; align-items: center; gap: 0.75rem; }
-.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.08); }
-.divider span { font-size: 0.78rem; color: rgba(255,255,255,0.35); white-space: nowrap; }
 
-.btn-google {
-  display: flex; align-items: center; justify-content: center; gap: 0.625rem;
-  width: 100%; padding: 0.8rem;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  color: rgba(255,255,255,0.75); font-size: 0.875rem; font-weight: 500;
-  border-radius: 0.875rem; transition: all 0.2s;
-}
-.btn-google:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); color: white; }
 
 .switch-text {
   text-align: center; margin-top: 1.5rem;

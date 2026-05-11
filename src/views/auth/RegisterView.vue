@@ -41,13 +41,13 @@
           <p>Điền thông tin để đăng ký miễn phí</p>
         </div>
 
-        <form @submit.prevent="handleRegister" class="auth-form">
+        <form @submit.prevent="handleRegister" class="auth-form" autocomplete="off">
           <!-- Full Name -->
           <div class="field-group">
             <label>Họ và tên <span class="req">*</span></label>
             <div class="input-wrap" :class="{ error: errors.fullName }">
               <i class="pi pi-user input-ico"></i>
-              <input v-model="form.fullName" type="text" placeholder="Nguyễn Văn A" />
+              <input v-model="form.fullName" type="text" placeholder="Nguyễn Văn A" autocomplete="off" />
             </div>
             <span v-if="errors.fullName" class="field-error">{{ errors.fullName }}</span>
           </div>
@@ -57,7 +57,7 @@
             <label>Email <span class="req">*</span></label>
             <div class="input-wrap" :class="{ error: errors.email }">
               <i class="pi pi-envelope input-ico"></i>
-              <input v-model="form.email" type="email" placeholder="your@email.com" />
+              <input v-model="form.email" type="email" placeholder="your@email.com" autocomplete="off" />
             </div>
             <span v-if="errors.email" class="field-error">{{ errors.email }}</span>
           </div>
@@ -68,7 +68,7 @@
               <label>Số điện thoại</label>
               <div class="input-wrap" :class="{ error: errors.phone }">
                 <i class="pi pi-phone input-ico"></i>
-                <input v-model="form.phone" type="tel" placeholder="0912345678" />
+                <input v-model="form.phone" type="tel" placeholder="0912345678" autocomplete="off" />
               </div>
               <span v-if="errors.phone" class="field-error">{{ errors.phone }}</span>
             </div>
@@ -101,7 +101,7 @@
             <label>Mật khẩu <span class="req">*</span></label>
             <div class="input-wrap" :class="{ error: errors.password }">
               <i class="pi pi-lock input-ico"></i>
-              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="••••••••" />
+              <input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="••••••••" autocomplete="new-password" />
               <button type="button" class="eye-btn" @click="showPwd = !showPwd">
                 <i :class="showPwd ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
               </button>
@@ -115,7 +115,7 @@
             <label>Xác nhận mật khẩu <span class="req">*</span></label>
             <div class="input-wrap" :class="{ error: errors.confirmPassword }">
               <i class="pi pi-lock input-ico"></i>
-              <input v-model="form.confirmPassword" :type="showConfirmPwd ? 'text' : 'password'" placeholder="••••••••" />
+              <input v-model="form.confirmPassword" :type="showConfirmPwd ? 'text' : 'password'" placeholder="••••••••" autocomplete="new-password" />
               <button type="button" class="eye-btn" @click="showConfirmPwd = !showConfirmPwd">
                 <i :class="showConfirmPwd ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
               </button>
@@ -284,8 +284,18 @@ const handleRegister = async () => {
 .input-wrap input, .sel-input, .date-input {
   width: 100%; padding: 0.72rem 0.875rem 0.72rem 2.25rem;
   background: transparent; border: none; color: white; font-size: 0.875rem; outline: none;
+  border-radius: inherit;
 }
 .input-wrap input::placeholder { color: rgba(255,255,255,0.2); }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #141224 inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 
 .select-wrap { overflow: hidden; }
 .sel-input { appearance: none; cursor: pointer; padding-right: 2rem; }
@@ -294,7 +304,16 @@ const handleRegister = async () => {
 
 .date-input { color-scheme: dark; }
 
-.eye-btn { position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.3); font-size: 0.8rem; transition: color 0.2s; }
+.eye-btn {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,0.3); font-size: 0.8rem; transition: color 0.2s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .eye-btn:hover { color: rgba(255,255,255,0.65); }
 
 .field-error { font-size: 0.75rem; color: #fca5a5; }
