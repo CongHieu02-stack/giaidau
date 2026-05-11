@@ -94,16 +94,16 @@ export class TournamentRepository extends BaseRepository {
         registrations:tournament_registrations(
           id,
           club:clubs(id, name, logo_url),
-          user:profiles(id, full_name, avatar_url),
+          user:profiles!user_id(id, full_name, avatar_url),
           status,
           registered_at
         ),
         matches:matches(
           id,
-          home_club:clubs!matches_home_club_id_fkey(id, name, logo_url),
-          away_club:clubs!matches_away_club_id_fkey(id, name, logo_url),
+          home_club:clubs!home_club_id(id, name, logo_url),
+          away_club:clubs!away_club_id(id, name, logo_url),
           venue:venues(id, name),
-          referee:profiles(id, full_name),
+          referee:profiles!referee_id(id, full_name),
           match_date,
           match_time,
           home_score,
