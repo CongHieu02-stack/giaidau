@@ -134,8 +134,7 @@ export class ClubRepository extends BaseRepository {
         *,
         leader:profiles!clubs_leader_id_fkey(id, full_name)
       `)
-      .or(`leader_id.eq.${userId},deputy_id.eq.${userId}`)
-      .eq('status', 'approved');
+      .or(`leader_id.eq.${userId},deputy_id.eq.${userId}`);
 
     if (error) {
       return Result.err(error.message);

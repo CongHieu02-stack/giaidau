@@ -17,7 +17,15 @@
         Đang tải thông tin giải đấu...
       </div>
 
-      <form v-else class="form-panel" @submit.prevent="handleSubmit">
+      <div v-else-if="errorMessage && !tournament" class="state-panel error">
+        <div class="error-content">
+          <i class="pi pi-exclamation-circle text-2xl"></i>
+          <p>{{ errorMessage }}</p>
+          <button @click="loadTournament" class="secondary-button mt-4"> Thử lại </button>
+        </div>
+      </div>
+
+      <form v-else-if="tournament" class="form-panel" @submit.prevent="handleSubmit">
         <section class="form-section">
           <h2>Thông tin không chỉnh sửa</h2>
           <div class="form-grid">
@@ -115,6 +123,63 @@
           <RouterLink :to="basePath" class="secondary-button">Hủy</RouterLink>
         </div>
       </form>
+
+      <!-- Registration List Section -->
+      <section v-if="tournament?.registrations?.length" class="registrations-section">
+        <div class="section-header">
+          <h2>Danh sách đăng ký ({{ tournament.registrations.length }})</h2>
+        </div>
+        
+        <div class="registrations-grid">
+          <div 
+            v-for="reg in tournament.registrations" 
+            :key="reg.id" 
+            class="registration-card"
+          >
+            <div class="club-info">
+              <div class="club-logo">
+                <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" :alt="reg.club.name">
+                <i v-else class="pi pi-shield"></i>
+              </div>
+              <div class="club-details">
+                <h3>{{ reg.club?.name }}</h3>
+                <p class="reg-date">Đăng ký: {{ formatDate(reg.registered_at) }}</p>
+              </div>
+            </div>
+            
+            <div class="reg-status">
+              <span :class="['status-badge', reg.status]">
+                {{ statusLabels[reg.status] || reg.status }}
+              </span>
+            </div>
+
+            <div v-if="reg.status === 'pending' && !readOnly" class="reg-actions">
+              <button 
+                type="button" 
+                class="approve-btn" 
+                title="Duyệt đăng ký"
+                @click="handleApprove(reg.id)"
+              >
+                <i class="pi pi-check"></i>
+              </button>
+              <button 
+                type="button" 
+                class="reject-btn" 
+                title="Từ chối"
+                @click="handleReject(reg.id)"
+              >
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section v-else-if="!loading" class="registrations-section empty">
+        <div class="empty-state">
+          <i class="pi pi-users"></i>
+          <p>Chưa có câu lạc bộ nào đăng ký tham gia.</p>
+        </div>
+      </section>
     </div>
   </div>
 </template>
@@ -124,7 +189,9 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   fetchAdminTournament,
-  updateTournamentForAdmin
+  updateTournamentForAdmin,
+  approveTournamentRegistration,
+  rejectTournamentRegistration
 } from '../../features/tournaments/adminTournamentManagement.js';
 import { fetchVenues } from '../../features/tournaments/adminCreateTournament.js';
 
@@ -153,8 +220,20 @@ const statusLabels = {
   registration_closed: 'Đóng đăng ký',
   ongoing: 'Đang diễn ra',
   completed: 'Đã kết thúc',
-  cancelled: 'Đã hủy'
+  cancelled: 'Đã hủy',
+  pending: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Từ chối'
 };
+
+function formatDate(dateString) {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+}
 
 
 
@@ -163,7 +242,9 @@ const form = reactive({
   maxTeams: 16,
   registrationDeadline: '',
   startDate: '',
+  startTime: '08:00',
   endDate: '',
+  endTime: '17:00',
   matchDays: [],
   matchTimes: '',
   scheduleNote: '',
@@ -204,6 +285,43 @@ function toDateTimeLocal(value) {
   if (Number.isNaN(date.getTime())) return '';
   const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return offsetDate.toISOString().slice(0, 16);
+}
+
+async function handleApprove(regId) {
+  if (!confirm('Bạn có chắc chắn muốn duyệt câu lạc bộ này tham gia giải đấu?')) return;
+  
+  try {
+    const result = await approveTournamentRegistration(regId);
+    if (result.success) {
+      successMessage.value = 'Đã duyệt đăng ký.';
+      await loadTournament();
+    } else {
+      errorMessage.value = result.error;
+    }
+  } catch (error) {
+    errorMessage.value = error.message || 'Lỗi khi duyệt đăng ký.';
+  }
+}
+
+async function handleReject(regId) {
+  const reason = prompt('Nhập lý do từ chối đăng ký:');
+  if (reason === null) return;
+  if (!reason.trim()) {
+    alert('Vui lòng nhập lý do từ chối.');
+    return;
+  }
+  
+  try {
+    const result = await rejectTournamentRegistration(regId, reason);
+    if (result.success) {
+      successMessage.value = 'Đã từ chối đăng ký.';
+      await loadTournament();
+    } else {
+      errorMessage.value = result.error;
+    }
+  } catch (error) {
+    errorMessage.value = error.message || 'Lỗi khi từ chối đăng ký.';
+  }
 }
 
 async function handleSubmit() {
@@ -456,6 +574,143 @@ option {
   background: rgba(217, 119, 6, 0.18);
 }
 
+.registrations-section {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.registrations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.registration-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: transform 0.2s;
+}
+
+.registration-card:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.club-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.club-logo {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.club-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.club-logo i {
+  font-size: 1.5rem;
+  color: #a5b4fc;
+}
+
+.club-details h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.reg-date {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge.pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.status-badge.approved { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.status-badge.rejected { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+
+.reg-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.approve-btn,
+.reject-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: white;
+}
+
+.approve-btn {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.approve-btn:hover {
+  background: #10b981;
+  color: white;
+}
+
+.reject-btn {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.reject-btn:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.registrations-section.empty {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.empty-state i {
+  font-size: 3rem;
+}
+
 @media (max-width: 760px) {
   .page-head,
   .form-grid {
@@ -465,6 +720,10 @@ option {
   .page-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .registrations-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
