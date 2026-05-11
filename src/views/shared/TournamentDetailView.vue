@@ -35,7 +35,7 @@
                 </div>
                 <div class="meta-item">
                   <i class="pi pi-users meta-icon"></i>
-                  <span>{{ approvedRegistrations.length }}/{{ tournament.maxTeams }} đội</span>
+                  <span>{{ approvedRegistrations.length }}/{{ tournament.maxTeams }} {{ tournament.participantType === 'individual' ? 'vận động viên' : 'đội' }}</span>
                 </div>
                 <div class="meta-item">
                   <i class="pi pi-clock meta-icon"></i>
@@ -105,17 +105,20 @@
             <div class="section-card">
               <h2 class="section-title">
                 <i class="pi pi-users section-icon purple"></i>
-                Câu lạc bộ đã tham gia
+                {{ tournament.participantType === 'individual' ? 'Người chơi đã tham gia' : 'Câu lạc bộ đã tham gia' }}
                 <span class="team-count">{{ approvedRegistrations.length }}</span>
               </h2>
 
               <div v-if="approvedRegistrations.length > 0" class="teams-list">
                 <div v-for="reg in approvedRegistrations" :key="reg.id" class="team-row">
                   <div class="team-avatar-small">
-                    <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" :alt="reg.club.name" class="w-full h-full object-cover">
-                    <span v-else>{{ getInitials(reg.club?.name) }}</span>
+                    <img v-if="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
+                         :src="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
+                         :alt="tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name" 
+                         class="w-full h-full object-cover">
+                    <span v-else>{{ getInitials(tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name) }}</span>
                   </div>
-                  <span class="team-name">{{ reg.club?.name }}</span>
+                  <span class="team-name">{{ tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name }}</span>
                 </div>
               </div>
               <div v-else class="empty-teams">
@@ -134,11 +137,14 @@
               <div class="teams-list">
                 <div v-for="reg in pendingRegistrations" :key="reg.id" class="team-row pending">
                   <div class="team-avatar-small">
-                    <img v-if="reg.club?.logo_url" :src="reg.club.logo_url" :alt="reg.club.name" class="w-full h-full object-cover">
-                    <span v-else>{{ getInitials(reg.club?.name) }}</span>
+                    <img v-if="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
+                         :src="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
+                         :alt="tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name" 
+                         class="w-full h-full object-cover">
+                    <span v-else>{{ getInitials(tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name) }}</span>
                   </div>
                   <div class="flex-1">
-                    <span class="team-name">{{ reg.club?.name }}</span>
+                    <span class="team-name">{{ tournament.participantType === 'individual' ? reg.user?.full_name : reg.club?.name }}</span>
                     <p class="text-xs text-white/40">Gửi lúc: {{ formatDate(reg.registered_at) }}</p>
                   </div>
                   <div class="flex gap-2">
@@ -228,7 +234,7 @@
                 </div>
                 <div class="info-row">
                   <span class="info-label">Tối đa</span>
-                  <span class="info-val">{{ tournament.maxTeams }} đội</span>
+                  <span class="info-val">{{ tournament.maxTeams }} {{ tournament.participantType === 'individual' ? 'người' : 'đội' }}</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Hạn đăng ký</span>
@@ -381,6 +387,17 @@ const handleRegister = async () => {
   if (!authStore.isAuthenticated) {
     toast.add({ severity: 'info', summary: 'Thông báo', detail: 'Vui lòng đăng nhập để đăng ký tham gia', life: 3000 });
     router.push('/login');
+    return;
+  }
+
+  if (tournament.value?.participantType === 'individual') {
+    confirmService.require({
+      message: `Bạn có muốn đăng ký tham gia giải đấu này với tư cách cá nhân không?`,
+      header: 'Xác nhận đăng ký',
+      icon: 'pi pi-user',
+      accept: () => submitRegistration(null),
+      reject: () => {}
+    });
     return;
   }
 

@@ -125,47 +125,81 @@ export class TournamentService {
    */
   async registerClub(tournamentId, clubId, userId) {
     try {
-      // Verify club ownership
-      const clubResult = await this.clubRepo.findById(clubId);
-      if (clubResult.isErr()) {
-        return Result.err('Club not found');
-      }
-
-      const club = clubResult.getValue();
-      if (!club.canBeManagedBy(userId)) {
-        return Result.err('You do not have permission to register this club');
-      }
-
       // Get tournament
       const tournamentResult = await this.tournamentRepo.findById(tournamentId);
       if (tournamentResult.isErr()) {
         return Result.err('Tournament not found');
       }
-
       const tournament = tournamentResult.getValue();
 
-      // Register club
-      const registrationResult = tournament.registerClub(club);
-      if (!registrationResult.success) {
-        return Result.err(registrationResult.error);
+      let registrationData = {
+        tournament_id: tournamentId,
+        status: 'pending'
+      };
+
+      if (tournament.participantType === 'individual' || !clubId) {
+        // Individual registration
+        registrationData.user_id = userId;
+        
+        // Check if already registered
+        const { data: existing } = await supabase
+          .from('tournament_registrations')
+          .select('id')
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        if (existing) {
+          return Result.err('Bạn đã đăng ký tham gia giải đấu này rồi.');
+        }
+      } else {
+        // Club registration
+        // Verify club ownership
+        const clubResult = await this.clubRepo.findById(clubId);
+        if (clubResult.isErr()) {
+          return Result.err('Club not found');
+        }
+
+        const club = clubResult.getValue();
+        if (!club.canBeManagedBy(userId)) {
+          return Result.err('You do not have permission to register this club');
+        }
+
+        // Register club logic in domain (if any)
+        const registrationResult = tournament.registerClub(club);
+        if (!registrationResult.success) {
+          return Result.err(registrationResult.error);
+        }
+        
+        registrationData.club_id = clubId;
+
+        // Check if already registered
+        const { data: existing } = await supabase
+          .from('tournament_registrations')
+          .select('id')
+          .eq('tournament_id', tournamentId)
+          .eq('club_id', clubId)
+          .maybeSingle();
+        
+        if (existing) {
+          return Result.err('Câu lạc bộ này đã đăng ký tham gia giải đấu này rồi.');
+        }
       }
 
       // Save to database
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tournament_registrations')
-        .insert({
-          tournament_id: tournamentId,
-          club_id: clubId,
-          status: 'pending'
-        });
+        .insert(registrationData)
+        .select()
+        .single();
 
       if (error) {
         return Result.err(error.message);
       }
 
-      return Result.ok(registrationResult.data);
+      return Result.ok(data);
     } catch (error) {
-      return Result.err(error.message || 'Failed to register club');
+      return Result.err(error.message || 'Failed to register');
     }
   }
 

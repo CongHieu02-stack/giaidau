@@ -5,7 +5,7 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 export async function fetchSportCategories() {
   const { data, error } = await supabase
     .from('sports_categories')
-    .select('id, name')
+    .select('*')
     .order('name', { ascending: true });
 
   if (error) {
@@ -77,6 +77,7 @@ export function buildTournamentPayload(form, createdBy) {
     description: form.description?.trim() || null,
     sport_category_id: form.sportCategoryId,
     format: form.format || 'round_robin',
+    participant_type: form.participantType || 'club',
     rules: form.rules.trim(),
     max_teams: Number(form.maxTeams),
     min_teams: Number(form.minTeams),

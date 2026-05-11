@@ -39,7 +39,7 @@
                 <option value="group_stage">Vòng bảng</option>
               </select>
             </label>
-
+            
             <label class="field">
               <span>Sân thi đấu</span>
               <select v-model="form.venueId">
@@ -51,12 +51,12 @@
             </label>
 
             <label class="field">
-              <span>Số CLB tối thiểu</span>
+              <span>{{ form.participantType === 'individual' ? 'Số người chơi tối thiểu' : 'Số CLB tối thiểu' }}</span>
               <input v-model.number="form.minTeams" type="number" min="2" :max="form.maxTeams" required>
             </label>
 
             <label class="field">
-              <span>Số lượng CLB tham gia</span>
+              <span>{{ form.participantType === 'individual' ? 'Số lượng người chơi tham gia' : 'Số lượng CLB tham gia' }}</span>
               <input v-model.number="form.maxTeams" type="number" min="2" required>
             </label>
           </div>
@@ -160,6 +160,7 @@ const form = reactive({
   description: '',
   sportCategoryId: '',
   format: 'round_robin',
+  participantType: 'club',
   rules: '',
   minTeams: 4,
   maxTeams: 16,
@@ -179,8 +180,16 @@ const filteredVenues = computed(() => {
   return venues.value.filter(v => v.sport_category_id === form.sportCategoryId);
 });
 
-watch(() => form.sportCategoryId, () => {
+watch(() => form.sportCategoryId, (newVal) => {
   form.venueId = '';
+  if (newVal) {
+    const sport = sports.value.find(s => s.id === newVal);
+    if (sport) {
+      // Map 'single' -> 'individual', others -> 'club'
+      const sportType = sport.participant_type || sport.type || 'team';
+      form.participantType = sportType === 'single' ? 'individual' : 'club';
+    }
+  }
 });
 
 onMounted(async () => {
