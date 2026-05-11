@@ -10,7 +10,7 @@ export class Tournament {
     this.id = data.id || generateUUID();
     this.name = data.name || '';
     this.sportCategoryId = data.sportCategoryId || data.sport_category_id || null;
-    this.sportCategory = data.sportCategory || null;
+    this.sportCategory = data.sportCategory || data.sport_category || null;
     this.rules = data.rules || '';
     this.format = data.format || 'round_robin';
     this.maxTeams = data.maxTeams || data.max_teams || 16;

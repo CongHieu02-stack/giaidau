@@ -63,7 +63,14 @@
           </router-link>
         </div>
 
-        <div class="tournament-grid">
+        <div v-if="loadingTournaments" class="tournament-grid">
+          <div v-for="n in 4" :key="n" class="skeleton-card"></div>
+        </div>
+        <div v-else-if="featuredTournaments.length === 0" class="empty-state">
+          <i class="pi pi-info-circle"></i>
+          <p>Hiện chưa có giải đấu nào đang diễn ra.</p>
+        </div>
+        <div v-else class="tournament-grid">
           <TournamentCard 
             v-for="tournament in featuredTournaments" 
             :key="tournament.id"
@@ -119,54 +126,52 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth.js';
+import { supabase } from '../../config/supabase.js';
+import { Tournament } from '../../domain/Tournament.js';
 import TournamentCard from '../../components/common/TournamentCard.vue';
 import FeatureCard from '../../components/common/FeatureCard.vue';
 
 const authStore = useAuthStore();
 
-const featuredTournaments = ref([
-  {
-    id: 1,
-    name: 'GDU Tennis Open 2026',
-    sport_category: { name: 'Tennis', icon_url: '🎾' },
-    status: 'registration_open',
-    registration_deadline: '2026-05-01',
-    start_date: '2026-05-15',
-    max_teams: 32,
-    registration_count: 24
-  },
-  {
-    id: 2,
-    name: 'Cúp Bóng Đá IT Dragons',
-    sport_category: { name: 'Bóng đá', icon_url: '⚽' },
-    status: 'ongoing',
-    start_date: '2026-04-01',
-    end_date: '2026-06-30',
-    champion_club: null
-  },
-  {
-    id: 3,
-    name: 'Giải Cầu Lông Công Ty',
-    sport_category: { name: 'Cầu lông', icon_url: '🏸' },
-    status: 'upcoming',
-    registration_deadline: '2026-06-01',
-    start_date: '2026-06-15',
-    max_teams: 16,
-    registration_count: 8
-  },
-  {
-    id: 4,
-    name: 'Pickleball Championship',
-    sport_category: { name: 'Pickleball', icon_url: '🎾' },
-    status: 'registration_open',
-    registration_deadline: '2026-07-01',
-    start_date: '2026-07-15',
-    max_teams: 24,
-    registration_count: 12
+const featuredTournaments = ref([]);
+const loadingTournaments = ref(true);
+
+const fetchFeaturedTournaments = async () => {
+  loadingTournaments.value = true;
+  try {
+    // Fetch active tournaments with categories
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select(`
+        *,
+        sport_category:sports_categories(id, name, icon_url),
+        registrations:tournament_registrations(id, status)
+      `)
+      .in('status', ['ongoing', 'registration_open', 'upcoming', 'registration_closed'])
+      .limit(20); // Get a pool of 20 latest active tournaments
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      // Convert to domain objects for correct field mapping (camelCase)
+      const tournaments = data.map(t => Tournament.fromDB(t));
+      
+      // Shuffle the array and pick 4
+      const shuffled = [...tournaments].sort(() => 0.5 - Math.random());
+      featuredTournaments.value = shuffled.slice(0, 4);
+    }
+  } catch (err) {
+    console.error('Error fetching featured tournaments:', err);
+  } finally {
+    loadingTournaments.value = false;
   }
-]);
+};
+
+onMounted(() => {
+  fetchFeaturedTournaments();
+});
 
 const allFeatures = [
   {
@@ -534,6 +539,51 @@ const features = computed(() => {
   .tournament-grid {
     grid-template-columns: repeat(4, 1fr);
   }
+}
+
+.skeleton-card {
+  height: 380px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 1rem;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.empty-state i {
+  font-size: 2rem;
+  margin-bottom: 1rem;
 }
 
 .feature-grid {
