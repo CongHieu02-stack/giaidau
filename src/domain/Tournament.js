@@ -24,6 +24,7 @@ export class Tournament {
     this.cancellationReason = data.cancellationReason || data.cancellation_reason || '';
     this.championClubId = data.championClubId || data.champion_club_id || null;
     this.createdBy = data.createdBy || data.created_by || null;
+    this.venueId = data.venueId || data.venue_id || null;
     this.createdAt = data.createdAt || data.created_at || new Date();
     this.updatedAt = data.updatedAt || data.updated_at || new Date();
 
@@ -276,6 +277,7 @@ export class Tournament {
       cancellation_reason: this.cancellationReason,
       champion_club_id: this.championClubId,
       created_by: this.createdBy,
+      venue_id: this.venueId,
       created_at: this.createdAt,
       updated_at: this.updatedAt
     };

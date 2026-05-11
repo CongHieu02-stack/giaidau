@@ -41,6 +41,16 @@
             </label>
 
             <label class="field">
+              <span>Sân thi đấu</span>
+              <select v-model="form.venueId">
+                <option value="">Chọn sân đấu </option>
+                <option v-for="venue in filteredVenues" :key="venue.id" :value="venue.id">
+                  {{ venue.name }}
+                </option>
+              </select>
+            </label>
+
+            <label class="field">
               <span>Số CLB tối thiểu</span>
               <input v-model.number="form.minTeams" type="number" min="2" :max="form.maxTeams" required>
             </label>
@@ -113,12 +123,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.js';
 import {
   createTournamentForAdmin,
-  fetchSportCategories
+  fetchSportCategories,
+  fetchVenues
 } from '../../features/tournaments/adminCreateTournament.js';
 
 const router = useRouter();
@@ -126,6 +137,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 
 const sports = ref([]);
+const venues = ref([]);
 const loading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
@@ -133,7 +145,24 @@ const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
 
+const filteredVenues = computed(() => {
+  if (!form.sportCategoryId) return [];
+  return venues.value.filter(v => v.sport_category_id === form.sportCategoryId);
+});
 
+watch(() => form.sportCategoryId, () => {
+  form.venueId = '';
+});
+
+const weekDays = [
+  { value: 1, label: 'Thu 2' },
+  { value: 2, label: 'Thu 3' },
+  { value: 3, label: 'Thu 4' },
+  { value: 4, label: 'Thu 5' },
+  { value: 5, label: 'Thu 6' },
+  { value: 6, label: 'Thu 7' },
+  { value: 0, label: 'CN' }
+];
 
 const form = reactive({
   name: '',
@@ -146,9 +175,10 @@ const form = reactive({
   registrationDeadline: '',
   startDate: '',
   endDate: '',
-  startTime: '08:00',
-  endTime: '17:00',
-  scheduleNote: ''
+  matchDays: [6, 0],
+  matchTimes: '17:00, 19:00',
+  scheduleNote: '',
+  venueId: ''
 });
 
 onMounted(async () => {
@@ -157,6 +187,7 @@ onMounted(async () => {
       await authStore.fetchUser();
     }
     sports.value = await fetchSportCategories();
+    venues.value = await fetchVenues();
   } catch (error) {
     errorMessage.value = error.message || 'Không tải được danh sách bộ môn.';
   }
@@ -287,6 +318,11 @@ select:focus,
 textarea:focus {
   outline: 2px solid rgba(96, 165, 250, 0.45);
   border-color: #60a5fa;
+}
+
+option {
+  background-color: #0f172a;
+  color: #ffffff;
 }
 
 .day-picker {

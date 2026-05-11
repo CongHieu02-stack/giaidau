@@ -15,7 +15,25 @@ export async function fetchSportCategories() {
   return data || [];
 }
 
+export async function fetchVenues() {
+  const { data, error } = await supabase
+    .from('venues')
+    .select('id, name, sport_category_id')
+    .order('name', { ascending: true });
 
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data || [];
+}
+
+export function parseMatchTimes(value) {
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 export function validateTournamentForm(form) {
   if (!form.name?.trim()) return 'Vui lòng nhập tên giải đấu.';
@@ -68,6 +86,7 @@ export function buildTournamentPayload(form, createdBy) {
     match_days: [],
     match_times: [form.startTime, form.endTime].filter(Boolean),
     venue_requirements: form.scheduleNote?.trim() || null,
+    venue_id: form.venueId || null,
     status: 'registration_open',
     created_by: createdBy || null,
     updated_at: new Date().toISOString()

@@ -13,6 +13,7 @@ export async function fetchAdminTournaments() {
     .select(`
       *,
       sport_category:sports_categories(id, name),
+      venue:venues(id, name),
       registrations:tournament_registrations(id, status)
     `)
     .order('created_at', { ascending: false });
@@ -34,6 +35,7 @@ export async function fetchAdminTournament(id) {
     .select(`
       *,
       sport_category:sports_categories(id, name),
+      venue:venues(id, name),
       registrations:tournament_registrations(id, status)
     `)
     .eq('id', id)
@@ -99,6 +101,7 @@ export async function updateTournamentForAdmin(id, form, registrationCount) {
       match_days: [],
       match_times: [form.startTime, form.endTime].filter(Boolean),
       venue_requirements: form.scheduleNote?.trim() || null,
+      venue_id: form.venueId || null,
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
