@@ -124,6 +124,54 @@
         </div>
       </form>
 
+      <!-- Pairing Section -->
+      <section v-if="tournament && !loading" class="form-section pairing-section">
+        <div class="section-header">
+          <h2>Ghép cặp thi đấu</h2>
+          <div class="header-actions">
+            <span class="teams-count">Đã duyệt: <strong>{{ tournament.approved_count }}</strong> đội</span>
+            <button 
+              type="button" 
+              class="primary-button" 
+              :disabled="generatingMatches || tournament.approved_count < 2 || readOnly"
+              @click="handleGenerateMatches"
+            >
+              <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-calendar-plus'"></i>
+              {{ matches.length > 0 ? 'Ghép cặp lại' : 'Ghép cặp & Tạo lịch' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="matches.length > 0" class="matches-list">
+          <div class="matches-grid">
+            <div v-for="match in matches" :key="match.id" class="match-item">
+              <div class="match-time">
+                <div class="flex gap-2">
+                  <span v-if="match.group_name" class="group-badge">{{ match.group_name }}</span>
+                  <span v-else-if="match.round" class="round-badge">Vòng {{ match.round }}</span>
+                </div>
+                <div class="flex gap-3">
+                  <span><i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }}</span>
+                  <span><i class="pi pi-clock mr-1"></i>{{ match.match_time }}</span>
+                </div>
+              </div>
+              <div class="match-pairing">
+                <span class="club">{{ match.home_club?.name || '???' }}</span>
+                <span class="vs">VS</span>
+                <span class="club">{{ match.away_club?.name || '???' }}</span>
+              </div>
+              <div class="match-venue">
+                <i class="pi pi-map-marker"></i>
+                {{ match.venue?.name || 'Chưa chọn sân' }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="empty-matches">
+          <p>Chưa có lịch thi đấu. Hãy duyệt các đội và bấm nút để ghép cặp tự động.</p>
+        </div>
+      </section>
+
       <!-- Registration List Section -->
       <section v-if="tournament?.registrations?.length" class="registrations-section">
         <div class="section-header">
@@ -187,16 +235,22 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { supabase } from '../../config/supabase.js';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import {
   fetchAdminTournament,
   updateTournamentForAdmin,
   approveTournamentRegistration,
-  rejectTournamentRegistration
+  rejectTournamentRegistration,
+  generateTournamentMatches
 } from '../../features/tournaments/adminTournamentManagement.js';
 import { fetchVenues } from '../../features/tournaments/adminCreateTournament.js';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
+const confirmService = useConfirm();
 
 const tournament = ref(null);
 const venues = ref([]);
@@ -204,6 +258,8 @@ const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const generatingMatches = ref(false);
+const matches = ref([]);
 const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
@@ -261,6 +317,24 @@ async function loadTournament() {
 
   try {
     tournament.value = await fetchAdminTournament(route.params.id);
+    
+    // Fetch matches
+    const { data: matchData, error: matchError } = await supabase
+      .from('matches')
+      .select(`
+        *,
+        home_club:clubs!matches_home_club_id_fkey(id, name, logo_url),
+        away_club:clubs!matches_away_club_id_fkey(id, name, logo_url),
+        venue:venues(id, name)
+      `)
+      .eq('tournament_id', route.params.id)
+      .order('match_date', { ascending: true })
+      .order('match_time', { ascending: true });
+
+    if (!matchError) {
+      matches.value = matchData || [];
+    }
+
     form.rules = tournament.value.rules || '';
     form.maxTeams = tournament.value.max_teams || 16;
     form.registrationDeadline = toDateTimeLocal(tournament.value.registration_deadline);
@@ -288,19 +362,24 @@ function toDateTimeLocal(value) {
 }
 
 async function handleApprove(regId) {
-  if (!confirm('Bạn có chắc chắn muốn duyệt câu lạc bộ này tham gia giải đấu?')) return;
-  
-  try {
-    const result = await approveTournamentRegistration(regId);
-    if (result.success) {
-      successMessage.value = 'Đã duyệt đăng ký.';
-      await loadTournament();
-    } else {
-      errorMessage.value = result.error;
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn duyệt câu lạc bộ này tham gia giải đấu?',
+    header: 'Xác nhận duyệt',
+    icon: 'pi pi-check-circle',
+    accept: async () => {
+      try {
+        const result = await approveTournamentRegistration(regId);
+        if (result.success) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã duyệt đăng ký.', life: 3000 });
+          await loadTournament();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 3000 });
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Lỗi khi duyệt đăng ký.', life: 3000 });
+      }
     }
-  } catch (error) {
-    errorMessage.value = error.message || 'Lỗi khi duyệt đăng ký.';
-  }
+  });
 }
 
 async function handleReject(regId) {
@@ -322,6 +401,57 @@ async function handleReject(regId) {
   } catch (error) {
     errorMessage.value = error.message || 'Lỗi khi từ chối đăng ký.';
   }
+}
+
+async function handleGenerateMatches() {
+  if (!tournament.value) return;
+  
+  if (tournament.value.approved_count < 2) {
+    errorMessage.value = 'Cần ít nhất 2 câu lạc bộ đã duyệt để ghép cặp.';
+    return;
+  }
+
+  const confirmMsg = matches.value.length > 0 
+    ? 'Giải đấu đã có lịch thi đấu. Việc ghép cặp lại sẽ XÓA lịch cũ. Bạn có chắc chắn?' 
+    : 'Xác nhận ghép cặp và tạo lịch thi đấu cho các đội đã duyệt?';
+
+  confirmService.require({
+    message: confirmMsg,
+    header: 'Xác nhận ghép cặp',
+    icon: 'pi pi-calendar-plus',
+    acceptClass: matches.value.length > 0 ? 'p-button-danger' : 'p-button-primary',
+    accept: async () => {
+      generatingMatches.value = true;
+      errorMessage.value = '';
+      
+      let venueIds = [];
+      if (form.venueId) {
+        venueIds = [form.venueId];
+      } else {
+        const sportVenues = venues.value.filter(v => v.sport_category_id === tournament.value.sport_category_id);
+        if (sportVenues.length > 0) {
+          venueIds = [sportVenues[0].id];
+        }
+      }
+
+      if (venueIds.length === 0) {
+        toast.add({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Không có sân đấu hợp lệ để ghép lịch. Vui lòng chọn sân trong phần chỉnh sửa.', life: 5000 });
+        generatingMatches.value = false;
+        return;
+      }
+
+      const result = await generateTournamentMatches(tournament.value.id, venueIds);
+      
+      if (result.success) {
+        toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã tạo thành công ${result.count} trận đấu.`, life: 3000 });
+        await loadTournament();
+      } else {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
+      }
+      
+      generatingMatches.value = false;
+    }
+  });
 }
 
 async function handleSubmit() {
@@ -425,6 +555,127 @@ h2 {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 24px;
+}
+
+.pairing-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pairing-section .section-header h2 {
+  margin-bottom: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.teams-count {
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.teams-count strong {
+  color: #ffffff;
+  font-size: 1.1rem;
+}
+
+.matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.match-item {
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+}
+
+.match-time {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  font-weight: 700;
+}
+
+.group-badge,
+.round-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.group-badge {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.round-badge {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.match-pairing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-pairing .club {
+  flex: 1;
+  text-align: center;
+  font-weight: 800;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-pairing .vs {
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: #f43f5e;
+  padding: 2px 6px;
+  background: rgba(244, 63, 94, 0.1);
+  border-radius: 4px;
+}
+
+.match-venue {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty-matches {
+  padding: 32px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #94a3b8;
+  font-style: italic;
 }
 
 .form-grid {
