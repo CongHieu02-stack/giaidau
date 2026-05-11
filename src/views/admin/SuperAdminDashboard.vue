@@ -64,11 +64,19 @@
             </div>
           </router-link>
           
-          <router-link to="/tournament-admin" class="action-card">
+          <router-link to="/admin/tournaments" class="action-card">
             <div class="action-icon">🏆</div>
             <div class="action-text">
               <div class="action-title">Quản lý giải đấu</div>
               <div class="action-desc">{{ stats.pending_tournament_regs }} đăng ký chờ duyệt</div>
+            </div>
+          </router-link>
+
+          <router-link to="/admin/tournaments/create" class="action-card">
+            <div class="action-icon">➕</div>
+            <div class="action-text">
+              <div class="action-title">Tạo giải đấu mới</div>
+              <div class="action-desc">Khởi tạo giải đấu mới</div>
             </div>
           </router-link>
           

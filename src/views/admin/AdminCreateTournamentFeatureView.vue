@@ -145,15 +145,6 @@ const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
 
-const filteredVenues = computed(() => {
-  if (!form.sportCategoryId) return [];
-  return venues.value.filter(v => v.sport_category_id === form.sportCategoryId);
-});
-
-watch(() => form.sportCategoryId, () => {
-  form.venueId = '';
-});
-
 const weekDays = [
   { value: 1, label: 'Thu 2' },
   { value: 2, label: 'Thu 3' },
@@ -174,11 +165,22 @@ const form = reactive({
   maxTeams: 16,
   registrationDeadline: '',
   startDate: '',
+  startTime: '17:00',
   endDate: '',
+  endTime: '19:00',
   matchDays: [6, 0],
   matchTimes: '17:00, 19:00',
   scheduleNote: '',
   venueId: ''
+});
+
+const filteredVenues = computed(() => {
+  if (!form.sportCategoryId) return [];
+  return venues.value.filter(v => v.sport_category_id === form.sportCategoryId);
+});
+
+watch(() => form.sportCategoryId, () => {
+  form.venueId = '';
 });
 
 onMounted(async () => {

@@ -110,9 +110,7 @@
   </footer>
 </template>
 
-<script setup>
-
-
+<script setup>const currentYear = new Date().getFullYear();
 
 function openSocial(url) {
   if (url && url !== '#') {
