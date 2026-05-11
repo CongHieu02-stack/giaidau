@@ -11,7 +11,7 @@
           <span class="brand-name">MyLeague</span>
         </router-link>
         <div class="hero-text">
-          <h2>Chào mừng<br/>trở lại! 👋</h2>
+          <h2>Chào mừng! 👋</h2>
           <p>Đăng nhập để quản lý giải đấu, theo dõi câu lạc bộ và kết nối cộng đồng thể thao.</p>
         </div>
         <div class="feature-list">

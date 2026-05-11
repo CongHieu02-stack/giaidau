@@ -200,7 +200,7 @@ const routes = [
     component: () => import('../views/tournament-admin/VenuesView.vue'),
     meta: { requiresAuth: true, requiresTournamentAdmin: true }
   },
- 
+
 
   // Club Admin Routes
   {
