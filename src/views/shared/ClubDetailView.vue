@@ -53,8 +53,13 @@
 
               <!-- Join / Status button -->
               <div v-if="authStore.isAuthenticated" class="mt-5">
-                <div v-if="isLeader" class="tag-leader">
-                  <i class="pi pi-star-fill"></i> Trưởng câu lạc bộ
+                <div v-if="isLeader" class="flex gap-3">
+                  <div class="tag-leader">
+                    <i class="pi pi-star-fill"></i> Trưởng câu lạc bộ
+                  </div>
+                  <button @click="openEditModal" class="btn-edit">
+                    <i class="pi pi-pencil"></i> Chỉnh sửa
+                  </button>
                 </div>
                 <template v-else>
                   <button v-if="canJoin" @click="handleJoin" :disabled="joining" class="btn-join">
@@ -162,6 +167,46 @@
         <h2 style="font-size:1.75rem;font-weight:700;color:white">Không tìm thấy câu lạc bộ</h2>
       </div>
     </div>
+    
+    <!-- ── Edit Modal ── -->
+    <div v-if="showEditModal" class="modal-overlay" @click.self="showEditModal = false">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-icon"><i class="pi pi-pencil"></i></div>
+            <h2 class="modal-title">Chỉnh sửa thông tin CLB</h2>
+          </div>
+          <button @click="showEditModal = false" class="modal-close"><i class="pi pi-times"></i></button>
+        </div>
+        <form @submit.prevent="handleUpdate" class="modal-body">
+          <div class="form-grid">
+            <label class="field field-wide">
+              <span>Tên CLB <span class="req">*</span></span>
+              <input v-model.trim="editForm.name" type="text" placeholder="Nhập tên câu lạc bộ" required />
+            </label>
+            <label class="field">
+              <span>Tên viết tắt</span>
+              <input v-model.trim="editForm.short_name" type="text" placeholder="VD: MU, RM" />
+            </label>
+            <label class="field">
+              <span>Logo URL</span>
+              <input v-model.trim="editForm.logo_url" type="url" placeholder="https://..." />
+            </label>
+            <label class="field field-wide">
+              <span>Mô tả</span>
+              <textarea v-model.trim="editForm.description" rows="4" placeholder="Giới thiệu về câu lạc bộ..."></textarea>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="showEditModal = false" class="btn-cancel" :disabled="updating">Hủy</button>
+            <button type="submit" class="btn-submit" :disabled="updating">
+              <i :class="updating ? 'pi pi-spinner pi-spin' : 'pi pi-check'"></i>
+              {{ updating ? 'Đang cập nhật...' : 'Lưu thay đổi' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -184,6 +229,54 @@ const joining = ref(false);
 const memberStatus = ref('none');
 const approvingId = ref(null);
 const rejectingId = ref(null);
+
+// Edit Club
+const showEditModal = ref(false);
+const updating = ref(false);
+const editForm = ref({
+  name: '',
+  short_name: '',
+  logo_url: '',
+  description: ''
+});
+
+const openEditModal = () => {
+  editForm.value = {
+    name: club.value.name,
+    short_name: club.value.short_name || '',
+    logo_url: club.value.logoUrl || '',
+    description: club.value.description || ''
+  };
+  showEditModal.value = true;
+};
+
+const handleUpdate = async () => {
+  if (!editForm.value.name.trim()) return;
+  updating.value = true;
+  try {
+    const updatedClub = {
+      ...club.value,
+      name: editForm.value.name.trim(),
+      short_name: editForm.value.short_name.trim() || null,
+      logoUrl: editForm.value.logo_url.trim() || null,
+      description: editForm.value.description.trim() || null,
+      updated_at: new Date()
+    };
+    
+    const result = await clubRepository.update(updatedClub);
+    if (result.isOk()) {
+      club.value = result.getValue();
+      showEditModal.value = false;
+      alert('Cập nhật thông tin câu lạc bộ thành công!');
+    } else {
+      throw new Error(result.getError());
+    }
+  } catch (err) {
+    alert('Lỗi: ' + err.message);
+  } finally {
+    updating.value = false;
+  }
+};
 
 const isLeader = computed(() => club.value?.leaderId === authStore.user?.id);
 const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
@@ -364,6 +457,44 @@ onMounted(async () => {
 .tag-pending { background: rgba(251,191,36,0.12); color: #fde68a; border: 1px solid rgba(251,191,36,0.2); }
 .tag-member  { background: rgba(34,197,94,0.12);  color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
 .btn-join { /* uses global .btn-join from src/style.css */ }
+
+.btn-edit {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.25rem; border-radius: 0.875rem; font-size: 0.875rem; font-weight: 600;
+  background: rgba(255,255,255,0.06); color: white;
+  border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;
+}
+.btn-edit:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+/* ── Modal Styles (Similar to ClubsView) ── */
+.modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(2,6,23,0.85); backdrop-filter: blur(8px); padding: 1rem; }
+.modal-panel { width: min(560px, 100%); background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 1.5rem; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.6); animation: modalIn 0.3s cubic-bezier(0.16,1,0.3,1); }
+@keyframes modalIn { from{opacity:0;transform:scale(0.95) translateY(-10px)} to{opacity:1;transform:scale(1) translateY(0)} }
+
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.08); background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06)); }
+.modal-title-wrap { display: flex; align-items: center; gap: 0.75rem; }
+.modal-icon { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg,#6366f1,#8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: white; }
+.modal-title { font-size: 1.15rem; font-weight: 700; color: white; }
+.modal-close { width: 34px; height: 34px; border-radius: 8px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+.modal-close:hover { background: rgba(255,255,255,0.14); color: white; }
+
+.modal-body { padding: 1.5rem; }
+.form-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1.25rem; margin-bottom: 1.5rem; }
+.field { display: flex; flex-direction: column; gap: 0.5rem; color: rgba(255,255,255,0.8); font-size: 0.875rem; font-weight: 600; }
+.field-wide { grid-column: 1 / -1; }
+.field input, .field textarea { padding: 0.75rem 1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem; color: white; font: inherit; transition: all 0.2s; resize: vertical; }
+.field input:focus, .field textarea:focus { outline: none; border-color: #6366f1; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,0.2); }
+.req { color: #f87171; }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 1rem; }
+.btn-cancel { padding: 0.7rem 1.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border-radius: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-cancel:hover { background: rgba(255,255,255,0.1); color: white; }
+.btn-submit { display: flex; align-items: center; gap: 0.5rem; padding: 0.7rem 2rem; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: white; border: none; border-radius: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.25s; box-shadow: 0 4px 12px rgba(99,102,241,0.3); }
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
 
 /* ── Members card ── */
 .members-card {

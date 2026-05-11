@@ -54,7 +54,7 @@
               >
             </label>
 
-            <label class="field">
+            <label class="field field-wide">
               <span>Ngày hết hạn đăng ký</span>
               <input v-model="form.registrationDeadline" type="datetime-local" :disabled="readOnly" required>
             </label>
@@ -65,13 +65,18 @@
             </label>
 
             <label class="field">
+              <span>Giờ thi đấu</span>
+              <input v-model="form.startTime" type="time" :disabled="readOnly" required>
+            </label>
+
+            <label class="field">
               <span>Ngày kết thúc</span>
               <input v-model="form.endDate" type="date" :disabled="readOnly">
             </label>
 
-            <label class="field field-wide">
-              <span>Giờ thi đấu</span>
-              <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" :disabled="readOnly" required>
+            <label class="field">
+              <span>Giờ kết thúc</span>
+              <input v-model="form.endTime" type="time" :disabled="readOnly">
             </label>
 
             <label class="field">
@@ -83,16 +88,6 @@
                 </option>
               </select>
             </label>
-          </div>
-
-          <div class="day-picker">
-            <span>Ngày thi đấu trong tuần</span>
-            <div class="day-list">
-              <label v-for="day in weekDays" :key="day.value" class="day-chip">
-                <input v-model="form.matchDays" type="checkbox" :value="day.value" :disabled="readOnly">
-                <span>{{ day.label }}</span>
-              </label>
-            </div>
           </div>
 
           <label class="field block-field">
@@ -161,15 +156,7 @@ const statusLabels = {
   cancelled: 'Đã hủy'
 };
 
-const weekDays = [
-  { value: 1, label: 'Thứ 2' },
-  { value: 2, label: 'Thứ 3' },
-  { value: 3, label: 'Thứ 4' },
-  { value: 4, label: 'Thứ 5' },
-  { value: 5, label: 'Thứ 6' },
-  { value: 6, label: 'Thứ 7' },
-  { value: 0, label: 'CN' }
-];
+
 
 const form = reactive({
   rules: '',
@@ -198,8 +185,9 @@ async function loadTournament() {
     form.registrationDeadline = toDateTimeLocal(tournament.value.registration_deadline);
     form.startDate = tournament.value.start_date || '';
     form.endDate = tournament.value.end_date || '';
-    form.matchDays = tournament.value.match_days || [];
-    form.matchTimes = (tournament.value.match_times || []).map((time) => String(time).slice(0, 5)).join(', ');
+    const times = tournament.value.match_times || [];
+    form.startTime = times.length > 0 ? String(times[0]).slice(0, 5) : '08:00';
+    form.endTime = times.length > 1 ? String(times[1]).slice(0, 5) : '17:00';
     form.scheduleNote = tournament.value.venue_requirements || '';
     form.venueId = tournament.value.venue_id || '';
     venues.value = await fetchVenues();

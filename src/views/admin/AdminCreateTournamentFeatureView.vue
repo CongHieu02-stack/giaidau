@@ -65,7 +65,7 @@
         <section class="form-section">
           <h2>Thời gian và lịch thi đấu</h2>
           <div class="form-grid">
-            <label class="field">
+            <label class="field field-wide">
               <span>Ngày hết hạn đăng ký</span>
               <input v-model="form.registrationDeadline" type="datetime-local" required>
             </label>
@@ -76,25 +76,22 @@
             </label>
 
             <label class="field">
+              <span>Giờ thi đấu</span>
+              <input v-model="form.startTime" type="time" required>
+            </label>
+
+            <label class="field">
               <span>Ngày kết thúc</span>
               <input v-model="form.endDate" type="date">
             </label>
 
             <label class="field">
-              <span>Giờ thi đấu</span>
-              <input v-model="form.matchTimes" type="text" placeholder="17:00, 19:00" required>
+              <span>Giờ kết thúc</span>
+              <input v-model="form.endTime" type="time">
             </label>
           </div>
 
-          <div class="day-picker">
-            <span>Ngày thi đấu trong tuần</span>
-            <div class="day-list">
-              <label v-for="day in weekDays" :key="day.value" class="day-chip">
-                <input v-model="form.matchDays" type="checkbox" :value="day.value">
-                <span>{{ day.label }}</span>
-              </label>
-            </div>
-          </div>
+
         </section>
 
         <section class="form-section">

@@ -468,12 +468,18 @@ const logout = async () => {
 .dropdown-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .dropdown-user-name {
+  display: flex;
+  align-items: center;
   font-weight: 600;
   color: white;
   font-size: 0.9rem;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,8 +490,8 @@ const logout = async () => {
   align-items: center;
   gap: 0.375rem;
   font-size: 0.72rem;
+  line-height: 1.2;
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 0.2rem;
 }
 
 .role-dot {
