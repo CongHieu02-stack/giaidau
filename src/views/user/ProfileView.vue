@@ -8,8 +8,18 @@
       </div>
       <div class="hero-content">
         <!-- Avatar -->
-        <div class="avatar-ring">
-          <div class="avatar-inner">{{ authStore.userInitials }}</div>
+        <div class="avatar-ring" @click="triggerAvatarUpload" :class="{ 'uploading': isUploadingAvatar }">
+          <div class="avatar-inner">
+            <template v-if="!authStore.profile?.avatarUrl">
+              {{ authStore.userInitials }}
+            </template>
+            <img v-else :src="authStore.profile.avatarUrl" alt="Avatar" class="avatar-img" />
+            
+            <div class="avatar-overlay">
+              <i :class="['pi', isUploadingAvatar ? 'pi-spin pi-spinner' : 'pi-camera']"></i>
+            </div>
+          </div>
+          <input type="file" ref="avatarInput" class="hidden-input" accept="image/*" @change="onAvatarChange" />
         </div>
         <!-- Name & role -->
         <div class="hero-info">
@@ -190,6 +200,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
+import { storageService } from '../../services/StorageService.js';
 
 const authStore = useAuthStore();
 
@@ -226,6 +237,53 @@ async function loadStats() {
 }
 
 onMounted(() => loadStats());
+
+// ---- Avatar Upload ----
+const avatarInput = ref(null);
+const isUploadingAvatar = ref(false);
+
+function triggerAvatarUpload() {
+  if (isUploadingAvatar.value) return;
+  avatarInput.value?.click();
+}
+
+async function onAvatarChange(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  
+  const userId = authStore.user?.id;
+  if (!userId) return;
+
+  isUploadingAvatar.value = true;
+  try {
+    const uploadResult = await storageService.uploadAvatar(file, userId);
+    
+    if (uploadResult.isOk()) {
+      const publicUrl = uploadResult.getValue();
+      
+      const { error } = await supabase.from('profiles').update({
+        avatar_url: publicUrl,
+        updated_at: new Date().toISOString()
+      }).eq('id', userId);
+
+      if (error) throw error;
+
+      if (authStore.profile) {
+        authStore.profile.avatarUrl = publicUrl;
+      }
+    } else {
+      alert('Lỗi tải ảnh: ' + uploadResult.getError());
+    }
+  } catch (err) {
+    console.error('Avatar upload error:', err);
+    alert('Có lỗi xảy ra khi tải ảnh lên.');
+  } finally {
+    isUploadingAvatar.value = false;
+    if (avatarInput.value) {
+      avatarInput.value.value = '';
+    }
+  }
+}
 
 // ---- Modal ----
 const showEditModal = ref(false);
@@ -351,7 +409,13 @@ async function saveProfile() {
   background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
   flex-shrink: 0;
   box-shadow: 0 0 32px rgba(167, 139, 250, 0.45);
+  cursor: pointer;
+  position: relative;
 }
+.avatar-ring:hover .avatar-overlay {
+  opacity: 1;
+}
+
 .avatar-inner {
   width: 100%;
   height: 100%;
@@ -364,6 +428,35 @@ async function saveProfile() {
   font-weight: 800;
   color: #fff;
   letter-spacing: 1px;
+  overflow: hidden;
+  position: relative;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+}
+.avatar-ring.uploading .avatar-overlay {
+  opacity: 1;
+}
+
+.hidden-input {
+  display: none;
 }
 
 /* Name / badge / email */
