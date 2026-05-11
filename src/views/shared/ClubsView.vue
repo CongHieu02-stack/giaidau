@@ -389,7 +389,7 @@ const handleJoin = async (club) => {
 .club-name { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 0.4rem; }
 .club-desc {
   font-size: 0.82rem; color: rgba(255,255,255,0.45); margin-bottom: 0.875rem;
-  line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .club-leader-row { display: flex; align-items: center; gap: 0.5rem; color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.6rem; }
 .club-leader-name { font-weight: 600; color: rgba(255,255,255,0.85); }

@@ -409,7 +409,7 @@ onMounted(async () => {
 .club-name { font-size: 1.125rem; font-weight: 700; color: white; margin-bottom: 0.4rem; text-align: center; }
 .club-desc {
   font-size: 0.825rem; color: rgba(255,255,255,0.4); margin-bottom: 1rem; text-align: center;
-  line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .club-stats { display: flex; gap: 1rem; }
 .c-stat { display: flex; align-items: center; gap: 0.4rem; font-size: 0.825rem; color: rgba(255,255,255,0.55); }

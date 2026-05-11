@@ -31,13 +31,7 @@
         </div>
       </div>
 
-      <!-- Progress bar -->
-      <div v-if="showProgress" class="prog-wrap">
-        <div class="prog-track">
-          <div class="prog-fill" :style="{ width: progressPercentage + '%' }"></div>
-        </div>
-        <span class="prog-text">{{ progressPercentage }}% đã đăng ký</span>
-      </div>
+
 
       <!-- Champion -->
       <div v-if="isCompleted && tournament.champion_club" class="champion-row">
@@ -47,11 +41,11 @@
     </div>
 
     <!-- Footer CTA -->
-    <div class="card-footer" :class="{ 'has-action': canRegister }">
+    <div class="card-footer">
       <button v-if="canRegister" @click.stop="onJoinClick" class="btn-join">
         <i class="pi pi-sign-in"></i> Tham gia
       </button>
-      <span class="cta">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
+      <span class="btn-view">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
     </div>
   </div>
 </template>
@@ -143,14 +137,7 @@ const registrationDisplay = computed(() => {
   return m > 0 ? `${c}/${m} đội` : `${c} đội đăng ký`;
 });
 
-const showProgress = computed(() =>
-  ['upcoming', 'registration_open'].includes(props.tournament.status) && props.tournament.maxTeams > 0);
 
-const progressPercentage = computed(() => {
-  const c = props.tournament.registrationCount || 0;
-  const m = props.tournament.maxTeams || 1;
-  return Math.min(Math.round((c / m) * 100), 100);
-});
 
 const isCompleted = computed(() => props.tournament.status === 'completed');
 const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`);
@@ -253,18 +240,7 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 .info-icon.date   { background:rgba(245,158,11,0.2); color:#fcd34d; }
 .info-icon.team   { background:rgba(34,197,94,0.2);  color:#86efac; }
 
-/* Progress */
-.prog-wrap { margin-top: 0.875rem; }
-.prog-track {
-  height: 5px; background:rgba(255,255,255,0.08);
-  border-radius: 999px; overflow:hidden;
-}
-.prog-fill {
-  height:100%;
-  background: linear-gradient(90deg,#6366f1,#8b5cf6);
-  border-radius:999px; transition:width 0.6s ease;
-}
-.prog-text { font-size:0.72rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; display:block; }
+
 
 /* Champion */
 .champion-row {
@@ -279,30 +255,28 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 .card-footer {
   padding: 0.875rem 1.25rem;
   border-top: 1px solid rgba(255,255,255,0.05);
-  display: flex; justify-content: flex-end;
+  display: flex; gap: 0.625rem;
 }
 
-.cta {
-  display: flex; align-items: center; gap: 0.375rem;
-  font-size: 0.8rem; font-weight: 600;
-  color: rgba(255,255,255,0.4);
-  transition: all 0.2s;
+.btn-view {
+  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  flex: 1; padding: 0.65rem 0.5rem;
+  background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
+  color: #a5b4fc; font-size: 0.85rem; font-weight: 600;
+  border-radius: 0.75rem; text-decoration: none; transition: all 0.25s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
+  min-height: 40px;
 }
 
-.t-card:hover .cta {
-  color: #a5b4fc;
+.btn-view:hover { 
+  background: rgba(99,102,241,0.25); 
+  border-color: rgba(99,102,241,0.4); 
+  color: #c7d2fe; 
+  transform: translateY(-1px); 
 }
 
-.t-card:hover .cta .pi {
-  transform: translateX(3px);
-}
-
-.cta .pi { transition: transform 0.2s; }
-
-.card-footer.has-action {
-  justify-content: space-between;
-  align-items: center;
-}
+.btn-view .pi { transition: transform 0.2s; }
+.btn-view:hover .pi { transform: translateX(3px); }
 
 .btn-join { /* uses global .btn-join from src/style.css */ }
 </style>

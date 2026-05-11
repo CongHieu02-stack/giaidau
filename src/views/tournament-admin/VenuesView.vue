@@ -1,84 +1,82 @@
 <template>
-  <div class="venues-view py-8 px-4">
-    <div class="container mx-auto max-w-6xl">
-      <!-- Header -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 class="text-3xl font-bold text-white mb-2">Quản lý Sân đấu</h1>
-          <p class="text-white/60">Tạo và quản lý thông tin các sân thi đấu</p>
+  <div class="page-wrapper">
+    <div class="max-w-7xl mx-auto">
+      <!-- Hero -->
+      <div class="page-hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+          <div class="hero-icon"><i class="pi pi-map"></i></div>
+          <div>
+            <h1 class="hero-title">Quản lý Sân đấu</h1>
+            <p class="hero-subtitle">Tạo và quản lý thông tin các sân thi đấu</p>
+          </div>
         </div>
-        <div class="flex gap-3 items-center">
-          <label class="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-            <input v-model="showHidden" type="checkbox" class="w-4 h-4" />
-            <span class="text-sm text-white">Hiển thị sân bị ẩn</span>
+        <div class="controls-row">
+          <label class="toggle-hidden">
+            <input v-model="showHidden" type="checkbox" />
+            <span>Hiển thị sân bị ẩn</span>
           </label>
-          <button @click="openCreateModal" class="btn-primary">
-            <i class="pi pi-plus mr-2"></i> Thêm sân đấu mới
+          <button @click="openCreateModal" class="btn-create">
+            <i class="pi pi-plus"></i> Thêm sân đấu mới
           </button>
         </div>
       </div>
 
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center items-center py-12">
-        <i class="pi pi-spin pi-spinner text-4xl text-blue-500"></i>
+        <i class="pi pi-spin pi-spinner text-4xl" style="color: rgba(255,255,255,0.3)"></i>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="venues.length === 0" class="empty-state text-center py-16 bg-white/5 rounded-2xl border border-white/10">
-        <i class="pi pi-map-marker text-6xl text-white/20 mb-4"></i>
-        <h3 class="text-xl font-semibold text-white mb-2">Chưa có sân đấu nào</h3>
-        <p class="text-white/60 mb-6">Hãy thêm sân đấu đầu tiên để lên lịch các trận đấu</p>
-        <button @click="openCreateModal" class="btn-primary inline-flex">
-          <i class="pi pi-plus mr-2"></i> Thêm sân đấu
+      <div v-else-if="venues.length === 0" class="empty-state">
+        <div class="empty-icon"><i class="pi pi-map-marker"></i></div>
+        <h3>Chưa có sân đấu nào</h3>
+        <p>Hãy thêm sân đấu đầu tiên để lên lịch các trận đấu</p>
+        <button @click="openCreateModal" class="btn-create mx-auto mt-4">
+          <i class="pi pi-plus"></i> Thêm sân đấu
         </button>
       </div>
 
       <!-- Venue Grid -->
-      <div v-if="filteredVenues.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="venue in filteredVenues" :key="venue.id" class="venue-card bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden group hover:bg-white/10 transition-all" :class="{ 'opacity-60': venue.status === 'hidden' }">
-          <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-            <button @click="openEditModal(venue)" class="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors" title="Sửa">
-              <i class="pi pi-pencil"></i>
-            </button>
-            <button v-if="venue.status === 'active'" @click="hideVenue(venue)" class="p-2 bg-yellow-500/20 hover:bg-yellow-500/40 rounded-lg text-yellow-400 transition-colors" title="Ẩn">
-              <i class="pi pi-eye-slash"></i>
-            </button>
-            <button v-else @click="restoreVenue(venue)" class="p-2 bg-green-500/20 hover:bg-green-500/40 rounded-lg text-green-400 transition-colors" title="Khôi phục">
-              <i class="pi pi-eye"></i>
-            </button>
-          </div>
+      <div v-if="filteredVenues.length > 0" class="venues-grid">
+        <div v-for="(venue, i) in filteredVenues" :key="venue.id" class="venue-card" :style="{ animationDelay: `${i * 0.05}s` }" :class="{ 'is-hidden': venue.status === 'hidden' }">
+          <div class="card-glow"></div>
           
-          <div class="flex items-start justify-between mb-3">
-            <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-blue-400">
-              <i class="pi pi-map-marker text-xl"></i>
+          <div class="card-actions">
+            <button @click="openEditModal(venue)" class="action-btn edit-btn" title="Sửa"><i class="pi pi-pencil"></i></button>
+            <button v-if="venue.status === 'active'" @click="hideVenue(venue)" class="action-btn hide-btn" title="Ẩn"><i class="pi pi-eye-slash"></i></button>
+            <button v-else @click="restoreVenue(venue)" class="action-btn restore-btn" title="Khôi phục"><i class="pi pi-eye"></i></button>
+          </div>
+
+          <div class="venue-header">
+            <div class="venue-icon">
+              <i class="pi pi-map-marker"></i>
             </div>
             <span v-if="venue.status === 'hidden'" class="status-badge status-hidden">
               <i class="pi pi-eye-slash"></i> Đã ẩn
             </span>
           </div>
           
-          <h3 class="text-xl font-bold text-white mb-2">{{ venue.name }}</h3>
-          
-          <div v-if="venue.sportCategoryId" class="mb-4">
-            <span class="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
-              <i class="pi pi-tag mr-1"></i> {{ getSportName(venue.sportCategoryId) }}
-            </span>
-          </div>
-          
-          <div class="space-y-2 text-sm text-white/70">
-            <div class="flex items-start gap-2">
-              <i class="pi pi-compass mt-1 opacity-70"></i>
-              <span class="line-clamp-2">{{ venue.address || 'Chưa cập nhật địa chỉ' }}</span>
+          <div class="venue-body">
+            <h3 class="venue-name">{{ venue.name }}</h3>
+            <div class="venue-sport" v-if="venue.sportCategoryId">
+              <span class="sport-tag"><i class="pi pi-tag"></i> {{ getSportName(venue.sportCategoryId) }}</span>
             </div>
-            <div class="flex items-center gap-2" v-if="venue.contactPhone">
-              <i class="pi pi-phone opacity-70"></i>
-              <span>SĐT: {{ venue.contactPhone }}</span>
+            
+            <div class="venue-details">
+              <div class="detail-row">
+                <i class="pi pi-compass"></i>
+                <span class="truncate-2">{{ venue.address || 'Chưa cập nhật địa chỉ' }}</span>
+              </div>
+              <div class="detail-row" v-if="venue.contactPhone">
+                <i class="pi pi-phone"></i>
+                <span>SĐT: {{ venue.contactPhone }}</span>
+              </div>
+              <div class="detail-row" v-if="venue.capacity">
+                <i class="pi pi-users"></i>
+                <span>Sức chứa: {{ venue.capacity }} người</span>
+              </div>
             </div>
-            <div class="flex items-center gap-2" v-if="venue.capacity">
-              <i class="pi pi-users opacity-70"></i>
-              <span>Sức chứa: {{ venue.capacity }} người</span>
-            </div>
-
           </div>
         </div>
       </div>
@@ -265,7 +263,7 @@ const saveVenue = async () => {
 
     let result;
     if (editingVenue.value) {
-      result = await venueRepository.update(editingVenue.value.id, venueData);
+      result = await venueRepository.update({ id: editingVenue.value.id, ...venueData });
     } else {
       result = await venueRepository.create(venueData);
     }
@@ -340,23 +338,135 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.btn-primary {
+.page-wrapper { min-height: 100vh; padding: 6rem 1.5rem 3rem; }
+
+/* Hero */
+.page-hero {
+  position: relative; margin-bottom: 2.5rem;
+  padding: 2rem 2rem 1.5rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.5rem; overflow: hidden;
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+.hero-glow {
+  position: absolute; top: -60px; left: -60px;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%);
+  pointer-events: none;
+}
+.hero-content { display: flex; align-items: center; gap: 1rem; }
+.hero-icon {
+  width: 56px; height: 56px; border-radius: 1rem; flex-shrink: 0;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.2s ease;
-  border: none;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: white;
+  box-shadow: 0 8px 24px rgba(59,130,246,0.4);
+}
+.hero-title { font-size: 2rem; font-weight: 800; color: white; line-height: 1.1; margin: 0; }
+.hero-subtitle { font-size: 0.9rem; color: rgba(255,255,255,0.5); margin-top: 0.25rem; }
+
+.controls-row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+@media(min-width: 768px) { .controls-row { justify-content: flex-end; } }
+
+.toggle-hidden {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1); border-radius: 0.75rem;
+  color: white; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;
+}
+.toggle-hidden:hover { background: rgba(255,255,255,0.1); }
+.toggle-hidden input { cursor: pointer; }
+
+.btn-create {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.7rem 1.25rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white; font-size: 0.875rem; font-weight: 600;
+  border-radius: 0.875rem; transition: all 0.25s; border: none; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+}
+.btn-create:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59,130,246,0.45); }
+
+/* Empty */
+.empty-state { text-align: center; padding: 5rem 1rem; }
+.empty-icon {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem; font-size: 2rem; color: rgba(59,130,246,0.5);
+}
+.empty-state h3 { font-size: 1.25rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
+.empty-state p { font-size: 0.875rem; color: rgba(255,255,255,0.4); margin-bottom: 1rem; }
+
+/* Grid */
+.venues-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+
+/* Card */
+.venue-card {
+  position: relative;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 1.25rem; overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+  opacity: 0; animation: fadeUp 0.5s ease forwards;
+  display: flex; flex-direction: column;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.venue-card:hover { transform: translateY(-6px); border-color: rgba(59,130,246,0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.4), 0 0 0 1px rgba(59,130,246,0.1); }
+.venue-card.is-hidden { opacity: 0.6; }
+
+.card-glow {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, rgba(59,130,246,0.12), transparent 65%);
+  transition: opacity 0.3s;
+}
+.venue-card:hover .card-glow { opacity: 1; }
+
+.card-actions {
+  position: absolute; top: 1.25rem; right: 1.25rem;
+  display: flex; gap: 0.5rem; opacity: 0; transition: opacity 0.2s; z-index: 10;
+}
+.venue-card:hover .card-actions { opacity: 1; }
+.action-btn {
+  width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; color: white;
+}
+.edit-btn { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); }
+.edit-btn:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); }
+.hide-btn { background: rgba(245,158,11,0.15); color: #fcd34d; border-color: rgba(245,158,11,0.25); }
+.hide-btn:hover { background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.4); }
+.restore-btn { background: rgba(34,197,94,0.15); color: #86efac; border-color: rgba(34,197,94,0.25); }
+.restore-btn:hover { background: rgba(34,197,94,0.25); border-color: rgba(34,197,94,0.4); }
+
+.venue-header { padding: 1.25rem 1.25rem 0; display: flex; align-items: flex-start; justify-content: space-between; }
+.venue-icon {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: rgba(59,130,246,0.15); color: #60a5fa;
+  display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+  border: 1px solid rgba(59,130,246,0.25);
 }
 
-.btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+.venue-body { padding: 1.25rem; display: flex; flex-direction: column; flex: 1; }
+.venue-name { font-size: 1.15rem; font-weight: 700; color: white; margin-bottom: 0.5rem; }
+
+.venue-sport { margin-bottom: 1rem; }
+.sport-tag {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.25rem 0.6rem; background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2); border-radius: 999px;
+  color: #93c5fd; font-size: 0.75rem; font-weight: 600;
 }
 
-/* Modal */
+.venue-details { display: flex; flex-direction: column; gap: 0.6rem; margin-top: auto; }
+.detail-row {
+  display: flex; align-items: flex-start; gap: 0.6rem;
+  font-size: 0.85rem; color: rgba(255,255,255,0.6); line-height: 1.4;
+}
+.detail-row i { margin-top: 0.15rem; color: rgba(255,255,255,0.4); }
+.truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Modal styles preserved from before */
 .modal-overlay { 
   position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; 
   background: rgba(2,6,23,0.8); backdrop-filter: blur(8px); padding: 1rem; 
@@ -389,7 +499,7 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: white; 
 }
 
-.modal-title { font-size: 1.25rem; font-weight: 800; color: white; letter-spacing: -0.025em; }
+.modal-title { font-size: 1.25rem; font-weight: 800; color: white; letter-spacing: -0.025em; margin: 0; }
 
 .modal-close { 
   width: 34px; height: 34px; border-radius: 8px; background: rgba(255,255,255,0.07); 
@@ -428,10 +538,7 @@ onMounted(() => {
   padding-right: 2.5rem;
 }
 
-.field select option {
-  background-color: #1e1b4b;
-  color: white;
-}
+.field select option { background-color: #1e1b4b; color: white; }
 
 .field input:focus, .field textarea:focus, .field select:focus { 
   outline: none; 
@@ -469,13 +576,17 @@ onMounted(() => {
 }
 
 .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.45); }
-
 .btn-cancel:disabled, .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 .status-badge {
-  display: inline-flex; align-items: center; gap: 0.35rem;
-  padding: 0.3rem 0.65rem; border-radius: 999px;
-  font-size: 0.72rem; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+  height: 34px; padding: 0 0.75rem; box-sizing: border-box;
+  border-radius: 999px; font-size: 0.75rem; font-weight: 700;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.venue-card:hover .status-badge {
+  transform: translateX(-85px);
 }
 
 .status-hidden { 
@@ -485,22 +596,4 @@ onMounted(() => {
 }
 
 @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
 </style>
