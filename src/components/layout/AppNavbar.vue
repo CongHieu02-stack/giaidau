@@ -27,6 +27,10 @@
         <!-- User Menu (logged in) -->
         <div v-if="authStore.isAuthenticated" class="user-menu">
           <button class="user-btn" @click="showDropdown = !showDropdown">
+            <div class="user-btn-avatar">
+              <img v-if="authStore.userAvatar" :src="authStore.userAvatar" :alt="authStore.userDisplayName" class="avatar-img" />
+              <span v-else>{{ authStore.userInitials }}</span>
+            </div>
             <span class="user-name">{{ authStore.userDisplayName }}</span>
             <i class="pi pi-chevron-down"></i>
           </button>
@@ -35,7 +39,8 @@
             <!-- Header with avatar -->
             <div class="dropdown-header">
               <div class="dropdown-avatar">
-                {{ authStore.userDisplayName?.charAt(0)?.toUpperCase() }}
+                <img v-if="authStore.userAvatar" :src="authStore.userAvatar" :alt="authStore.userDisplayName" class="avatar-img" />
+                <span v-else>{{ authStore.userInitials }}</span>
               </div>
               <div class="dropdown-info">
                 <div class="dropdown-user-name">{{ authStore.userDisplayName }}</div>
@@ -393,6 +398,20 @@ const logout = async () => {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.user-btn-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
 .user-name {
   display: none;
   max-width: 150px;
@@ -463,6 +482,13 @@ const logout = async () => {
   font-weight: 700;
   color: white;
   box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dropdown-info {
