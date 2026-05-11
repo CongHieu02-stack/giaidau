@@ -79,18 +79,39 @@
               </h2>
               <div v-if="tournament.matches && tournament.matches.length > 0" class="schedule-list">
                 <div v-for="match in tournament.matches" :key="match.id" class="match-row">
-                  <div class="match-teams">
-                    <span class="team home">{{ match.home_club?.name || 'TBD' }}</span>
-                    <span class="vs">VS</span>
-                    <span class="team away">{{ match.away_club?.name || 'TBD' }}</span>
+                  <div class="match-main-info">
+                    <div class="match-teams">
+                      <div class="team home">{{ match.home_club?.name || 'TBD' }}</div>
+                      <div class="vs">VS</div>
+                      <div class="team away">{{ match.away_club?.name || 'TBD' }}</div>
+                    </div>
+                    
+                    <div class="match-meta">
+                      <div class="match-meta-info">
+                        <span class="info-item"><i class="pi pi-calendar"></i> {{ formatDate(match.match_date) }}</span>
+                        <span class="info-item" v-if="match.match_time"><i class="pi pi-clock"></i> {{ match.match_time }}</span>
+                        <span class="info-item" v-if="match.venue?.name"><i class="pi pi-map-marker"></i> {{ match.venue.name }}</span>
+                      </div>
+                      <div class="match-referee" :class="{'no-ref': !match.referee}">
+                        <i class="pi pi-flag"></i> 
+                        {{ match.referee?.full_name || 'Chưa có trọng tài' }}
+                      </div>
+                    </div>
                   </div>
-                  <div class="match-meta">
-                    <span class="match-date"><i class="pi pi-calendar"></i> {{ formatDate(match.match_date) }}</span>
-                    <span class="match-time" v-if="match.match_time"><i class="pi pi-clock"></i> {{ match.match_time }}</span>
-                    <span class="match-venue" v-if="match.venue?.name"><i class="pi pi-map-marker"></i> {{ match.venue.name }}</span>
-                  </div>
-                  <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
-                    <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                  
+                  <div class="match-actions-area">
+                    <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
+                      <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                    </div>
+
+                    <div v-if="canManage" class="match-admin-actions">
+                      <button class="icon-btn-small" @click="openRefereeModal(match)" title="Phân công trọng tài">
+                        <i class="pi pi-user-edit"></i>
+                      </button>
+                      <RouterLink v-if="match.referee" :to="`/referee/matches/${match.id}`" class="icon-btn-small primary" title="Điều khiển trận đấu">
+                        <i class="pi pi-play"></i>
+                      </RouterLink>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -209,6 +230,41 @@
               </template>
             </Dialog>
 
+            <!-- Referee Assignment Modal -->
+            <Dialog v-model:visible="showRefereeModal" header="Phân công trọng tài" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
+              <div class="flex flex-column gap-3 py-2">
+                <div v-if="refereesLoading" class="flex justify-center p-4">
+                  <i class="pi pi-spinner pi-spin"></i>
+                </div>
+                <div v-else-if="availableReferees.length === 0" class="text-center p-4 text-white/50">
+                  Không tìm thấy trọng tài nào khả dụng
+                </div>
+                <div v-else v-for="ref in availableReferees" :key="ref.id" 
+                     class="club-select-item"
+                     :class="{'selected': selectedRefereeId === ref.id}"
+                     @click="selectedRefereeId = ref.id">
+                  <div class="club-avatar-modal">
+                    <img v-if="ref.avatarUrl" :src="ref.avatarUrl" :alt="ref.fullName" class="club-logo-img" />
+                    <span v-else>{{ getInitials(ref.fullName) }}</span>
+                  </div>
+                  <div class="club-select-info">
+                    <span class="club-select-name">{{ ref.fullName }}</span>
+                    <span class="club-select-leader">{{ ref.email }}</span>
+                    <span class="club-select-status" v-if="selectedRefereeId === ref.id">
+                      <i class="pi pi-check-circle"></i> Đã chọn
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <template #footer>
+                <button class="action-btn secondary" @click="showRefereeModal = false">Hủy</button>
+                <button class="btn-join" @click="assignReferee" :disabled="!selectedRefereeId || assigningReferee">
+                  <i v-if="assigningReferee" class="pi pi-spinner pi-spin mr-2"></i>
+                  Xác nhận phân công
+                </button>
+              </template>
+            </Dialog>
+
             <!-- Registration Status -->
             <div class="section-card">
               <h3 class="sidebar-title">
@@ -309,6 +365,8 @@ import { formatDate } from '../../utils/helpers.js';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { userRepository } from '../../repositories/UserRepository.js';
+import { matchRepository } from '../../repositories/MatchRepository.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -323,6 +381,14 @@ const userClubs = ref([]);
 const registering = ref(false);
 const showRegModal = ref(false);
 const selectedClubId = ref(null);
+
+// Referee Assignment
+const showRefereeModal = ref(false);
+const refereesLoading = ref(false);
+const assigningReferee = ref(false);
+const availableReferees = ref([]);
+const selectedRefereeId = ref(null);
+const activeMatch = ref(null);
 
 const statusClass = computed(() => {
   const classes = {
@@ -518,6 +584,52 @@ const processReject = async (regId, reason) => {
     }
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  }
+};
+
+const openRefereeModal = async (match) => {
+  activeMatch.value = match;
+  selectedRefereeId.value = match.referee_id;
+  showRefereeModal.value = true;
+  
+  if (availableReferees.value.length === 0) {
+    refereesLoading.value = true;
+    try {
+      const result = await userRepository.findByRole('referee');
+      if (result.isOk()) {
+        availableReferees.value = result.getValue().filter(r => r.status === 'active');
+      }
+    } catch (err) {
+      console.error('Error fetching referees:', err);
+    } finally {
+      refereesLoading.value = false;
+    }
+  }
+};
+
+const assignReferee = async () => {
+  if (!activeMatch.value || !selectedRefereeId.value) return;
+  
+  assigningReferee.value = true;
+  try {
+    const result = await matchRepository.update({
+      id: activeMatch.value.id,
+      referee_id: selectedRefereeId.value
+    });
+    
+    if (result.isOk()) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã phân công trọng tài', life: 3000 });
+      showRefereeModal.value = false;
+      // Refresh tournament data to show the new referee
+      await tournamentStore.fetchTournament(tournament.value.id);
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError() || 'Phân công thất bại', life: 3000 });
+    }
+  } catch (err) {
+    console.error('Error assigning referee:', err);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  } finally {
+    assigningReferee.value = false;
   }
 };
 
@@ -751,75 +863,173 @@ onMounted(async () => {
 
 .match-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.match-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.match-main-info {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex: 1;
 }
 
 .match-teams {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  font-weight: 500;
+  gap: 1rem;
+  width: 320px;
+  flex-shrink: 0;
 }
 
 .match-teams .team {
+  font-size: 0.95rem;
+  font-weight: 600;
   color: white;
-  font-size: 0.875rem;
   flex: 1;
-  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.match-teams .team.home { text-align: right; }
+.match-teams .team.away { text-align: left; }
+
 .match-teams .vs {
+  font-size: 0.7rem;
+  font-weight: 800;
   color: #fb923c;
-  font-weight: 700;
-  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.2);
+  border-radius: 0.5rem;
+  text-transform: uppercase;
 }
 
 .match-meta {
   display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding-left: 1.5rem;
+}
+
+.match-meta-info {
+  display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.75rem;
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 0.25rem;
+  color: rgba(255, 255, 255, 0.4);
 }
 
-.match-meta i {
-  font-size: 0.625rem;
+.info-item i {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.3);
 }
 
-.match-date {
-  color: #60a5fa;
-}
-
-.match-time {
+.match-referee {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: #fbbf24;
+  padding: 0.25rem 0.75rem;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  border-radius: 2rem;
+  width: fit-content;
 }
 
-.match-venue {
-  color: #a78bfa;
+.match-referee.no-ref {
+  color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: transparent;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.match-actions-area {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .match-score {
-  text-align: center;
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
 }
 
 .score {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  padding: 0.25rem 1rem;
-  border-radius: 0.5rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 0.4rem 1rem;
+  border-radius: 0.75rem;
+  min-width: 70px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.match-admin-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.icon-btn-small {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.icon-btn-small:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: scale(1.05);
+}
+
+.icon-btn-small.primary {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.icon-btn-small.primary:hover {
+  background: #6366f1;
+  color: white;
 }
 
 .empty-schedule {

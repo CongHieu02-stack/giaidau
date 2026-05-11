@@ -72,7 +72,7 @@
 
     <!-- Tab: Attendance -->
     <div v-if="activeTab==='attendance'" class="panel">
-      <h3 class="panel-title">Kiểm diện cầu thủ</h3>
+      <h3 class="panel-title">Danh sách cầu thủ</h3>
       <div v-for="side in ['home','away']" :key="side" class="att-section">
         <h4 class="att-club">{{ side==='home' ? match.home_club?.name : match.away_club?.name }}</h4>
         <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
@@ -99,11 +99,11 @@
             </select>
           </label>
           <label>
-            <span>Phút</span>
+            <span>Phút <span class="text-red-500">*</span></span>
             <input type="number" v-model.number="modalMinute" min="0"/>
           </label>
           <label>
-            <span>Cầu thủ</span>
+            <span>Cầu thủ <span class="text-red-500">*</span></span>
             <select v-model="modalPlayerId">
               <option value="">-- Chọn --</option>
               <option v-for="p in modalPlayers" :key="p.user?.id" :value="p.user?.id">{{ p.user?.full_name }}</option>
@@ -116,7 +116,7 @@
         </div>
         <div class="modal-actions">
           <button @click="showModal=false" class="btn-cancel">Hủy</button>
-          <button @click="submitEvent" class="btn-submit" :disabled="saving">
+          <button @click="submitEvent" class="btn-submit" :disabled="saving || !modalPlayerId || modalMinute === null || modalMinute === undefined || modalMinute < 0">
             <i :class="saving?'pi pi-spinner pi-spin':'pi pi-check'"></i> Lưu
           </button>
         </div>
@@ -240,7 +240,14 @@ async function updateMatchStatus(status, extra = {}) {
   saving.value = false;
 }
 
-async function doStart() { startTimer(); await updateMatchStatus('in_progress', { start_time: new Date().toISOString() }); }
+async function doStart() { 
+  if (!match.value.referee_id) {
+    alert('Trận đấu này chưa được phân công trọng tài. Vui lòng phân công trọng tài trước khi bắt đầu.');
+    return;
+  }
+  startTimer(); 
+  await updateMatchStatus('in_progress', { start_time: new Date().toISOString() }); 
+}
 async function doPause() { stopTimer(); await updateMatchStatus('paused'); }
 async function doResume() { startTimer(); await updateMatchStatus('in_progress'); }
 async function doEnd() {
@@ -260,6 +267,15 @@ function openEventModal(type, side) {
 }
 
 async function submitEvent() {
+  if (!modalPlayerId.value) {
+    alert('Vui lòng chọn cầu thủ thực hiện.');
+    return;
+  }
+  if (modalMinute.value === null || modalMinute.value === undefined || modalMinute.value < 0) {
+    alert('Vui lòng nhập phút xảy ra sự kiện.');
+    return;
+  }
+  
   saving.value = true;
   const evData = {
     match_id: match.value.id,
@@ -278,9 +294,15 @@ async function submitEvent() {
       const isHome = modalClubId.value === match.value.home_club_id;
       const newHome = (match.value.home_score ?? 0) + (isHome ? 1 : 0);
       const newAway = (match.value.away_score ?? 0) + (isHome ? 0 : 1);
-      await matchRepository.updateScore(match.value.id, newHome, newAway);
-      match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      const scoreR = await matchRepository.updateScore(match.value.id, newHome, newAway);
+      if (scoreR.isOk()) {
+        match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      } else {
+        alert('Lỗi cập nhật tỉ số: ' + scoreR.getError());
+      }
     }
+  } else {
+    alert('Lỗi ghi nhận sự kiện: ' + r.getError());
   }
   showModal.value = false;
   saving.value = false;
@@ -401,4 +423,5 @@ onUnmounted(stopTimer);
   .sb-score { flex-direction:row; }
   .event-actions { grid-template-columns:1fr; }
 }
+.text-red-500 { color: #ef4444; }
 </style>
