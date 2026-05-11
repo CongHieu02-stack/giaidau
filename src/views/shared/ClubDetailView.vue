@@ -107,6 +107,7 @@
                   <th class="th-center">Vai trò</th>
                   <th class="th-center">Ngày tham gia</th>
                   <th class="th-center">Trạng thái</th>
+                  <th v-if="isLeader" class="th-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,6 +131,19 @@
                   <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
                   <td class="td-center">
                     <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
+                  </td>
+                  <td v-if="isLeader" class="td-center">
+                    <button 
+                      v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
+                      class="btn-remove-member"
+                      :disabled="removingId === m.id"
+                      @click="handleRemove(m)"
+                      title="Xóa khỏi CLB"
+                    >
+                      <i v-if="removingId === m.id" class="pi pi-spinner pi-spin"></i>
+                      <i v-else class="pi pi-user-minus"></i>
+                    </button>
+                    <span v-else class="text-xs text-white/20">—</span>
                   </td>
                 </tr>
               </tbody>
@@ -246,9 +260,13 @@ import { useRoute } from 'vue-router';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 
 const route = useRoute();
 const authStore = useAuthStore();
+const toast = useToast();
+const confirmService = useConfirm();
 
 const club = ref(null);
 const leader = ref(null);
@@ -259,6 +277,7 @@ const joining = ref(false);
 const memberStatus = ref('none');
 const approvingId = ref(null);
 const rejectingId = ref(null);
+const removingId = ref(null);
 
 // Edit Club
 const showEditModal = ref(false);
@@ -297,12 +316,12 @@ const handleUpdate = async () => {
     if (result.isOk()) {
       club.value = result.getValue();
       showEditModal.value = false;
-      alert('Cập nhật thông tin câu lạc bộ thành công!');
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật thông tin câu lạc bộ thành công!', life: 3000 });
     } else {
       throw new Error(result.getError());
     }
   } catch (err) {
-    alert('Lỗi: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 5000 });
   } finally {
     updating.value = false;
   }
@@ -368,8 +387,9 @@ const handleJoin = async () => {
     });
     if (error) throw error;
     memberStatus.value = 'pending';
+    toast.add({ severity: 'success', summary: 'Đã gửi yêu cầu', detail: 'Vui lòng chờ ban quản trị phê duyệt', life: 3000 });
   } catch (err) {
-    alert('Lỗi: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
   } finally {
     joining.value = false;
   }
@@ -384,8 +404,9 @@ const approveM = async (m) => {
       .eq('id', m.id);
     if (error) throw error;
     m.status = 'approved';
+    toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã duyệt thành viên ${m.user?.full_name}`, life: 2000 });
   } catch (err) {
-    alert('Lỗi: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
   } finally {
     approvingId.value = null;
   }
@@ -400,11 +421,44 @@ const rejectM = async (m) => {
       .eq('id', m.id);
     if (error) throw error;
     m.status = 'rejected';
+    toast.add({ severity: 'info', summary: 'Đã từ chối', detail: `Đã từ chối yêu cầu của ${m.user?.full_name}`, life: 2000 });
   } catch (err) {
-    alert('Lỗi: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
   } finally {
     rejectingId.value = null;
   }
+};
+
+const handleRemove = async (m) => {
+  if (m.role === 'leader' || String(m.id).startsWith('leader-')) {
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Không thể xóa trưởng câu lạc bộ!', life: 3000 });
+    return;
+  }
+
+  confirmService.require({
+    message: `Bạn có chắc chắn muốn xóa thành viên "${m.user?.full_name}" ra khỏi câu lạc bộ?`,
+    header: 'Xác nhận xóa',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Xóa',
+    rejectLabel: 'Hủy',
+    accept: async () => {
+      removingId.value = m.id;
+      try {
+        const result = await clubRepository.removeMember(club.value.id, m.id);
+        if (result.isOk()) {
+          members.value = members.value.filter(item => item.id !== m.id);
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã xóa thành viên thành công.', life: 3000 });
+        } else {
+          throw new Error(result.getError());
+        }
+      } catch (err) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi xóa: ' + err.message, life: 3000 });
+      } finally {
+        removingId.value = null;
+      }
+    }
+  });
 };
 
 onMounted(async () => {
@@ -629,6 +683,16 @@ onMounted(async () => {
 }
 .btn-reject:hover:not(:disabled) { background: rgba(239,68,68,0.25); color: white; }
 .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-remove-member {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(239,68,68,0.1); color: #f87171;
+  border: 1px solid rgba(239,68,68,0.2); cursor: pointer; transition: all 0.2s;
+}
+.btn-remove-member:hover:not(:disabled) { background: #ef4444; color: white; border-color: #ef4444; transform: scale(1.05); }
+.btn-remove-member:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .no-action { color: rgba(255,255,255,0.2); font-size: 0.8rem; }
 
 .user-cell { display: flex; align-items: center; gap: 0.75rem; }

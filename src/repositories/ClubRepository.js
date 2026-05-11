@@ -290,6 +290,23 @@ export class ClubRepository extends BaseRepository {
 
     return Result.ok(stats);
   }
+
+  /**
+   * Remove a member from club
+   */
+  async removeMember(clubId, memberId) {
+    const { error } = await this.client
+      .from('club_members')
+      .delete()
+      .eq('id', memberId)
+      .eq('club_id', clubId);
+
+    if (error) {
+      return Result.err(error.message);
+    }
+
+    return Result.ok(true);
+  }
 }
 
 export const clubRepository = new ClubRepository();

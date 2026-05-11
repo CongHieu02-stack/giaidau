@@ -174,3 +174,152 @@ export async function rejectTournamentRegistration(regId, reason) {
   }
   return { success: true, data };
 }
+
+export async function generateTournamentMatches(tournamentId, venueIds) {
+  try {
+    // 1. Get tournament details with approved registrations
+    const { data: tournament, error: tError } = await supabase
+      .from('tournaments')
+      .select(`
+        *,
+        registrations:tournament_registrations(
+          id,
+          status,
+          club:clubs(id, name, logo_url)
+        )
+      `)
+      .eq('id', tournamentId)
+      .single();
+
+    if (tError) throw new Error(tError.message);
+
+    const approvedClubs = (tournament.registrations || [])
+      .filter(r => r.status === 'approved')
+      .map(r => r.club);
+
+    if (approvedClubs.length < 2) {
+      throw new Error('Cần ít nhất 2 câu lạc bộ đã duyệt để ghép cặp.');
+    }
+
+    // 2. Get venues
+    const { data: venues, error: vError } = await supabase
+      .from('venues')
+      .select('*')
+      .in('id', venueIds);
+
+    if (vError) throw new Error(vError.message);
+    if (!venues || venues.length === 0) {
+      throw new Error('Vui lòng chọn ít nhất một sân đấu.');
+    }
+
+    let matches = [];
+    const format = tournament.format || 'round_robin';
+    const startDate = new Date(tournament.start_date);
+    const matchTimes = tournament.match_times || ['08:00', '10:00', '15:00', '17:00'];
+
+    if (format === 'round_robin') {
+      matches = generateRoundRobin(tournamentId, approvedClubs, venues, startDate, matchTimes);
+    } else if (format === 'knockout') {
+      matches = generateKnockout(tournamentId, approvedClubs, venues, startDate, matchTimes);
+    } else if (format === 'hybrid') {
+      matches = generateHybrid(tournamentId, approvedClubs, venues, startDate, matchTimes);
+    }
+
+    // 3. Save matches
+    await supabase.from('matches').delete().eq('tournament_id', tournamentId);
+    const { error: mError } = await supabase.from('matches').insert(matches);
+    if (mError) throw new Error(mError.message);
+
+    // 4. Update status
+    await supabase.from('tournaments')
+      .update({ status: 'ongoing', updated_at: new Date().toISOString() })
+      .eq('id', tournamentId);
+
+    return { success: true, count: matches.length };
+  } catch (error) {
+    console.error('[generateTournamentMatches] error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// --- Phụ trợ: Ghép vòng tròn ---
+function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes) {
+  const matches = [];
+  const teamList = [...clubs];
+  if (teamList.length % 2 !== 0) teamList.push({ id: null, name: 'BYE' });
+
+  const numRounds = teamList.length - 1;
+  const numMatchesPerRound = teamList.length / 2;
+  let matchCount = 0;
+
+  for (let round = 0; round < numRounds; round++) {
+    for (let i = 0; i < numMatchesPerRound; i++) {
+      const home = teamList[i];
+      const away = teamList[teamList.length - 1 - i];
+      if (home.id && away.id) {
+        matches.push(createMatchData(tournamentId, home, away, venues, startDate, matchTimes, matchCount, round + 1));
+        matchCount++;
+      }
+    }
+    teamList.splice(1, 0, teamList.pop());
+  }
+  return matches;
+}
+
+// --- Phụ trợ: Ghép loại trực tiếp (Vòng 1) ---
+function generateKnockout(tournamentId, clubs, venues, startDate, matchTimes) {
+  const matches = [];
+  const shuffled = [...clubs].sort(() => Math.random() - 0.5);
+  
+  // Chỉ ghép cặp vòng đầu tiên
+  for (let i = 0; i < shuffled.length; i += 2) {
+    if (shuffled[i + 1]) {
+      matches.push(createMatchData(tournamentId, shuffled[i], shuffled[i+1], venues, startDate, matchTimes, i/2, 1));
+    }
+  }
+  return matches;
+}
+
+// --- Phụ trợ: Ghép kết hợp (Vòng bảng) ---
+function generateHybrid(tournamentId, clubs, venues, startDate, matchTimes) {
+  const matches = [];
+  const groupSize = 4;
+  const numGroups = Math.ceil(clubs.length / groupSize);
+  const groups = Array.from({ length: numGroups }, () => []);
+  
+  clubs.forEach((club, index) => groups[index % numGroups].push(club));
+
+  let totalMatchCount = 0;
+  groups.forEach((groupClubs, groupIdx) => {
+    const groupMatches = generateRoundRobin(tournamentId, groupClubs, venues, startDate, matchTimes);
+    groupMatches.forEach(m => {
+      // Điều chỉnh lại thời gian để không bị trùng giữa các bảng nếu ít sân
+      const adjustedMatch = createMatchData(tournamentId, {id: m.home_club_id}, {id: m.away_club_id}, venues, startDate, matchTimes, totalMatchCount, 1);
+      adjustedMatch.group_name = `Bảng ${String.fromCharCode(65 + groupIdx)}`;
+      matches.push(adjustedMatch);
+      totalMatchCount++;
+    });
+  });
+  return matches;
+}
+
+function createMatchData(tournamentId, home, away, venues, startDate, matchTimes, matchIndex, round) {
+  const dayOffset = Math.floor(matchIndex / (matchTimes.length * venues.length));
+  const slotInDay = matchIndex % (matchTimes.length * venues.length);
+  const timeIndex = slotInDay % matchTimes.length;
+  const venueIndex = Math.floor(slotInDay / matchTimes.length) % venues.length;
+
+  const matchDate = new Date(startDate);
+  matchDate.setDate(matchDate.getDate() + dayOffset);
+
+  return {
+    tournament_id: tournamentId,
+    home_club_id: home.id,
+    away_club_id: away.id,
+    venue_id: venues[venueIndex].id,
+    match_date: matchDate.toISOString().split('T')[0],
+    match_time: matchTimes[timeIndex],
+    status: 'scheduled',
+    round: round
+  };
+}
