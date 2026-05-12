@@ -60,6 +60,19 @@ export class MatchRepository extends BaseRepository {
     if (error) return Result.err(error.message);
     return Result.ok(this.domainClass.fromDB(data));
   }
+
+  async update(match) {
+    const data = match.toJSON ? match.toJSON() : match;
+    const { error } = await this.client
+      .from(this.tableName)
+      .update(data)
+      .eq('id', data.id)
+      .select()
+      .single();
+
+    if (error) return Result.err(error.message);
+    return Result.ok(this.domainClass.fromDB(data));
+  }
 }
 
 export const matchRepository = new MatchRepository();
