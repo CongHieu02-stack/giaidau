@@ -100,12 +100,15 @@
                   </div>
                   
                   <div class="match-actions-area">
-                    <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
-                      <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                    <div class="match-score-area">
+                      <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
+                        <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                      </div>
+                      <span v-if="match.status === 'completed'" class="fulltime-badge">Full-time</span>
                     </div>
 
                     <div v-if="canManage" class="match-admin-actions">
-                      <button class="icon-btn-small" @click="openRefereeModal(match)" title="Phân công trọng tài">
+                      <button v-if="match.status !== 'completed'" class="icon-btn-small" @click="openRefereeModal(match)" title="Phân công trọng tài">
                         <i class="pi pi-user-edit"></i>
                       </button>
                       <RouterLink v-if="match.referee" :to="`/referee/matches/${match.id}`" class="icon-btn-small primary" title="Điều khiển trận đấu">
@@ -122,15 +125,23 @@
               </div>
             </div>
 
-            <!-- Registered Teams -->
+            <!-- Registered Teams / Standings -->
             <div class="section-card">
-              <h2 class="section-title">
-                <i class="pi pi-users section-icon purple"></i>
-                {{ tournament.participantType === 'individual' ? 'Người chơi đã tham gia' : 'Câu lạc bộ đã tham gia' }}
-                <span class="team-count">{{ approvedRegistrations.length }}</span>
-              </h2>
+              <div class="flex justify-between items-center mb-6">
+                <h2 class="section-title mb-0">
+                  <i class="pi pi-chart-bar section-icon purple"></i>
+                  Bảng xếp hạng
+                </h2>
+                <div v-if="tournament.status === 'registration_open'" class="team-count">
+                  {{ approvedRegistrations.length }}/{{ tournament.maxTeams }} đội
+                </div>
+              </div>
 
-              <div v-if="approvedRegistrations.length > 0" class="teams-list">
+              <div v-if="tournament.status === 'ongoing' || tournament.status === 'completed'">
+                <TournamentStandings :tournament="tournament" :loading="loading" />
+              </div>
+              
+              <div v-else-if="approvedRegistrations.length > 0" class="teams-list">
                 <div v-for="reg in approvedRegistrations" :key="reg.id" class="team-row">
                   <div class="team-avatar-small">
                     <img v-if="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
@@ -265,6 +276,46 @@
               </template>
             </Dialog>
 
+            <!-- Admin Actions -->
+            <div v-if="canManage" class="section-card admin-actions-card mb-4">
+              <h3 class="sidebar-title">
+                <i class="pi pi-shield sidebar-icon red"></i>
+                Quản trị giải đấu
+              </h3>
+              <div class="space-y-3">
+                <RouterLink :to="adminEditPath" class="manage-btn">
+                  <i class="pi pi-cog mr-2"></i>
+                  Quản lý & Thiết lập bảng đấu
+                </RouterLink>
+                <p v-if="approvedRegistrations.length < (tournament.minTeams || 2)" class="text-xs text-white/50 italic mt-2">
+                  * Cần ít nhất {{ tournament.minTeams || 2 }} đội đã duyệt để bắt đầu giải.
+                </p>
+                <div v-if="approvedRegistrations.length >= (tournament.minTeams || 2) && tournament.status === 'registration_open'" class="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-xs text-green-400">
+                  <i class="pi pi-check-circle mr-1"></i> Đã đủ điều kiện bắt đầu giải
+                </div>
+              </div>
+            </div>
+
+            <!-- Admin Actions -->
+            <div v-if="canManage" class="section-card admin-actions-card mb-4">
+              <h3 class="sidebar-title">
+                <i class="pi pi-shield sidebar-icon red"></i>
+                Quản trị giải đấu
+              </h3>
+              <div class="admin-buttons-grid">
+                <RouterLink :to="adminEditPath" class="admin-action-btn primary">
+                  <i class="pi pi-cog mr-2"></i> Quản lý & Thiết lập bảng
+                </RouterLink>
+                
+                <div v-if="approvedRegistrations.length >= (tournament.minTeams || 2) && tournament.status === 'registration_open'" class="status-ready-badge">
+                  <i class="pi pi-check-circle mr-1"></i> Đủ điều kiện bắt đầu
+                </div>
+                <div v-else-if="tournament.status === 'registration_open'" class="status-waiting-badge">
+                  <i class="pi pi-info-circle mr-1"></i> Cần thêm {{ (tournament.minTeams || 2) - approvedRegistrations.length }} đội
+                </div>
+              </div>
+            </div>
+
             <!-- Registration Status -->
             <div class="section-card">
               <h3 class="sidebar-title">
@@ -367,6 +418,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { userRepository } from '../../repositories/UserRepository.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
+import TournamentStandings from '../../components/tournaments/TournamentStandings.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -422,20 +474,18 @@ const pendingRegistrations = computed(() => {
   return tournament.value?.registrations?.filter(r => r.status === 'pending') || [];
 });
 
+const adminEditPath = computed(() => {
+  if (!tournament.value) return '#';
+  // Super admin uses /admin, Tournament admin uses /tournament-admin
+  const prefix = authStore.isSuperAdmin ? '/admin' : '/tournament-admin';
+  return `${prefix}/tournaments/${tournament.value.id}/edit`;
+});
+
 const canManage = computed(() => {
   if (!authStore.isAuthenticated || !tournament.value) return false;
   
-  // Only Tournament Admin (includes Super Admin) or the Creator can manage
-  const isAuthorizedAdmin = authStore.isTournamentAdmin;
-  const isCreator = tournament.value.created_by === authStore.user?.id;
-  
-  return isAuthorizedAdmin || isCreator;
-});
-
-const adminEditPath = computed(() => {
-  if (!tournament.value) return '#';
-  const prefix = authStore.isAdmin ? '/admin' : '/tournament-admin';
-  return `${prefix}/tournaments/${tournament.value.id}/edit`;
+  // Super Admin, Tournament Admin hoặc Người tạo giải đều có quyền quản lý
+  return authStore.isSuperAdmin || authStore.isTournamentAdmin || (tournament.value.created_by === authStore.user?.id);
 });
 
 const canRegister = computed(() => {
@@ -1542,5 +1592,76 @@ onMounted(async () => {
 
 .text-yellow-400 {
   color: #fbbf24;
+}
+.admin-actions-card {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.admin-buttons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.admin-action-btn.primary {
+  background: #ef4444;
+  color: white;
+}
+
+.admin-action-btn.primary:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.status-ready-badge {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  text-align: center;
+  font-weight: 700;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-waiting-badge {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  text-align: center;
+  font-style: italic;
+}
+.match-score-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.fulltime-badge {
+  font-size: 0.65rem;
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 800;
+  text-transform: uppercase;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 </style>

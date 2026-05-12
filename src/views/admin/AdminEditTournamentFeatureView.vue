@@ -124,30 +124,49 @@
         </div>
       </form>
 
-      <!-- Pairing Section -->
+      <!-- Pairing & Group Configuration Section -->
       <section v-if="tournament && !loading" class="form-section pairing-section">
         <div class="section-header">
-          <h2>Ghép cặp thi đấu</h2>
+          <h2>Bố cục & Lịch thi đấu</h2>
           <div class="header-actions">
             <span class="teams-count">Đã duyệt: <strong>{{ tournament.approved_count }}</strong> đội</span>
             <button 
+              v-if="!showConfigurator && tournament.status !== 'ongoing'"
               type="button" 
               class="primary-button" 
-              :disabled="generatingMatches || tournament.approved_count < 2 || readOnly"
-              @click="handleGenerateMatches"
+              :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly"
+              @click="showConfigurator = true"
             >
-              <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-calendar-plus'"></i>
-              {{ matches.length > 0 ? 'Ghép cặp lại' : 'Ghép cặp & Tạo lịch' }}
+              <i class="pi pi-cog mr-1"></i> Thiết lập bảng đấu
+            </button>
+            <button 
+              v-else-if="showConfigurator"
+              type="button" 
+              class="secondary-button"
+              @click="showConfigurator = false"
+            >
+              Hủy thiết lập
             </button>
           </div>
         </div>
 
-        <div v-if="matches.length > 0" class="matches-list">
+        <div v-if="showConfigurator" class="configurator-wrapper">
+          <GroupConfigurator 
+            :approved-teams="approvedTeams"
+            :initial-groups="draftGroups"
+            @confirm="handleConfirmGroups"
+            @change="onGroupsChange"
+          />
+        </div>
+
+        <div v-else-if="matches.length > 0" class="matches-list">
           <div class="matches-grid">
             <div v-for="match in matches" :key="match.id" class="match-item">
               <div class="match-time">
                 <div class="flex gap-2">
-                  <span v-if="match.group_name" class="group-badge">{{ match.group_name }}</span>
+                  <span v-if="match.group_name || match.group?.name" class="group-badge">
+                    {{ match.group_name || match.group?.name }}
+                  </span>
                   <span v-else-if="match.round" class="round-badge">Vòng {{ match.round }}</span>
                 </div>
                 <div class="flex gap-3">
@@ -168,7 +187,7 @@
           </div>
         </div>
         <div v-else class="empty-matches">
-          <p>Chưa có lịch thi đấu. Hãy duyệt các đội và bấm nút để ghép cặp tự động.</p>
+          <p>Chưa có lịch thi đấu. Hãy duyệt các đội và bấm nút "Thiết lập bảng đấu" để bắt đầu.</p>
         </div>
       </section>
 
@@ -243,9 +262,11 @@ import {
   updateTournamentForAdmin,
   approveTournamentRegistration,
   rejectTournamentRegistration,
-  generateTournamentMatches
+  startTournament
 } from '../../features/tournaments/adminTournamentManagement.js';
 import { fetchVenues } from '../../features/tournaments/adminCreateTournament.js';
+import GroupConfigurator from '../../components/tournaments/GroupConfigurator.vue';
+import { useTournamentStore } from '../../stores/tournament.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -256,10 +277,20 @@ const tournament = ref(null);
 const venues = ref([]);
 const loading = ref(true);
 const saving = ref(false);
-const errorMessage = ref('');
 const successMessage = ref('');
+const errorMessage = ref('');
 const generatingMatches = ref(false);
 const matches = ref([]);
+const showConfigurator = ref(false);
+const tournamentStore = useTournamentStore();
+
+const approvedTeams = computed(() => {
+  return (tournament.value?.registrations || [])
+    .filter(r => r.status === 'approved')
+    .map(r => r.club);
+});
+
+const draftGroups = computed(() => tournamentStore.draftGroups);
 const basePath = computed(() => (
   route.path.startsWith('/tournament-admin') ? '/tournament-admin/tournaments' : '/admin/tournaments'
 ));
@@ -403,23 +434,18 @@ async function handleReject(regId) {
   }
 }
 
-async function handleGenerateMatches() {
-  if (!tournament.value) return;
-  
-  if (tournament.value.approved_count < 2) {
-    errorMessage.value = 'Cần ít nhất 2 câu lạc bộ đã duyệt để ghép cặp.';
-    return;
-  }
+function onGroupsChange(groups) {
+  tournamentStore.setDraftGroups(groups);
+}
 
-  const confirmMsg = matches.value.length > 0 
-    ? 'Giải đấu đã có lịch thi đấu. Việc ghép cặp lại sẽ XÓA lịch cũ. Bạn có chắc chắn?' 
-    : 'Xác nhận ghép cặp và tạo lịch thi đấu cho các đội đã duyệt?';
+async function handleConfirmGroups(groups) {
+  if (!tournament.value) return;
 
   confirmService.require({
-    message: confirmMsg,
-    header: 'Xác nhận ghép cặp',
-    icon: 'pi pi-calendar-plus',
-    acceptClass: matches.value.length > 0 ? 'p-button-danger' : 'p-button-primary',
+    message: 'Xác nhận bắt đầu giải đấu với bố cục này? Hành động này sẽ tạo lịch thi đấu và KHÓA việc đăng ký/chỉnh sửa nhân sự.',
+    header: 'Xác nhận bắt đầu giải',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
     accept: async () => {
       generatingMatches.value = true;
       errorMessage.value = '';
@@ -435,15 +461,17 @@ async function handleGenerateMatches() {
       }
 
       if (venueIds.length === 0) {
-        toast.add({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Không có sân đấu hợp lệ để ghép lịch. Vui lòng chọn sân trong phần chỉnh sửa.', life: 5000 });
+        toast.add({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Không có sân đấu hợp lệ để ghép lịch.', life: 5000 });
         generatingMatches.value = false;
         return;
       }
 
-      const result = await generateTournamentMatches(tournament.value.id, venueIds);
+      const result = await startTournament(tournament.value.id, groups, venueIds);
       
       if (result.success) {
-        toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã tạo thành công ${result.count} trận đấu.`, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Giải đấu đã bắt đầu và lịch thi đấu đã được tạo.', life: 3000 });
+        showConfigurator.value = false;
+        tournamentStore.clearDraftGroups();
         await loadTournament();
       } else {
         toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
