@@ -352,19 +352,37 @@ function buildKnockoutBracket(tournamentId, teams, venues, startDate, matchTimes
   let matchIdx = 0;
   const roundMatches = [];
 
-  // Round 1
+  // Determine which teams play in Round 1 and which get BYEs
+  // Number of matches that actually have 2 teams
+  const numRegularMatches = shuffled.filter(t => t.id).length - (slots / 2);
+  const numByeMatches = (slots / 2) - numRegularMatches;
+
   const r1 = [];
-  for (let i = 0; i < shuffled.length; i += 2) {
-    const home = shuffled[i], away = shuffled[i + 1];
-    const m = createMatchData(tournamentId, home.id ? home : {id: null}, away.id ? away : {id: null}, venues, startDate, matchTimes, matchIdx, 1, participantType);
+  const realTeams = shuffled.filter(t => t.id);
+  
+  // 1. Create matches for teams that MUST play
+  for (let i = 0; i < numRegularMatches; i++) {
+    const home = realTeams.pop();
+    const away = realTeams.pop();
+    const m = createMatchData(tournamentId, home, away, venues, startDate, matchTimes, matchIdx, 1, participantType);
     m.bracket_position = matchIdx;
     m.match_type = 'regular';
     m._nextIdx = null;
-    if (!home.id || !away.id) {
-      m.status = 'completed';
-      m.winner_id = home.id ? home.id : away.id;
-      m.home_score = 0; m.away_score = 0;
-    }
+    r1.push(allMatches.length);
+    allMatches.push(m);
+    matchIdx++;
+  }
+
+  // 2. Create BYE matches for remaining teams
+  for (let i = 0; i < numByeMatches; i++) {
+    const team = realTeams.pop();
+    const m = createMatchData(tournamentId, team, {id: null}, venues, startDate, matchTimes, matchIdx, 1, participantType);
+    m.bracket_position = matchIdx;
+    m.match_type = 'regular';
+    m._nextIdx = null;
+    m.status = 'completed';
+    m.winner_id = team.id;
+    m.home_score = 0; m.away_score = 0;
     r1.push(allMatches.length);
     allMatches.push(m);
     matchIdx++;
