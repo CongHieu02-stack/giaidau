@@ -1300,6 +1300,46 @@ onMounted(async () => {
   .meta-row {
     justify-content: center;
   }
+
+  .match-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .match-main-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .match-teams {
+    width: 100%;
+  }
+
+  .match-meta {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
+
+  .match-meta-info {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .match-actions-area {
+    justify-content: space-between;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 1rem;
+  }
+
+  .section-content, .rules-box p {
+    word-break: break-word;
+  }
 }
 
 .club-select-item {
