@@ -46,8 +46,19 @@ export class Tournament {
 
   isRegistrationOpen() {
     if (this.status !== TournamentStatus.REGISTRATION_OPEN) return false;
+    
+    // If status is explicitly open, we allow it. 
+    // The deadline is a guideline or for auto-closing, but status is primary.
     if (!this.registrationDeadline) return true;
-    return new Date() < new Date(this.registrationDeadline);
+    
+    // Use a small buffer or just compare date if it's the same day
+    const now = new Date();
+    const deadline = new Date(this.registrationDeadline);
+    
+    // If it's the same day, we allow until the end of that day
+    if (now.toDateString() === deadline.toDateString()) return true;
+    
+    return now < deadline;
   }
 
   openRegistration() {
