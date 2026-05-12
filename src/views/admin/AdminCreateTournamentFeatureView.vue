@@ -35,7 +35,6 @@
               <span>Hình thức thi đấu</span>
               <select v-model="form.format">
                 <option value="knockout">Loại trực tiếp</option>
-                <option value="group_stage">Vòng bảng</option>
               </select>
             </label>
             
