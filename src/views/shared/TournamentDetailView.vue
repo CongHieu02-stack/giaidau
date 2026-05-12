@@ -518,7 +518,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -959,6 +959,26 @@ const assignReferee = async () => {
   }
 };
 
+const fetchUserClubs = async () => {
+  if (!authStore.user) return;
+  try {
+    const result = await clubRepository.findManagedBy(authStore.user.id);
+    if (result.isOk()) {
+      userClubs.value = result.getValue();
+    }
+  } catch (err) {
+    console.error('Error fetching managed clubs:', err);
+  }
+};
+
+watch(() => authStore.user, (newVal) => {
+  if (newVal) {
+    fetchUserClubs();
+  } else {
+    userClubs.value = [];
+  }
+}, { immediate: true });
+
 onMounted(async () => {
   const id = route.params.id;
   if (!id) {
@@ -967,25 +987,16 @@ onMounted(async () => {
   }
 
   try {
-    const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
-    
-    // Fetch tournament data and user clubs in parallel to reduce loading time
-    const promises = [tournamentStore.fetchTournament(id)];
-    
-    if (authStore.user) {
-      promises.push(clubRepository.findManagedBy(authStore.user.id));
-    }
-    
-    const [tournamentResult, clubsResult] = await Promise.all(promises);
+    // Fetch tournament data
+    const tournamentResult = await tournamentStore.fetchTournament(id);
     
     if (!tournamentResult.success) {
       toast.add({ severity: 'error', summary: 'Lỗi', detail: tournamentResult.error || 'Không thể tải thông tin giải đấu', life: 3000 });
     }
     
-    if (clubsResult) {
-      if (clubsResult.isOk()) {
-        userClubs.value = clubsResult.getValue();
-      }
+    // If auth is already ready, fetch clubs (watch with immediate: true already handles this mostly but being explicit here)
+    if (authStore.user && userClubs.value.length === 0) {
+      await fetchUserClubs();
     }
 
     // Auto-trigger registration modal if param exists
