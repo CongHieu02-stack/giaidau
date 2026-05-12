@@ -15,6 +15,15 @@
       <div class="sb-team">
         <div class="sb-logo"><img v-if="match.home_club?.logo_url" :src="match.home_club.logo_url"/><span v-else>{{ initials(match.home_club?.name) }}</span></div>
         <div class="sb-name">{{ match.home_club?.name || 'TBD' }}</div>
+        <!-- Home Events -->
+        <div class="sb-events">
+          <div v-for="ev in homeSummary" :key="ev.id" class="sb-ev-item">
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+            {{ ev.player?.full_name }} ({{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }})
+          </div>
+        </div>
       </div>
       <div class="sb-score">
         <span class="sc-num">{{ match.home_score ?? 0 }}</span>
@@ -25,6 +34,15 @@
       <div class="sb-team">
         <div class="sb-logo"><img v-if="match.away_club?.logo_url" :src="match.away_club.logo_url"/><span v-else>{{ initials(match.away_club?.name) }}</span></div>
         <div class="sb-name">{{ match.away_club?.name || 'TBD' }}</div>
+        <!-- Away Events -->
+        <div class="sb-events">
+          <div v-for="ev in awaySummary" :key="ev.id" class="sb-ev-item">
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+            {{ ev.player?.full_name }} ({{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }})
+          </div>
+        </div>
       </div>
     </div>
 
@@ -49,8 +67,8 @@
       <div class="event-actions">
         <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.home_club?.name }})</button>
         <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name }})</button>
-        <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="ev-icon yellow">🟡</span>Thẻ vàng</button>
-        <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="ev-icon red">🔴</span>Thẻ đỏ</button>
+        <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="card-icon yellow large"></span>Thẻ vàng</button>
+        <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="card-icon red large"></span>Thẻ đỏ</button>
         <button @click="openEventModal('substitution_in',null)" class="ev-btn"><span class="ev-icon sub">🔄</span>Thay người</button>
       </div>
 
@@ -58,8 +76,12 @@
       <div v-if="events.length===0" class="empty-sm">Chưa có sự kiện</div>
       <div v-else class="timeline">
         <div v-for="ev in events" :key="ev.id" class="tl-item">
-          <span class="tl-min">{{ ev.minute }}'</span>
-          <span class="tl-icon">{{ eventEmoji(ev.type) }}</span>
+          <span class="tl-min">{{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }}</span>
+          <span class="tl-icon">
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+          </span>
           <div class="tl-body">
             <span class="tl-player">{{ ev.player?.full_name || '' }}</span>
             <span class="tl-desc">{{ ev.description }}</span>
@@ -72,7 +94,7 @@
 
     <!-- Tab: Attendance -->
     <div v-if="activeTab==='attendance'" class="panel">
-      <h3 class="panel-title">Kiểm diện cầu thủ</h3>
+      <h3 class="panel-title">Danh sách cầu thủ</h3>
       <div v-for="side in ['home','away']" :key="side" class="att-section">
         <h4 class="att-club">{{ side==='home' ? match.home_club?.name : match.away_club?.name }}</h4>
         <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
@@ -99,11 +121,11 @@
             </select>
           </label>
           <label>
-            <span>Phút</span>
+            <span>Phút <span class="text-red-500">*</span></span>
             <input type="number" v-model.number="modalMinute" min="0"/>
           </label>
           <label>
-            <span>Cầu thủ</span>
+            <span>Cầu thủ <span class="text-red-500">*</span></span>
             <select v-model="modalPlayerId">
               <option value="">-- Chọn --</option>
               <option v-for="p in modalPlayers" :key="p.user?.id" :value="p.user?.id">{{ p.user?.full_name }}</option>
@@ -116,7 +138,7 @@
         </div>
         <div class="modal-actions">
           <button @click="showModal=false" class="btn-cancel">Hủy</button>
-          <button @click="submitEvent" class="btn-submit" :disabled="saving">
+          <button @click="submitEvent" class="btn-submit" :disabled="saving || !modalPlayerId || modalMinute === null || modalMinute === undefined || modalMinute < 0">
             <i :class="saving?'pi pi-spinner pi-spin':'pi pi-check'"></i> Lưu
           </button>
         </div>
@@ -188,21 +210,31 @@ const eventEmoji = (t) => ({'goal':'⚽','yellow_card':'🟡','red_card':'🔴',
 const getPlayers = (side) => side==='home' ? homePlayers.value : awayPlayers.value;
 const isPresent = (pid) => attendance.value.some(a => a.player_id === pid && a.is_present);
 
+const homeSummary = computed(() => {
+  return events.value.filter(e => 
+    e.club_id === match.value?.home_club_id && 
+    ['goal', 'yellow_card', 'red_card'].includes(e.type)
+  );
+});
+
+const awaySummary = computed(() => {
+  return events.value.filter(e => 
+    e.club_id === match.value?.away_club_id && 
+    ['goal', 'yellow_card', 'red_card'].includes(e.type)
+  );
+});
+
 function startTimer() {
   stopTimer();
   if (match.value?.start_time) {
+    // Đảm bảo thời gian từ DB được hiểu đúng là chuẩn UTC (tránh lệch 7 tiếng khi refresh)
     let startTimeStr = match.value.start_time;
-    // Standardize to ISO format and ensure UTC (Z) if missing
-    if (typeof startTimeStr === 'string') {
-      if (startTimeStr.includes(' ') && !startTimeStr.includes('T')) {
-        startTimeStr = startTimeStr.replace(' ', 'T');
-      }
-      if (!startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
-        startTimeStr += 'Z';
-      }
+    if (!startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
+      startTimeStr = startTimeStr.replace(' ', 'T') + 'Z';
     }
-    const start = new Date(startTimeStr).getTime();
-    timerSeconds.value = Math.floor((Date.now() - start) / 1000);
+    const startMs = new Date(startTimeStr).getTime();
+    const nowMs = Date.now();
+    timerSeconds.value = Math.floor((nowMs - startMs) / 1000);
   }
   timerInterval = setInterval(() => { timerSeconds.value++; }, 1000);
 }
@@ -251,7 +283,14 @@ async function updateMatchStatus(status, extra = {}) {
   saving.value = false;
 }
 
-async function doStart() { startTimer(); await updateMatchStatus('in_progress', { start_time: new Date().toISOString() }); }
+async function doStart() { 
+  if (!match.value.referee_id) {
+    alert('Trận đấu này chưa được phân công trọng tài. Vui lòng phân công trọng tài trước khi bắt đầu.');
+    return;
+  }
+  startTimer(); 
+  await updateMatchStatus('in_progress', { start_time: new Date().toISOString() }); 
+}
 async function doPause() { stopTimer(); await updateMatchStatus('paused'); }
 async function doResume() { startTimer(); await updateMatchStatus('in_progress'); }
 async function doEnd() {
@@ -271,6 +310,22 @@ function openEventModal(type, side) {
 }
 
 async function submitEvent() {
+  if (!modalPlayerId.value) {
+    alert('Vui lòng chọn cầu thủ thực hiện.');
+    return;
+  }
+  if (modalMinute.value === null || modalMinute.value === undefined || modalMinute.value < 0) {
+    alert('Vui lòng nhập phút xảy ra sự kiện.');
+    return;
+  }
+
+  // Chặn ghi nhận sự kiện ở tương lai
+  const currentMinute = Math.floor(timerSeconds.value / 60);
+  if (modalMinute.value > currentMinute) {
+    alert(`Không thể ghi nhận sự kiện ở phút ${modalMinute.value}. Thời gian hiện tại của trận đấu mới là phút ${currentMinute}.`);
+    return;
+  }
+  
   saving.value = true;
   const evData = {
     match_id: match.value.id,
@@ -278,6 +333,7 @@ async function submitEvent() {
     club_id: modalClubId.value || null,
     player_id: modalPlayerId.value || null,
     minute: modalMinute.value,
+    second: modalMinute.value === 0 ? (timerSeconds.value % 60) : 0,
     description: modalDesc.value || modalTitle.value
   };
   const r = await matchRepository.addMatchEvent(evData);
@@ -289,9 +345,15 @@ async function submitEvent() {
       const isHome = modalClubId.value === match.value.home_club_id;
       const newHome = (match.value.home_score ?? 0) + (isHome ? 1 : 0);
       const newAway = (match.value.away_score ?? 0) + (isHome ? 0 : 1);
-      await matchRepository.updateScore(match.value.id, newHome, newAway);
-      match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      const scoreR = await matchRepository.updateScore(match.value.id, newHome, newAway);
+      if (scoreR.isOk()) {
+        match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      } else {
+        alert('Lỗi cập nhật tỉ số: ' + scoreR.getError());
+      }
     }
+  } else {
+    alert('Lỗi ghi nhận sự kiện: ' + r.getError());
   }
   showModal.value = false;
   saving.value = false;
@@ -346,6 +408,23 @@ onUnmounted(stopTimer);
 .sc-num { font-size:3rem; font-weight:900; color:white; line-height:1; }
 .sc-sep { font-size:2rem; color:rgba(255,255,255,0.3); }
 .sc-label { font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; }
+
+.sb-events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+  width: 100%;
+}
+.sb-ev-item {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sb-team:first-child .sb-ev-item { text-align: right; }
+.sb-team:last-child .sb-ev-item { text-align: left; }
 
 /* Controls */
 .controls { display:flex; justify-content:center; gap:0.75rem; flex-wrap:wrap; }
@@ -411,5 +490,22 @@ onUnmounted(stopTimer);
   .scoreboard { flex-direction:column; gap:1rem; }
   .sb-score { flex-direction:row; }
   .event-actions { grid-template-columns:1fr; }
+}
+.text-red-500 { color: #ef4444; }
+
+.card-icon {
+  display: inline-block;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.card-icon.yellow { background-color: #fbbf24; box-shadow: 0 0 5px rgba(251, 191, 36, 0.5); }
+.card-icon.red { background-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+.card-icon.large {
+  width: 14px;
+  height: 20px;
+  margin-right: 8px;
 }
 </style>

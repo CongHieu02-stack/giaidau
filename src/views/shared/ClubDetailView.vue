@@ -53,12 +53,24 @@
 
               <!-- Join / Status button -->
               <div v-if="authStore.isAuthenticated" class="mt-5">
-                <div v-if="isLeader" class="flex gap-3">
+                <!-- Nút cho trưởng CLB -->
+                <div v-if="isLeader" class="flex gap-3 flex-wrap">
                   <div class="tag-leader">
                     <i class="pi pi-star-fill"></i> Trưởng câu lạc bộ
                   </div>
                   <button @click="openEditModal" class="btn-edit">
-                    <i class="pi pi-pencil"></i> Chỉnh sửa
+                    <i class="pi pi-pencil"></i> Chỉnh sửa thông tin CLB
+                  </button>
+                  <button @click="handleDeleteClub" :disabled="deleting" class="btn-delete-club">
+                    <i :class="deleting ? 'pi pi-spinner pi-spin' : 'pi pi-trash'"></i>
+                    {{ deleting ? 'Đang xóa...' : 'Xóa CLB' }}
+                  </button>
+                </div>
+                <!-- Nút xóa cho admin QL CLB và admin hệ thống (không phải trưởng CLB) -->
+                <div v-else-if="canDeleteClub" class="flex gap-3">
+                  <button @click="handleDeleteClub" :disabled="deleting" class="btn-delete-club">
+                    <i :class="deleting ? 'pi pi-spinner pi-spin' : 'pi pi-trash'"></i>
+                    {{ deleting ? 'Đang xóa...' : 'Xóa CLB' }}
                   </button>
                 </div>
                 <template v-else>
@@ -256,7 +268,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
@@ -264,6 +276,7 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
 const route = useRoute();
+const router = useRouter();
 const authStore = useAuthStore();
 const toast = useToast();
 const confirmService = useConfirm();
@@ -282,6 +295,7 @@ const removingId = ref(null);
 // Edit Club
 const showEditModal = ref(false);
 const updating = ref(false);
+const deleting = ref(false);
 const editForm = ref({
   name: '',
   short_name: '',
@@ -303,23 +317,32 @@ const handleUpdate = async () => {
   if (!editForm.value.name.trim()) return;
   updating.value = true;
   try {
+    // Chỉ gửi các trường cần thiết, không gửi createdAt để tránh lỗi schema cache
     const updatedClub = {
-      ...club.value,
+      id: club.value.id,
       name: editForm.value.name.trim(),
       short_name: editForm.value.short_name.trim() || null,
-      logoUrl: editForm.value.logo_url.trim() || null,
+      logo_url: editForm.value.logo_url.trim() || null,
       description: editForm.value.description.trim() || null,
+      leader_id: club.value.leaderId,
+      deputy_id: club.value.deputyId || null,
+      status: club.value.status,
       updated_at: new Date()
     };
-    
-    const result = await clubRepository.update(updatedClub);
-    if (result.isOk()) {
-      club.value = result.getValue();
-      showEditModal.value = false;
-      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật thông tin câu lạc bộ thành công!', life: 3000 });
-    } else {
-      throw new Error(result.getError());
-    }
+
+    const { data, error } = await supabase
+      .from('clubs')
+      .update(updatedClub)
+      .eq('id', club.value.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Cập nhật club.value với dữ liệu mới
+    club.value = { ...club.value, ...data };
+    showEditModal.value = false;
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Cập nhật thông tin câu lạc bộ thành công!', life: 3000 });
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 5000 });
   } finally {
@@ -362,6 +385,12 @@ const pendingMembers = computed(() => members.value.filter(m => m.status === 'pe
 const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
 const isPending = computed(() => memberStatus.value === 'pending');
 const isMember  = computed(() => memberStatus.value === 'member' || memberStatus.value === 'approved');
+
+// Kiểm tra quyền xóa CLB: trưởng CLB, admin QL CLB, hoặc admin hệ thống
+const canDeleteClub = computed(() => {
+  if (!authStore.isAuthenticated || !club.value) return false;
+  return isLeader.value || authStore.isClubAdmin || authStore.isSuperAdmin;
+});
 
 const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 const getStatusClass = (s) => ({ pending: 'sb-pending', approved: 'sb-approved' }[s] || 'sb-default');
@@ -456,6 +485,51 @@ const handleRemove = async (m) => {
         toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi xóa: ' + err.message, life: 3000 });
       } finally {
         removingId.value = null;
+      }
+    }
+  });
+};
+
+// Xóa câu lạc bộ (chỉ trưởng CLB, admin QL CLB, admin hệ thống)
+const handleDeleteClub = async () => {
+  if (!canDeleteClub.value) {
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Bạn không có quyền xóa câu lạc bộ này!', life: 3000 });
+    return;
+  }
+
+  confirmService.require({
+    message: `Bạn có chắc chắn muốn xóa câu lạc bộ "${club.value?.name}"?\n\nHành động này không thể hoàn tác!`,
+    header: 'Xác nhận xóa câu lạc bộ',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Xóa CLB',
+    rejectLabel: 'Hủy',
+    accept: async () => {
+      deleting.value = true;
+      try {
+        // Xóa các thành viên của CLB trước
+        const { error: membersError } = await supabase
+          .from('club_members')
+          .delete()
+          .eq('club_id', club.value.id);
+
+        if (membersError) throw membersError;
+
+        // Xóa CLB
+        const { error: clubError } = await supabase
+          .from('clubs')
+          .delete()
+          .eq('id', club.value.id);
+
+        if (clubError) throw clubError;
+
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã xóa câu lạc bộ thành công!', life: 3000 });
+        // Chuyển hướng về trang danh sách CLB
+        router.push('/clubs');
+      } catch (err) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi xóa câu lạc bộ: ' + err.message, life: 5000 });
+      } finally {
+        deleting.value = false;
       }
     }
   });
@@ -580,6 +654,16 @@ onMounted(async () => {
   border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;
 }
 .btn-edit:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+
+/* Delete Club Button */
+.btn-delete-club {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1.25rem; border-radius: 0.875rem; font-size: 0.875rem; font-weight: 600;
+  background: rgba(239,68,68,0.1); color: #fca5a5;
+  border: 1px solid rgba(239,68,68,0.3); cursor: pointer; transition: all 0.2s;
+}
+.btn-delete-club:hover:not(:disabled) { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); transform: translateY(-1px); }
+.btn-delete-club:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Modal Styles (Similar to ClubsView) ── */
 .modal-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(2,6,23,0.85); backdrop-filter: blur(8px); padding: 1rem; }

@@ -353,6 +353,99 @@ export class Tournament {
     return statusNames[this.status] || 'Không xác định';
   }
 
+  calculateStandings(groupId = null) {
+    const standings = new Map();
+    const approvedClubs = this.getApprovedClubs();
+    
+    // Initialize standings for all approved clubs
+    approvedClubs.forEach(club => {
+      // If groupId is provided, only include clubs in that group
+      // This requires registration data to have group_id
+      const reg = this.registrations.find(r => r.clubId === club.id || r.club_id === club.id);
+      if (groupId && reg && reg.group_id !== groupId) return;
+
+      standings.set(club.id, {
+        clubId: club.id,
+        name: club.name,
+        logoUrl: club.logoUrl || club.logo_url,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        gf: 0,
+        ga: 0,
+        gd: 0,
+        points: 0
+      });
+    });
+
+    // Process matches
+    this.matches.forEach(match => {
+      // CHỈ tính điểm cho những trận đã kết thúc (status === 'completed')
+      if (match.status !== 'completed') return;
+      if (groupId && (match.group_id || match.groupId) !== groupId) return;
+
+      const homeId = match.homeClubId || match.home_club_id;
+      const awayId = match.awayClubId || match.away_club_id;
+      const homeScore = Number(match.homeScore ?? match.home_score);
+      const awayScore = Number(match.awayScore ?? match.away_score);
+
+      const homeStats = standings.get(homeId);
+      const awayStats = standings.get(awayId);
+
+      if (homeStats && awayStats) {
+        homeStats.played++;
+        awayStats.played++;
+        homeStats.gf += homeScore;
+        homeStats.ga += awayScore;
+        awayStats.gf += awayScore;
+        awayStats.ga += homeScore;
+
+        if (homeScore > awayScore) {
+          homeStats.won++;
+          homeStats.points += 2; // Thắng +2
+          awayStats.lost++;
+          awayStats.points -= 1; // Thua -1
+        } else if (homeScore < awayScore) {
+          awayStats.won++;
+          awayStats.points += 2; // Thắng +2
+          homeStats.lost++;
+          homeStats.points -= 1; // Thua -1
+        } else {
+          homeStats.drawn++;
+          awayStats.drawn++;
+          homeStats.points += 1; // Hòa +1
+          awayStats.points += 1; // Hòa +1
+        }
+
+        homeStats.gd = homeStats.gf - homeStats.ga;
+        awayStats.gd = awayStats.gf - awayStats.ga;
+      }
+    });
+
+    // Convert to array and sort
+    const result = Array.from(standings.values()).sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.gd !== a.gd) return b.gd - a.gd;
+      return b.gf - a.gf;
+    });
+
+    // Apply Continuous Dense Ranking
+    let currentRank = 1;
+    return result.map((team, index) => {
+      if (index > 0) {
+        const prevTeam = result[index - 1];
+        const isTied = team.points === prevTeam.points && 
+                       team.gd === prevTeam.gd && 
+                       team.gf === prevTeam.gf;
+        if (!isTied) {
+          currentRank++;
+        }
+      }
+      return { ...team, rank: currentRank };
+    });
+  }
+
   get displayDate() {
     if (this.startDate && this.endDate) {
       return `${formatDate(this.startDate)} - ${formatDate(this.endDate)}`;

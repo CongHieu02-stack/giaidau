@@ -15,6 +15,7 @@ export const useTournamentStore = defineStore('tournament', () => {
   const totalCount = ref(0);
   const currentPage = ref(1);
   const perPage = ref(10);
+  const draftGroups = ref([]);
 
   // Getters
   const upcomingTournaments = computed(() => 
@@ -289,6 +290,18 @@ export const useTournamentStore = defineStore('tournament', () => {
     currentTournament.value = null;
   }
 
+  function setDraftGroups(groups) {
+    draftGroups.value = groups;
+  }
+
+  function updateDraftGroups(groups) {
+    draftGroups.value = groups;
+  }
+
+  function clearDraftGroups() {
+    draftGroups.value = [];
+  }
+
   return {
     // State
     tournaments,
@@ -298,6 +311,7 @@ export const useTournamentStore = defineStore('tournament', () => {
     totalCount,
     currentPage,
     perPage,
+    draftGroups,
     
     // Getters
     upcomingTournaments,
@@ -318,6 +332,9 @@ export const useTournamentStore = defineStore('tournament', () => {
     generateSchedule,
     setPage,
     clearError,
-    clearCurrentTournament
+    clearCurrentTournament,
+    setDraftGroups,
+    updateDraftGroups,
+    clearDraftGroups
   };
 });

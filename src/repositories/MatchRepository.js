@@ -98,7 +98,7 @@ export class MatchRepository extends BaseRepository {
       .from('match_events')
       .select(`
         *,
-        player:profiles(id, full_name, avatar_url),
+        player:profiles!player_id(id, full_name, avatar_url),
         club:clubs(id, name, logo_url)
       `)
       .eq('match_id', matchId)
@@ -115,7 +115,7 @@ export class MatchRepository extends BaseRepository {
       .insert(eventData)
       .select(`
         *,
-        player:profiles(id, full_name, avatar_url),
+        player:profiles!player_id(id, full_name, avatar_url),
         club:clubs(id, name, logo_url)
       `)
       .single();
@@ -172,7 +172,7 @@ export class MatchRepository extends BaseRepository {
       .from('club_members')
       .select(`
         id,
-        user:profiles(id, full_name, avatar_url),
+        user:profiles!user_id(id, full_name, avatar_url),
         role,
         status
       `)

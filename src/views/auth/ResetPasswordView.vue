@@ -1,61 +1,105 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-md">
-      <div class="text-center mb-8">
-        <router-link to="/" class="inline-flex items-center space-x-3">
-          <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex items-center justify-center">
-            <i class="pi pi-trophy text-white text-2xl"></i>
-          </div>
-          <span class="text-3xl font-bold gradient-text">MyLeague</span>
+  <div class="auth-page">
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="left-glow left-glow-1"></div>
+      <div class="left-glow left-glow-2"></div>
+      <div class="left-glow left-glow-3"></div>
+      <div class="left-inner">
+        <router-link to="/" class="brand">
+          <div class="brand-icon"><i class="pi pi-trophy"></i></div>
+          <span class="brand-name">MyLeague</span>
         </router-link>
+        <div class="hero-text">
+          <h2>Mật khẩu mới 🔐</h2>
+          <p>Thiết lập mật khẩu mới cho tài khoản của bạn để tiếp tục trải nghiệm.</p>
+        </div>
+        <div class="feature-list">
+          <div class="feat">
+            <div class="feat-icon"><i class="pi pi-lock"></i></div>
+            <span>Mật khẩu mạnh mẽ</span>
+          </div>
+          <div class="feat">
+            <div class="feat-icon"><i class="pi pi-shield"></i></div>
+            <span>Bảo mật an toàn tuyệt đối</span>
+          </div>
+        </div>
+        <div class="left-footer">
+          <div class="avatar-stack">
+            <div class="av" v-for="c in ['#6366f1','#8b5cf6','#ec4899','#f59e0b']" :key="c" :style="{ background: c }"></div>
+          </div>
+          <span>+1,200 người dùng đang hoạt động</span>
+        </div>
       </div>
+    </div>
 
-      <div class="glass rounded-2xl p-8 shadow-2xl">
-        <h1 class="text-2xl font-bold text-white text-center mb-2">Đặt lại mật khẩu</h1>
-        <p class="text-white/60 text-center mb-6">Nhập mật khẩu mới của bạn</p>
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="form-card">
+        <!-- Header -->
+        <div class="form-header">
+          <div class="form-icon"><i class="pi pi-sync"></i></div>
+          <h1>Đặt lại mật khẩu</h1>
+          <p>Nhập mật khẩu mới của bạn</p>
+        </div>
 
-        <form @submit.prevent="handleSubmit" class="space-y-5">
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-white/80">Mật khẩu mới</label>
-            <div class="relative">
-              <i class="pi pi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/50"></i>
+        <form @submit.prevent="handleSubmit" class="auth-form" autocomplete="off">
+          <!-- Password -->
+          <div class="field-group">
+            <label>Mật khẩu mới</label>
+            <div class="input-wrap">
+              <i class="pi pi-lock input-ico"></i>
               <input
                 v-model="password"
-                type="password"
+                :type="showPwd ? 'text' : 'password'"
                 required
                 placeholder="••••••••"
-                class="form-input"
+                autocomplete="new-password"
               />
+              <button type="button" class="eye-btn" @click="showPwd = !showPwd">
+                <i :class="showPwd ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+              </button>
             </div>
           </div>
 
-          <div class="space-y-2">
-            <label class="text-sm font-medium text-white/80">Xác nhận mật khẩu</label>
-            <div class="relative">
-              <i class="pi pi-lock absolute left-3 top-1/2 -translate-y-1/2 text-white/50"></i>
+          <!-- Confirm Password -->
+          <div class="field-group">
+            <label>Xác nhận mật khẩu</label>
+            <div class="input-wrap">
+              <i class="pi pi-lock input-ico"></i>
               <input
                 v-model="confirmPassword"
-                type="password"
+                :type="showConfirmPwd ? 'text' : 'password'"
                 required
                 placeholder="••••••••"
-                class="form-input"
+                autocomplete="new-password"
               />
+              <button type="button" class="eye-btn" @click="showConfirmPwd = !showConfirmPwd">
+                <i :class="showConfirmPwd ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+              </button>
             </div>
           </div>
 
-          <button type="submit" :disabled="loading" class="w-full btn-submit">
-            <i v-if="loading" class="pi pi-spinner pi-spin mr-2"></i>
+          <!-- Submit -->
+          <button type="submit" class="btn-submit" :disabled="loading">
+            <i v-if="loading" class="pi pi-spinner pi-spin"></i>
+            <i v-else class="pi pi-check"></i>
             <span>{{ loading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu' }}</span>
           </button>
         </form>
 
-        <div v-if="message" class="mt-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg">
-          <p class="text-green-400 text-sm text-center">{{ message }}</p>
+        <!-- Alerts -->
+        <div v-if="message" class="alert-success mt-4">
+          <i class="pi pi-check-circle"></i> {{ message }}
         </div>
 
-        <div v-if="error" class="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
-          <p class="text-red-400 text-sm text-center">{{ error }}</p>
+        <div v-if="error" class="alert-error mt-4">
+          <i class="pi pi-exclamation-circle"></i> {{ error }}
         </div>
+
+        <p class="switch-text">
+          <router-link to="/login" class="link-primary">Quay lại đăng nhập</router-link>
+        </p>
       </div>
     </div>
   </div>
@@ -69,6 +113,8 @@ import { authService } from '../../services/AuthService.js';
 const router = useRouter();
 const password = ref('');
 const confirmPassword = ref('');
+const showPwd = ref(false);
+const showConfirmPwd = ref(false);
 const loading = ref(false);
 const message = ref('');
 const error = ref('');
@@ -100,38 +146,192 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.form-input {
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.75rem;
-  color: white;
-  transition: all 0.3s ease;
+/* Layout */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
 }
 
-.form-input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  background: rgba(255, 255, 255, 0.15);
+/* ── Left Panel ── */
+.left-panel {
+  display: none;
+  position: relative;
+  width: 45%;
+  background: linear-gradient(145deg, #0d0b28 0%, #1a1040 50%, #0d1526 100%);
+  overflow: hidden;
+  flex-direction: column;
+}
+@media (min-width: 1024px) { .left-panel { display: flex; } }
+
+.left-glow {
+  position: absolute; border-radius: 50%;
+  filter: blur(80px); pointer-events: none;
+}
+.left-glow-1 { width: 400px; height: 400px; top: -100px; left: -100px; background: rgba(99,102,241,0.2); }
+.left-glow-2 { width: 300px; height: 300px; bottom: 100px; right: -80px; background: rgba(139,92,246,0.15); animation: float 6s ease-in-out infinite; }
+.left-glow-3 { width: 200px; height: 200px; bottom: -50px; left: 100px; background: rgba(236,72,153,0.1); animation: float 8s ease-in-out infinite reverse; }
+
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+
+.left-inner {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column;
+  height: 100%; padding: 3rem;
 }
 
+.brand {
+  display: flex; align-items: center; gap: 0.75rem;
+  text-decoration: none; margin-bottom: auto;
+}
+.brand-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: white;
+  box-shadow: 0 8px 20px rgba(99,102,241,0.4);
+}
+.brand-name {
+  font-size: 1.5rem; font-weight: 800;
+  background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+.hero-text { margin: 3rem 0 2rem; }
+.hero-text h2 { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.2; margin-bottom: 1rem; }
+.hero-text p { color: rgba(255,255,255,0.55); font-size: 1rem; line-height: 1.65; }
+
+.feature-list { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 3rem; }
+.feat { display: flex; align-items: center; gap: 0.875rem; }
+.feat-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: rgba(99,102,241,0.2); border: 1px solid rgba(99,102,241,0.3);
+  display: flex; align-items: center; justify-content: center;
+  color: #a5b4fc; font-size: 0.85rem;
+}
+.feat span { color: rgba(255,255,255,0.7); font-size: 0.9rem; }
+
+.left-footer { display: flex; align-items: center; gap: 0.75rem; }
+.avatar-stack { display: flex; }
+.av { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #0d0b28; margin-left: -8px; }
+.av:first-child { margin-left: 0; }
+.left-footer span { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+
+/* ── Right Panel ── */
+.right-panel {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 2rem 1.5rem;
+  background: #080618;
+  overflow-y: auto;
+}
+
+.form-card {
+  width: 100%; max-width: 440px;
+  animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes slideIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+/* Form header */
+.form-header { text-align: center; margin-bottom: 2rem; }
+.form-icon {
+  width: 60px; height: 60px; border-radius: 18px; margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: white;
+  box-shadow: 0 12px 30px rgba(99,102,241,0.35);
+}
+.form-header h1 { font-size: 1.75rem; font-weight: 800; color: white; margin-bottom: 0.375rem; }
+.form-header p { color: rgba(255,255,255,0.45); font-size: 0.9rem; }
+
+/* Alerts */
+.alert-success {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1rem; margin-bottom: 1.25rem;
+  background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 0.75rem; color: #86efac; font-size: 0.875rem;
+}
+.alert-error {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1rem; margin-bottom: 0.5rem;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 0.75rem; color: #fca5a5; font-size: 0.875rem;
+}
+.mt-4 { margin-top: 1rem; }
+
+/* Form */
+.auth-form { display: flex; flex-direction: column; gap: 1.125rem; }
+
+.field-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.field-group label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+
+.input-wrap {
+  position: relative;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.875rem;
+  transition: all 0.2s;
+}
+.input-wrap:focus-within {
+  border-color: rgba(99,102,241,0.6);
+  background: rgba(99,102,241,0.05);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+}
+.input-wrap.error { border-color: rgba(239,68,68,0.5); }
+.input-wrap.error:focus-within { box-shadow: 0 0 0 3px rgba(239,68,68,0.1); }
+
+.input-ico {
+  position: absolute; left: 0.875rem; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,0.3); font-size: 0.85rem; pointer-events: none;
+}
+
+.input-wrap input {
+  width: 100%; padding: 0.8rem 0.875rem 0.8rem 2.5rem;
+  background: transparent; border: none; color: white;
+  font-size: 0.9rem; outline: none;
+  border-radius: inherit;
+}
+.input-wrap input::placeholder { color: rgba(255,255,255,0.25); }
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0px 1000px #141224 inset !important;
+  -webkit-text-fill-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.eye-btn {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  color: rgba(255,255,255,0.35); font-size: 0.85rem; padding: 0.2rem;
+  transition: color 0.2s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.eye-btn:hover { color: rgba(255,255,255,0.7); }
+
+.link-primary { font-size: 0.82rem; color: #818cf8; font-weight: 600; text-decoration: none; transition: color 0.2s; }
+.link-primary:hover { color: #a5b4fc; }
+
+/* Buttons */
 .btn-submit {
-  padding: 0.875rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: white;
-  font-weight: 600;
-  border-radius: 0.75rem;
-  transition: all 0.3s ease;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  width: 100%; padding: 0.875rem;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white; font-size: 0.95rem; font-weight: 700;
+  border-radius: 0.875rem; transition: all 0.25s;
+  box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+  margin-top: 0.25rem;
 }
+.btn-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,102,241,0.5); }
+.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.btn-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
-}
-
-.btn-submit:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+.switch-text {
+  text-align: center; margin-top: 1.5rem;
+  color: rgba(255,255,255,0.5); font-size: 0.875rem;
 }
 </style>

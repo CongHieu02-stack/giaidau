@@ -14,6 +14,22 @@ CREATE TABLE IF NOT EXISTS public.match_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- Ensure columns exist if table was created previously
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='match_events' AND column_name='type') THEN
+        ALTER TABLE public.match_events ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'goal';
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='match_events' AND column_name='minute') THEN
+        ALTER TABLE public.match_events ADD COLUMN minute INTEGER NOT NULL DEFAULT 0;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='match_events' AND column_name='description') THEN
+        ALTER TABLE public.match_events ADD COLUMN description TEXT;
+    END IF;
+END $$;
+
 -- 2. Create match_attendance table for player check-in before match
 CREATE TABLE IF NOT EXISTS public.match_attendance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,10 +81,12 @@ END $$;
 ALTER TABLE public.match_events ENABLE ROW LEVEL SECURITY;
 
 -- Everyone can view match events
+DROP POLICY IF EXISTS "Anyone can view match events" ON public.match_events;
 CREATE POLICY "Anyone can view match events" ON public.match_events
     FOR SELECT USING (true);
 
 -- Referees can insert/update/delete events for their assigned matches
+DROP POLICY IF EXISTS "Referees can manage events for assigned matches" ON public.match_events;
 CREATE POLICY "Referees can manage events for assigned matches" ON public.match_events
     FOR INSERT WITH CHECK (
         EXISTS (
@@ -78,6 +96,7 @@ CREATE POLICY "Referees can manage events for assigned matches" ON public.match_
         )
     );
 
+DROP POLICY IF EXISTS "Referees can update events for assigned matches" ON public.match_events;
 CREATE POLICY "Referees can update events for assigned matches" ON public.match_events
     FOR UPDATE USING (
         EXISTS (
@@ -87,6 +106,7 @@ CREATE POLICY "Referees can update events for assigned matches" ON public.match_
         )
     );
 
+DROP POLICY IF EXISTS "Referees can delete events for assigned matches" ON public.match_events;
 CREATE POLICY "Referees can delete events for assigned matches" ON public.match_events
     FOR DELETE USING (
         EXISTS (
@@ -100,10 +120,12 @@ CREATE POLICY "Referees can delete events for assigned matches" ON public.match_
 ALTER TABLE public.match_attendance ENABLE ROW LEVEL SECURITY;
 
 -- Everyone can view attendance
+DROP POLICY IF EXISTS "Anyone can view match attendance" ON public.match_attendance;
 CREATE POLICY "Anyone can view match attendance" ON public.match_attendance
     FOR SELECT USING (true);
 
 -- Referees can manage attendance for their assigned matches
+DROP POLICY IF EXISTS "Referees can manage attendance for assigned matches" ON public.match_attendance;
 CREATE POLICY "Referees can manage attendance for assigned matches" ON public.match_attendance
     FOR INSERT WITH CHECK (
         EXISTS (
@@ -113,6 +135,7 @@ CREATE POLICY "Referees can manage attendance for assigned matches" ON public.ma
         )
     );
 
+DROP POLICY IF EXISTS "Referees can update attendance for assigned matches" ON public.match_attendance;
 CREATE POLICY "Referees can update attendance for assigned matches" ON public.match_attendance
     FOR UPDATE USING (
         EXISTS (
