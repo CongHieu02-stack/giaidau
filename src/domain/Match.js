@@ -10,10 +10,20 @@ export class Match {
     this.id = data.id || generateUUID();
     this.tournamentId = data.tournamentId || data.tournament_id || null;
     this.tournament = data.tournament || null;
-    this.homeClubId = data.homeClubId || data.home_club_id || null;
-    this.homeClub = data.homeClub || null;
-    this.awayClubId = data.awayClubId || data.away_club_id || null;
-    this.awayClub = data.awayClub || null;
+    this.homeClubId = data.homeClubId || data.home_club_id || data.home_user_id || null;
+    this.awayClubId = data.awayClubId || data.away_club_id || data.away_user_id || null;
+    
+    if (data.home_user) {
+      this.homeClub = { id: data.home_user.id, name: data.home_user.full_name, logo_url: data.home_user.avatar_url, logoUrl: data.home_user.avatar_url };
+    } else {
+      this.homeClub = data.homeClub || data.home_club || null;
+    }
+
+    if (data.away_user) {
+      this.awayClub = { id: data.away_user.id, name: data.away_user.full_name, logo_url: data.away_user.avatar_url, logoUrl: data.away_user.avatar_url };
+    } else {
+      this.awayClub = data.awayClub || data.away_club || null;
+    }
     this.venueId = data.venueId || data.venue_id || null;
     this.venue = data.venue || null;
     this.refereeId = data.refereeId || data.referee_id || null;
@@ -25,6 +35,11 @@ export class Match {
     this.status = data.status || MatchStatus.SCHEDULED;
     this.startTime = data.startTime || data.start_time || null;
     this.endTime = data.endTime || data.end_time || null;
+    this.winnerId = data.winnerId || data.winner_id || null;
+    this.bracketPosition = data.bracketPosition || data.bracket_position || null;
+    this.nextMatchId = data.nextMatchId || data.next_match_id || null;
+    this.matchType = data.matchType || data.match_type || 'regular';
+    this.round = data.round || null;
     this.createdAt = data.createdAt || data.created_at || new Date();
 
     // Embedded events
@@ -296,6 +311,11 @@ export class Match {
       status: this.status,
       startTime: this.startTime,
       endTime: this.endTime,
+      winnerId: this.winnerId,
+      bracketPosition: this.bracketPosition,
+      nextMatchId: this.nextMatchId,
+      matchType: this.matchType,
+      round: this.round,
       createdAt: this.createdAt,
       events: this.events
     };

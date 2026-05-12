@@ -91,6 +91,9 @@ export class TournamentRepository extends BaseRepository {
       .select(`
         *,
         sport_category:sports_categories(id, name, icon_url),
+        champion_club:clubs!fk_champion_club(id, name, logo_url),
+        runner_up_club:clubs!fk_runner_up_club(id, name, logo_url),
+        third_place_club:clubs!fk_third_place_club(id, name, logo_url),
         registrations:tournament_registrations(
           id,
           club_id,
@@ -107,8 +110,12 @@ export class TournamentRepository extends BaseRepository {
           id,
           home_club_id,
           away_club_id,
+          home_user_id,
+          away_user_id,
           home_club:clubs!home_club_id(id, name, logo_url),
           away_club:clubs!away_club_id(id, name, logo_url),
+          home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
+          away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
           venue:venues(id, name),
           referee:profiles!referee_id(id, full_name),
           match_date,
