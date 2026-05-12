@@ -18,7 +18,7 @@
             <input v-model="searchQuery" type="text" placeholder="Tìm kiếm câu lạc bộ..." class="search-field" />
             <button v-if="searchQuery" @click="searchQuery = ''" class="clear-ico"><i class="pi pi-times"></i></button>
           </div>
-          <button v-if="authStore.isAuthenticated" @click="showCreateModal = true" class="btn-create">
+          <button v-if="authStore.isAuthenticated" @click="openCreateModal" class="btn-create" :class="{ 'btn-disabled': hasJoinedAnyClub }" :title="hasJoinedAnyClub ? 'Bạn đã tham gia một câu lạc bộ. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.' : ''">
             <i class="pi pi-plus"></i> Tạo CLB
           </button>
         </div>
@@ -87,7 +87,7 @@
                 <div v-else-if="userMemberships[club.id] === 'member' || userMemberships[club.id] === 'approved'" class="btn-joined">
                   <i class="pi pi-check-circle"></i> Đã tham gia
                 </div>
-                <button v-else @click="handleJoin(club)" :disabled="joiningClubId === club.id" class="btn-join">
+                <button v-else @click="handleJoin(club)" :disabled="joiningClubId === club.id || hasJoinedAnyClub" class="btn-join" :class="{ 'btn-disabled': hasJoinedAnyClub }" :title="hasJoinedAnyClub ? 'Bạn đã tham gia một câu lạc bộ khác' : ''">
                   <i v-if="joiningClubId === club.id" class="pi pi-spinner pi-spin"></i>
                   <i v-else class="pi pi-user-plus"></i> Tham gia
                 </button>
@@ -168,6 +168,21 @@ const createForm = ref({ name: '', short_name: '', description: '', logo_url: ''
 
 const userMemberships = ref({});
 const joiningClubId = ref(null);
+
+const hasJoinedAnyClub = computed(() => {
+  if (!authStore.isAuthenticated || !authStore.user) return false;
+  const isLeaderOfAny = clubs.value.some(c => c.leaderId === authStore.user.id || c.leader_id === authStore.user.id);
+  const activeMemberships = Object.values(userMemberships.value).filter(s => s === 'pending' || s === 'approved' || s === 'member');
+  return isLeaderOfAny || activeMemberships.length > 0;
+});
+
+const openCreateModal = () => {
+  if (hasJoinedAnyClub.value) {
+    alert('Bạn đã tham gia hoặc đang chờ duyệt ở một câu lạc bộ khác. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.');
+    return;
+  }
+  showCreateModal.value = true;
+};
 
 const filteredClubs = computed(() => {
   if (!searchQuery.value) return clubs.value;
@@ -437,6 +452,7 @@ const handleJoin = async (club) => {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1;
   min-height: 40px;
 }
+.btn-disabled { opacity: 0.6 !important; cursor: not-allowed !important; background: rgba(107,114,128,0.2) !important; border-color: rgba(107,114,128,0.3) !important; color: #d1d5db !important; box-shadow: none !important; transform: none !important; }
 .btn-leader {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   flex: 1; padding: 0.65rem 0.5rem;

@@ -74,16 +74,26 @@
                   </button>
                 </div>
                 <template v-else>
-                  <button v-if="canJoin" @click="handleJoin" :disabled="joining" class="btn-join">
+                  <button v-if="canJoin" @click="handleJoin" :disabled="joining || hasJoinedAnotherClub" class="btn-join" :title="hasJoinedAnotherClub ? 'Bạn đã tham gia một câu lạc bộ khác' : ''" :class="{ 'btn-disabled': hasJoinedAnotherClub }">
                     <i v-if="joining" class="pi pi-spinner pi-spin"></i>
                     <i v-else class="pi pi-user-plus"></i>
-                    {{ joining ? 'Đang gửi...' : 'Tham gia câu lạc bộ' }}
+                    {{ joining ? 'Đang gửi...' : hasJoinedAnotherClub ? 'Đã tham gia CLB khác' : 'Tham gia câu lạc bộ' }}
                   </button>
-                  <div v-else-if="isPending" class="tag-pending">
-                    <i class="pi pi-clock"></i> Đang chờ phê duyệt
+                  <div v-else-if="isPending" class="flex items-center gap-2">
+                    <div class="tag-pending">
+                      <i class="pi pi-clock"></i> Đang chờ phê duyệt
+                    </div>
+                    <button @click="handleLeave" class="btn-leave" title="Hủy yêu cầu">
+                      <i class="pi pi-times"></i> Hủy
+                    </button>
                   </div>
-                  <div v-else-if="isMember" class="tag-member">
-                    <i class="pi pi-check-circle"></i> Đã tham gia
+                  <div v-else-if="isMember" class="flex items-center gap-2">
+                    <div class="tag-member">
+                      <i class="pi pi-check-circle"></i> Đã tham gia
+                    </div>
+                    <button @click="handleLeave" class="btn-leave" title="Rời câu lạc bộ">
+                      <i class="pi pi-sign-out"></i> Rời CLB
+                    </button>
                   </div>
                 </template>
               </div>
@@ -91,129 +101,129 @@
           </div>
         </div>
 
-        <!-- ── Members table ── -->
+        <!-- ── Members Area ── -->
         <div class="members-card">
-          <div class="members-header">
-            <div class="members-title-wrap">
-              <div class="members-icon"><i class="pi pi-users"></i></div>
-              <h2 class="members-title">Danh sách thành viên</h2>
+          <div class="members-header flex-col sm:flex-row gap-4">
+            <div class="flex gap-2">
+               <button class="member-tab" :class="{ active: activeMemberTab === 'approved' }" @click="activeMemberTab = 'approved'">
+                 <i class="pi pi-users"></i> Thành viên <span class="tab-badge">{{ approvedMembers.length }}</span>
+               </button>
+               <button v-if="isLeader" class="member-tab" :class="{ active: activeMemberTab === 'pending' }" @click="activeMemberTab = 'pending'">
+                 <i class="pi pi-clock"></i> Chờ duyệt <span v-if="pendingMembers.length > 0" class="tab-badge warning">{{ pendingMembers.length }}</span>
+               </button>
             </div>
-            <span class="members-count">{{ approvedMembers.length }} người</span>
           </div>
 
-          <div v-if="membersLoading" class="members-loading">
-            <i class="pi pi-spinner pi-spin"></i> Đang tải...
-          </div>
-
-          <div v-else-if="approvedMembers.length === 0" class="members-empty">
-            <i class="pi pi-user-minus"></i>
-            <p>Câu lạc bộ chưa có thành viên nào</p>
-          </div>
-
-          <div v-else class="members-table-wrap">
-            <table class="members-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Thành viên</th>
-                  <th class="th-center">Vai trò</th>
-                  <th class="th-center">Ngày tham gia</th>
-                  <th class="th-center">Trạng thái</th>
-                  <th v-if="isLeader" class="th-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(m, i) in approvedMembers" :key="m.id">
-                  <td class="td-num">{{ i + 1 }}</td>
-                  <td class="td-user">
-                    <div class="user-cell">
-                      <div class="user-avatar">
-                        <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
-                        <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
-                      </div>
-                      <div>
-                        <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
-                        <div class="user-email">{{ m.user?.email || '' }}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td class="td-center">
-                    <span class="role-badge" :class="getRoleClass(m.role)">{{ getRoleText(m.role) }}</span>
-                  </td>
-                  <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
-                  <td class="td-center">
-                    <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
-                  </td>
-                  <td v-if="isLeader" class="td-center">
-                    <button 
-                      v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
-                      class="btn-remove-member"
-                      :disabled="removingId === m.id"
-                      @click="handleRemove(m)"
-                      title="Xóa khỏi CLB"
-                    >
-                      <i v-if="removingId === m.id" class="pi pi-spinner pi-spin"></i>
-                      <i v-else class="pi pi-user-minus"></i>
-                    </button>
-                    <span v-else class="text-xs text-white/20">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ── Pending requests table (Leader only) ── -->
-        <div v-if="isLeader && pendingMembers.length > 0" class="members-card">
-          <div class="members-header" style="background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(245,158,11,0.04));">
-            <div class="members-title-wrap">
-              <div class="members-icon" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);"><i class="pi pi-clock"></i></div>
-              <h2 class="members-title">Yêu cầu chờ duyệt</h2>
+          <!-- Approved Members -->
+          <div v-if="activeMemberTab === 'approved'">
+            <div v-if="membersLoading" class="members-loading">
+              <i class="pi pi-spinner pi-spin"></i> Đang tải...
             </div>
-            <span class="members-count">{{ pendingMembers.length }} người</span>
+            <div v-else-if="approvedMembers.length === 0" class="members-empty">
+              <i class="pi pi-user-minus"></i>
+              <p>Câu lạc bộ chưa có thành viên nào</p>
+            </div>
+            <div v-else class="members-table-wrap">
+              <table class="members-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Thành viên</th>
+                    <th class="th-center">Vai trò</th>
+                    <th class="th-center">Ngày tham gia</th>
+                    <th class="th-center">Trạng thái</th>
+                    <th v-if="isLeader" class="th-center">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(m, i) in approvedMembers" :key="m.id">
+                    <td class="td-num">{{ i + 1 }}</td>
+                    <td class="td-user">
+                      <div class="user-cell">
+                        <div class="user-avatar">
+                          <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
+                          <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
+                        </div>
+                        <div>
+                          <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
+                          <div class="user-email">{{ m.user?.email || '' }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-center">
+                      <span class="role-badge" :class="getRoleClass(m.role)">{{ getRoleText(m.role) }}</span>
+                    </td>
+                    <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
+                    <td class="td-center">
+                      <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
+                    </td>
+                    <td v-if="isLeader" class="td-center">
+                      <button 
+                        v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
+                        class="btn-remove-member"
+                        :disabled="removingId === m.id"
+                        @click="handleRemove(m)"
+                        title="Xóa khỏi CLB"
+                      >
+                        <i v-if="removingId === m.id" class="pi pi-spinner pi-spin"></i>
+                        <i v-else class="pi pi-user-minus"></i>
+                      </button>
+                      <span v-else class="text-xs text-white/20">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="members-table-wrap">
-            <table class="members-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Người dùng</th>
-                  <th class="th-center">Ngày yêu cầu</th>
-                  <th class="th-center">Hành động</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(m, i) in pendingMembers" :key="m.id">
-                  <td class="td-num">{{ i + 1 }}</td>
-                  <td class="td-user">
-                    <div class="user-cell">
-                      <div class="user-avatar">
-                        <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
-                        <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
+          <!-- Pending Members (Leader only) -->
+          <div v-if="activeMemberTab === 'pending' && isLeader">
+            <div v-if="pendingMembers.length === 0" class="members-empty">
+              <i class="pi pi-check-circle"></i>
+              <p>Không có yêu cầu chờ duyệt nào</p>
+            </div>
+            <div v-else class="members-table-wrap">
+              <table class="members-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Người dùng</th>
+                    <th class="th-center">Ngày yêu cầu</th>
+                    <th class="th-center">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(m, i) in pendingMembers" :key="m.id">
+                    <td class="td-num">{{ i + 1 }}</td>
+                    <td class="td-user">
+                      <div class="user-cell">
+                        <div class="user-avatar">
+                          <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
+                          <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
+                        </div>
+                        <div>
+                          <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
+                          <div class="user-email">{{ m.user?.email || '' }}</div>
+                        </div>
                       </div>
-                      <div>
-                        <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
-                        <div class="user-email">{{ m.user?.email || '' }}</div>
+                    </td>
+                    <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
+                    <td class="td-center">
+                      <div class="action-btns">
+                        <button class="btn-approve" :disabled="approvingId === m.id || rejectingId === m.id" @click="approveM(m)">
+                          <i v-if="approvingId === m.id" class="pi pi-spinner pi-spin"></i>
+                          <i v-else class="pi pi-check"></i> Duyệt
+                        </button>
+                        <button class="btn-reject" :disabled="approvingId === m.id || rejectingId === m.id" @click="rejectM(m)">
+                          <i v-if="rejectingId === m.id" class="pi pi-spinner pi-spin"></i>
+                          <i v-else class="pi pi-times"></i> Từ chối
+                        </button>
                       </div>
-                    </div>
-                  </td>
-                  <td class="td-date td-center">{{ formatDate(m.joined_at) }}</td>
-                  <td class="td-center">
-                    <div class="action-btns">
-                      <button class="btn-approve" :disabled="approvingId === m.id || rejectingId === m.id" @click="approveM(m)">
-                        <i v-if="approvingId === m.id" class="pi pi-spinner pi-spin"></i>
-                        <i v-else class="pi pi-check"></i> Duyệt
-                      </button>
-                      <button class="btn-reject" :disabled="approvingId === m.id || rejectingId === m.id" @click="rejectM(m)">
-                        <i v-if="rejectingId === m.id" class="pi pi-spinner pi-spin"></i>
-                        <i v-else class="pi pi-times"></i> Từ chối
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -288,9 +298,11 @@ const loading = ref(true);
 const membersLoading = ref(true);
 const joining = ref(false);
 const memberStatus = ref('none');
+const hasJoinedAnotherClub = ref(false);
 const approvingId = ref(null);
 const rejectingId = ref(null);
 const removingId = ref(null);
+const activeMemberTab = ref('approved');
 
 // Edit Club
 const showEditModal = ref(false);
@@ -422,6 +434,40 @@ const handleJoin = async () => {
   } finally {
     joining.value = false;
   }
+};
+
+const handleLeave = async () => {
+  const actionText = isPending.value ? 'hủy yêu cầu tham gia' : 'rời khỏi';
+  
+  confirmService.require({
+    message: `Bạn có chắc chắn muốn ${actionText} câu lạc bộ này?`,
+    header: 'Xác nhận',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Đồng ý',
+    rejectLabel: 'Đóng',
+    accept: async () => {
+      try {
+        const { error } = await supabase
+          .from('club_members')
+          .delete()
+          .eq('club_id', club.value.id)
+          .eq('user_id', authStore.user.id);
+          
+        if (error) throw error;
+        
+        memberStatus.value = 'none';
+        hasJoinedAnotherClub.value = false;
+        
+        // Remove from local members list
+        members.value = members.value.filter(m => m.user?.id !== authStore.user.id);
+        
+        toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã ${actionText} câu lạc bộ.`, life: 3000 });
+      } catch (err) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
+      }
+    }
+  });
 };
 
 const approveM = async (m) => {
@@ -566,6 +612,22 @@ onMounted(async () => {
         if (!memberError && myData) {
           memberStatus.value = myData.status;
         }
+
+        // Kiểm tra xem có đang ở CLB nào khác không (vai trò thành viên hoặc trưởng CLB)
+        const { count: memberCount } = await supabase
+          .from('club_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', authStore.user.id)
+          .in('status', ['pending', 'approved', 'member']);
+
+        const { count: leaderCount } = await supabase
+          .from('clubs')
+          .select('*', { count: 'exact', head: true })
+          .eq('leader_id', authStore.user.id);
+
+        if ((memberCount > 0 || leaderCount > 0) && memberStatus.value !== 'pending' && memberStatus.value !== 'approved' && !isLeader.value) {
+            hasJoinedAnotherClub.value = true;
+        }
       }
     }
   } catch (err) {
@@ -646,6 +708,15 @@ onMounted(async () => {
 .tag-pending { background: rgba(251,191,36,0.12); color: #fde68a; border: 1px solid rgba(251,191,36,0.2); }
 .tag-member  { background: rgba(34,197,94,0.12);  color: #86efac; border: 1px solid rgba(34,197,94,0.2); }
 .btn-join { /* uses global .btn-join from src/style.css */ }
+.btn-disabled { opacity: 0.6; cursor: not-allowed; background: rgba(107,114,128,0.2) !important; border-color: rgba(107,114,128,0.3) !important; color: #d1d5db !important; }
+
+.btn-leave {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 1rem; border-radius: 0.875rem; font-size: 0.85rem; font-weight: 600;
+  background: rgba(239, 68, 68, 0.1); color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer; transition: all 0.2s;
+}
+.btn-leave:hover { background: rgba(239, 68, 68, 0.2); color: white; border-color: rgba(239, 68, 68, 0.3); transform: translateY(-1px); }
 
 .btn-edit {
   display: inline-flex; align-items: center; gap: 0.5rem;
@@ -703,22 +774,25 @@ onMounted(async () => {
 }
 .members-header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
   background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.04));
 }
-.members-title-wrap { display: flex; align-items: center; gap: 0.75rem; }
-.members-icon {
-  width: 36px; height: 36px; border-radius: 9px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem; color: white;
+
+.member-tab {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.6rem 1rem; border-radius: 0.75rem; font-size: 0.9rem; font-weight: 600;
+  color: rgba(255,255,255,0.6); background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: all 0.2s;
 }
-.members-title { font-size: 1.1rem; font-weight: 700; color: white; }
-.members-count {
-  font-size: 0.8rem; color: rgba(255,255,255,0.45); font-weight: 600;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09);
-  padding: 0.3rem 0.8rem; border-radius: 999px;
+.member-tab:hover { color: white; background: rgba(255,255,255,0.05); }
+.member-tab.active {
+  color: white; background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3);
 }
+.tab-badge {
+  font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 999px;
+  background: rgba(255,255,255,0.1); color: white;
+}
+.tab-badge.warning { background: #f59e0b; color: white; }
 
 .members-loading, .members-empty {
   padding: 3rem; text-align: center; color: rgba(255,255,255,0.35); font-size: 0.9rem;
