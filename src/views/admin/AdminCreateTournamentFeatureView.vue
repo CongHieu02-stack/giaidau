@@ -59,6 +59,11 @@
               <span>{{ form.participantType === 'individual' ? 'Số lượng người chơi tham gia' : 'Số lượng CLB tham gia' }}</span>
               <input v-model.number="form.maxTeams" type="number" min="2" required>
             </label>
+
+            <label class="field" v-if="form.participantType !== 'individual'">
+              <span>Số VĐV mỗi đội (mỗi trận)</span>
+              <input v-model.number="form.maxPlayersPerMatch" type="number" min="0" required>
+            </label>
           </div>
         </section>
 
@@ -164,6 +169,7 @@ const form = reactive({
   rules: '',
   minTeams: 4,
   maxTeams: 16,
+  maxPlayersPerMatch: 5,
   registrationDeadline: '',
   startDate: '',
   startTime: '17:00',

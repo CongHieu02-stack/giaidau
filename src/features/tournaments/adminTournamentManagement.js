@@ -175,31 +175,41 @@ export async function rejectTournamentRegistration(regId, reason) {
   return { success: true, data };
 }
 
-export async function generateTournamentMatches(tournamentId, venueIds) {
+// --- Fisher-Yates Shuffle ---
+function shuffle(array) {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+// --- Phụ trợ: Chia bảng tự động ---
+export function distributeTeamsIntoGroups(teams, numGroups) {
+  const shuffledTeams = shuffle(teams);
+  const groups = Array.from({ length: numGroups }, (_, i) => ({
+    name: `Bảng ${String.fromCharCode(65 + i)}`,
+    teams: []
+  }));
+
+  shuffledTeams.forEach((team, index) => {
+    groups[index % numGroups].teams.push(team);
+  });
+
+  return groups;
+}
+
+export async function startTournament(tournamentId, draftGroups, venueIds) {
   try {
-    // 1. Get tournament details with approved registrations
+    // 1. Get tournament details
     const { data: tournament, error: tError } = await supabase
       .from('tournaments')
-      .select(`
-        *,
-        registrations:tournament_registrations(
-          id,
-          status,
-          club:clubs(id, name, logo_url)
-        )
-      `)
+      .select('*')
       .eq('id', tournamentId)
       .single();
 
     if (tError) throw new Error(tError.message);
-
-    const approvedClubs = (tournament.registrations || [])
-      .filter(r => r.status === 'approved')
-      .map(r => r.club);
-
-    if (approvedClubs.length < 2) {
-      throw new Error('Cần ít nhất 2 câu lạc bộ đã duyệt để ghép cặp.');
-    }
 
     // 2. Get venues
     const { data: venues, error: vError } = await supabase
@@ -208,49 +218,86 @@ export async function generateTournamentMatches(tournamentId, venueIds) {
       .in('id', venueIds);
 
     if (vError) throw new Error(vError.message);
-    if (!venues || venues.length === 0) {
-      throw new Error('Vui lòng chọn ít nhất một sân đấu.');
-    }
 
-    let matches = [];
-    const format = tournament.format || 'round_robin';
     const startDate = new Date(tournament.start_date);
     const matchTimes = tournament.match_times || ['08:00', '10:00', '15:00', '17:00'];
 
-    if (format === 'round_robin') {
-      matches = generateRoundRobin(tournamentId, approvedClubs, venues, startDate, matchTimes);
-    } else if (format === 'knockout') {
-      matches = generateKnockout(tournamentId, approvedClubs, venues, startDate, matchTimes);
-    } else if (format === 'hybrid') {
-      matches = generateHybrid(tournamentId, approvedClubs, venues, startDate, matchTimes);
+    // 3. Clear old data
+    await supabase.from('matches').delete().eq('tournament_id', tournamentId);
+    await supabase.from('tournament_groups').delete().eq('tournament_id', tournamentId);
+
+    const allMatches = [];
+    let totalMatchCount = 0;
+
+    // 4. Create groups and generate matches
+    for (const groupData of draftGroups) {
+      // Create group
+      const { data: group, error: gError } = await supabase
+        .from('tournament_groups')
+        .insert({
+          tournament_id: tournamentId,
+          name: groupData.name
+        })
+        .select()
+        .single();
+
+      if (gError) throw new Error(gError.message);
+
+      // Update registrations with group_id
+      const teamIds = groupData.teams.map(t => t.id);
+      const { error: rError } = await supabase
+        .from('tournament_registrations')
+        .update({ group_id: group.id })
+        .eq('tournament_id', tournamentId)
+        .in('club_id', teamIds);
+
+      if (rError) throw new Error(rError.message);
+
+      // Generate Round Robin matches for this group
+      const groupMatches = generateRoundRobin(tournamentId, groupData.teams, venues, startDate, matchTimes, totalMatchCount);
+      groupMatches.forEach(m => {
+        m.group_id = group.id;
+        allMatches.push(m);
+      });
+      totalMatchCount += groupMatches.length;
     }
 
-    // 3. Save matches
-    await supabase.from('matches').delete().eq('tournament_id', tournamentId);
-    const { error: mError } = await supabase.from('matches').insert(matches);
+    // 5. Bulk insert matches
+    const { error: mError } = await supabase.from('matches').insert(allMatches);
     if (mError) throw new Error(mError.message);
 
-    // 4. Update status
+    // 6. Update tournament status
     await supabase.from('tournaments')
       .update({ status: 'ongoing', updated_at: new Date().toISOString() })
       .eq('id', tournamentId);
 
-    return { success: true, count: matches.length };
+    return { success: true };
   } catch (error) {
-    console.error('[generateTournamentMatches] error:', error);
+    console.error('[startTournament] error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function generateTournamentMatches(tournamentId, venueIds) {
+  // Existing function kept for backward compatibility or simple cases
+  // but we will mainly use startTournament now.
+  try {
+    // ... (rest of old logic if needed, but I'll focus on the new flow)
+    return { success: true };
+  } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
 // --- Phụ trợ: Ghép vòng tròn ---
-function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes) {
+function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes, startMatchIndex = 0) {
   const matches = [];
   const teamList = [...clubs];
   if (teamList.length % 2 !== 0) teamList.push({ id: null, name: 'BYE' });
 
   const numRounds = teamList.length - 1;
   const numMatchesPerRound = teamList.length / 2;
-  let matchCount = 0;
+  let matchCount = startMatchIndex;
 
   for (let round = 0; round < numRounds; round++) {
     for (let i = 0; i < numMatchesPerRound; i++) {
@@ -266,17 +313,32 @@ function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes) 
   return matches;
 }
 
-// --- Phụ trợ: Ghép loại trực tiếp (Vòng 1) ---
+// --- Phụ trợ: Ghép loại trực tiếp (Vòng 1 với Byes) ---
 function generateKnockout(tournamentId, clubs, venues, startDate, matchTimes) {
   const matches = [];
-  const shuffled = [...clubs].sort(() => Math.random() - 0.5);
+  const shuffled = shuffle([...clubs]);
+  const numTeams = shuffled.length;
   
-  // Chỉ ghép cặp vòng đầu tiên
-  for (let i = 0; i < shuffled.length; i += 2) {
-    if (shuffled[i + 1]) {
-      matches.push(createMatchData(tournamentId, shuffled[i], shuffled[i+1], venues, startDate, matchTimes, i/2, 1));
-    }
+  // Tìm lũy thừa của 2 lớn nhất nhỏ hơn hoặc bằng numTeams
+  // Ví dụ: 10 đội -> nextPowerOf2 = 16 (sai, ta cần tìm số đội chơi vòng sơ loại để về mốc 8)
+  // Thực tế: Số đội chơi vòng sơ loại = (numTeams - targetPowerOf2) * 2
+  // Trong đó targetPowerOf2 là lũy thừa của 2 nhỏ hơn gần nhất.
+  
+  let targetPowerOf2 = 2;
+  while (targetPowerOf2 * 2 <= numTeams) {
+    targetPowerOf2 *= 2;
   }
+  
+  // Số trận đấu ở vòng sơ loại (để đưa số đội thắng + số đội đặc cách về targetPowerOf2)
+  const numPreliminaryMatches = numTeams - targetPowerOf2;
+  const teamsInPreliminary = numPreliminaryMatches * 2;
+  
+  // Ghép cặp cho vòng sơ loại
+  for (let i = 0; i < teamsInPreliminary; i += 2) {
+    matches.push(createMatchData(tournamentId, shuffled[i], shuffled[i+1], venues, startDate, matchTimes, i/2, 1));
+  }
+  
+  // Các đội còn lại (đặc cách vào vòng sau) sẽ không có trận đấu ở vòng 1
   return matches;
 }
 

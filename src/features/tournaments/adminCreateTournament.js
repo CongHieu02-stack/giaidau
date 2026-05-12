@@ -53,6 +53,11 @@ export function validateTournamentForm(form) {
     return 'Số câu lạc bộ tối thiểu phải từ 2 và không lớn hơn số lượng tham gia.';
   }
 
+  const maxPlayers = Number(form.maxPlayersPerMatch);
+  if (!Number.isInteger(maxPlayers) || maxPlayers < 0) {
+    return 'Số vận động viên mỗi đội không hợp lệ.';
+  }
+
   const now = new Date();
   const deadline = new Date(form.registrationDeadline);
   const startDate = new Date(form.startDate);
@@ -81,6 +86,7 @@ export function buildTournamentPayload(form, createdBy) {
     rules: form.rules.trim(),
     max_teams: Number(form.maxTeams),
     min_teams: Number(form.minTeams),
+    max_players_per_match: Number(form.maxPlayersPerMatch || 0),
     registration_deadline: form.registrationDeadline,
     start_date: form.startDate,
     end_date: form.endDate || null,

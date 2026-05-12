@@ -18,7 +18,10 @@
         <!-- Home Events -->
         <div class="sb-events">
           <div v-for="ev in homeSummary" :key="ev.id" class="sb-ev-item">
-            {{ eventEmoji(ev.type) }} {{ ev.player?.full_name }} ({{ ev.minute }}')
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+            {{ ev.player?.full_name }} ({{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }})
           </div>
         </div>
       </div>
@@ -34,7 +37,10 @@
         <!-- Away Events -->
         <div class="sb-events">
           <div v-for="ev in awaySummary" :key="ev.id" class="sb-ev-item">
-            {{ eventEmoji(ev.type) }} {{ ev.player?.full_name }} ({{ ev.minute }}')
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+            {{ ev.player?.full_name }} ({{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }})
           </div>
         </div>
       </div>
@@ -61,8 +67,8 @@
       <div class="event-actions">
         <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.home_club?.name }})</button>
         <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name }})</button>
-        <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="ev-icon yellow">🟡</span>Thẻ vàng</button>
-        <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="ev-icon red">🔴</span>Thẻ đỏ</button>
+        <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="card-icon yellow large"></span>Thẻ vàng</button>
+        <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="card-icon red large"></span>Thẻ đỏ</button>
         <button @click="openEventModal('substitution_in',null)" class="ev-btn"><span class="ev-icon sub">🔄</span>Thay người</button>
       </div>
 
@@ -70,8 +76,12 @@
       <div v-if="events.length===0" class="empty-sm">Chưa có sự kiện</div>
       <div v-else class="timeline">
         <div v-for="ev in events" :key="ev.id" class="tl-item">
-          <span class="tl-min">{{ ev.minute }}'</span>
-          <span class="tl-icon">{{ eventEmoji(ev.type) }}</span>
+          <span class="tl-min">{{ ev.minute === 0 ? (ev.second || 0) + 's' : ev.minute + "'" }}</span>
+          <span class="tl-icon">
+            <span v-if="ev.type === 'yellow_card'" class="card-icon yellow"></span>
+            <span v-else-if="ev.type === 'red_card'" class="card-icon red"></span>
+            <span v-else>{{ eventEmoji(ev.type) }}</span>
+          </span>
           <div class="tl-body">
             <span class="tl-player">{{ ev.player?.full_name || '' }}</span>
             <span class="tl-desc">{{ ev.description }}</span>
@@ -217,7 +227,14 @@ const awaySummary = computed(() => {
 function startTimer() {
   stopTimer();
   if (match.value?.start_time) {
-    timerSeconds.value = Math.floor((Date.now() - new Date(match.value.start_time).getTime()) / 1000);
+    // Đảm bảo thời gian từ DB được hiểu đúng là chuẩn UTC (tránh lệch 7 tiếng khi refresh)
+    let startTimeStr = match.value.start_time;
+    if (!startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
+      startTimeStr = startTimeStr.replace(' ', 'T') + 'Z';
+    }
+    const startMs = new Date(startTimeStr).getTime();
+    const nowMs = Date.now();
+    timerSeconds.value = Math.floor((nowMs - startMs) / 1000);
   }
   timerInterval = setInterval(() => { timerSeconds.value++; }, 1000);
 }
@@ -301,6 +318,13 @@ async function submitEvent() {
     alert('Vui lòng nhập phút xảy ra sự kiện.');
     return;
   }
+
+  // Chặn ghi nhận sự kiện ở tương lai
+  const currentMinute = Math.floor(timerSeconds.value / 60);
+  if (modalMinute.value > currentMinute) {
+    alert(`Không thể ghi nhận sự kiện ở phút ${modalMinute.value}. Thời gian hiện tại của trận đấu mới là phút ${currentMinute}.`);
+    return;
+  }
   
   saving.value = true;
   const evData = {
@@ -309,6 +333,7 @@ async function submitEvent() {
     club_id: modalClubId.value || null,
     player_id: modalPlayerId.value || null,
     minute: modalMinute.value,
+    second: modalMinute.value === 0 ? (timerSeconds.value % 60) : 0,
     description: modalDesc.value || modalTitle.value
   };
   const r = await matchRepository.addMatchEvent(evData);
@@ -467,4 +492,20 @@ onUnmounted(stopTimer);
   .event-actions { grid-template-columns:1fr; }
 }
 .text-red-500 { color: #ef4444; }
+
+.card-icon {
+  display: inline-block;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.card-icon.yellow { background-color: #fbbf24; box-shadow: 0 0 5px rgba(251, 191, 36, 0.5); }
+.card-icon.red { background-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+.card-icon.large {
+  width: 14px;
+  height: 20px;
+  margin-right: 8px;
+}
 </style>

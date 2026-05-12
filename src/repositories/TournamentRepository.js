@@ -93,13 +93,20 @@ export class TournamentRepository extends BaseRepository {
         sport_category:sports_categories(id, name, icon_url),
         registrations:tournament_registrations(
           id,
+          club_id,
           club:clubs(id, name, logo_url),
           user:profiles!user_id(id, full_name, avatar_url),
+          players:tournament_registration_players(
+            player:profiles!player_id(id, full_name, avatar_url)
+          ),
           status,
-          registered_at
+          registered_at,
+          group_id
         ),
         matches:matches(
           id,
+          home_club_id,
+          away_club_id,
           home_club:clubs!home_club_id(id, name, logo_url),
           away_club:clubs!away_club_id(id, name, logo_url),
           venue:venues(id, name),
@@ -108,8 +115,10 @@ export class TournamentRepository extends BaseRepository {
           match_time,
           home_score,
           away_score,
-          status
-        )
+          status,
+          group_id
+        ),
+        groups:tournament_groups(*)
       `)
       .eq('id', id)
       .single();

@@ -15,6 +15,7 @@ export const useTournamentStore = defineStore('tournament', () => {
   const totalCount = ref(0);
   const currentPage = ref(1);
   const perPage = ref(10);
+  const draftGroups = ref([]);
 
   // Getters
   const upcomingTournaments = computed(() => 
@@ -133,6 +134,32 @@ export const useTournamentStore = defineStore('tournament', () => {
     }
   }
 
+  async function updateTournamentStatus(id, status, userId) {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      // Use the generic updateTournament with just the status
+      const result = await tournamentService.updateTournament(id, { status }, userId);
+
+      if (result.isOk()) {
+        const updatedTournament = result.getValue();
+        if (currentTournament.value?.id === id) {
+          currentTournament.value = updatedTournament;
+        }
+        return { success: true, data: updatedTournament };
+      } else {
+        error.value = result.getError();
+        return { success: false, error: error.value };
+      }
+    } catch (err) {
+      error.value = err.message;
+      return { success: false, error: error.value };
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function cancelTournament(id, reason, userId) {
     loading.value = true;
     error.value = null;
@@ -162,12 +189,12 @@ export const useTournamentStore = defineStore('tournament', () => {
     }
   }
 
-  async function registerClub(tournamentId, clubId, userId) {
+  async function registerClub(tournamentId, clubId, userId, playerIds = []) {
     loading.value = true;
     error.value = null;
 
     try {
-      const result = await tournamentService.registerClub(tournamentId, clubId, userId);
+      const result = await tournamentService.registerClub(tournamentId, clubId, userId, playerIds);
 
       if (result.isOk()) {
         // Refresh tournament data
@@ -263,6 +290,18 @@ export const useTournamentStore = defineStore('tournament', () => {
     currentTournament.value = null;
   }
 
+  function setDraftGroups(groups) {
+    draftGroups.value = groups;
+  }
+
+  function updateDraftGroups(groups) {
+    draftGroups.value = groups;
+  }
+
+  function clearDraftGroups() {
+    draftGroups.value = [];
+  }
+
   return {
     // State
     tournaments,
@@ -272,6 +311,7 @@ export const useTournamentStore = defineStore('tournament', () => {
     totalCount,
     currentPage,
     perPage,
+    draftGroups,
     
     // Getters
     upcomingTournaments,
@@ -284,6 +324,7 @@ export const useTournamentStore = defineStore('tournament', () => {
     fetchTournament,
     createTournament,
     updateTournament,
+    updateTournamentStatus,
     cancelTournament,
     registerClub,
     approveRegistration,
@@ -291,6 +332,9 @@ export const useTournamentStore = defineStore('tournament', () => {
     generateSchedule,
     setPage,
     clearError,
-    clearCurrentTournament
+    clearCurrentTournament,
+    setDraftGroups,
+    updateDraftGroups,
+    clearDraftGroups
   };
 });

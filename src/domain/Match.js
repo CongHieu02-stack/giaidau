@@ -208,11 +208,33 @@ export class Match {
   // Computed properties
   get currentMinute() {
     if (!this.startTime) return 0;
+    
+    let startTimeStr = this.startTime;
+    if (typeof startTimeStr === 'string') {
+      if (startTimeStr.includes(' ') && !startTimeStr.includes('T')) {
+        startTimeStr = startTimeStr.replace(' ', 'T');
+      }
+      if (!startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
+        startTimeStr += 'Z';
+      }
+    }
+    const start = new Date(startTimeStr).getTime();
+
     if (this.endTime) {
-      const diff = new Date(this.endTime) - new Date(this.startTime);
+      let endTimeStr = this.endTime;
+      if (typeof endTimeStr === 'string') {
+        if (endTimeStr.includes(' ') && !endTimeStr.includes('T')) {
+          endTimeStr = endTimeStr.replace(' ', 'T');
+        }
+        if (!endTimeStr.includes('Z') && !endTimeStr.includes('+')) {
+          endTimeStr += 'Z';
+        }
+      }
+      const end = new Date(endTimeStr).getTime();
+      const diff = end - start;
       return Math.floor(diff / 60000);
     }
-    const diff = Date.now() - new Date(this.startTime).getTime();
+    const diff = Date.now() - start;
     return Math.floor(diff / 60000);
   }
 
