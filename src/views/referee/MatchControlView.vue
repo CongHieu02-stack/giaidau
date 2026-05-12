@@ -156,6 +156,7 @@ import { useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
 import { supabase } from '../../config/supabase.js';
+import { advanceKnockoutWinner, checkAndFinalizeTournament } from '../../features/tournaments/adminTournamentManagement.js';
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -293,10 +294,27 @@ async function doStart() {
 }
 async function doPause() { stopTimer(); await updateMatchStatus('paused'); }
 async function doResume() { startTimer(); await updateMatchStatus('in_progress'); }
+
 async function doEnd() {
   if (!confirm('Bạn có chắc muốn kết thúc trận đấu?')) return;
+
+  // Knockout format check: must have a winner
+  if (match.value.tournament?.format === 'knockout') {
+    if (match.value.home_score === match.value.away_score) {
+      alert('Trận đấu loại trực tiếp không được phép có kết quả hòa. Vui lòng cập nhật tỉ số (Penalty/Hiệp phụ) để xác định đội thắng.');
+      return;
+    }
+  }
+
   stopTimer();
   await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
+
+  // Post-match tournament logic
+  if (match.value.tournament?.format === 'knockout') {
+    await advanceKnockoutWinner(match.value.id);
+  } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
+    await checkAndFinalizeTournament(match.value.tournament_id);
+  }
 }
 
 function openEventModal(type, side) {

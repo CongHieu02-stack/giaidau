@@ -43,9 +43,12 @@
         >
           <template #item="{ element }">
             <div class="team-card-draggable">
-              <div class="team-info">
+              <div v-if="element" class="team-info">
                 <img v-if="element.logo_url" :src="element.logo_url" class="team-logo-small" />
                 <span class="team-name">{{ element.name }}</span>
+              </div>
+              <div v-else class="team-info">
+                <span class="team-name text-red-400">Đội bóng lỗi</span>
               </div>
               <i class="pi pi-bars drag-handle"></i>
             </div>

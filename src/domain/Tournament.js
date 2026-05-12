@@ -24,6 +24,9 @@ export class Tournament {
     this.status = data.status || TournamentStatus.UPCOMING;
     this.cancellationReason = data.cancellationReason || data.cancellation_reason || '';
     this.championClubId = data.championClubId || data.champion_club_id || null;
+    this.runnerUpId = data.runnerUpId || data.runner_up_id || null;
+    this.thirdPlaceId = data.thirdPlaceId || data.third_place_id || null;
+    this.currentRound = data.currentRound || data.current_round || 1;
     this.createdBy = data.createdBy || data.created_by || null;
     this.venueId = data.venueId || data.venue_id || null;
     this.maxPlayersPerMatch = data.maxPlayersPerMatch || data.max_players_per_match || 0;
@@ -33,6 +36,7 @@ export class Tournament {
     // Embedded collections
     this.registrations = data.registrations || [];
     this.matches = data.matches || [];
+    this.groups = data.groups || data.tournament_groups || [];
   }
 
   // Business logic methods
@@ -154,7 +158,18 @@ export class Tournament {
   getApprovedClubs() {
     return this.registrations
       .filter(r => r.status === RegistrationStatus.APPROVED)
-      .map(r => r.club);
+      .map(r => {
+        if (this.participantType === 'individual') {
+          return r.user ? {
+            id: r.user.id,
+            name: r.user.full_name,
+            logoUrl: r.user.avatar_url,
+            logo_url: r.user.avatar_url
+          } : null;
+        }
+        return r.club;
+      })
+      .filter(c => c && c.id);
   }
 
   // Match scheduling
@@ -385,8 +400,8 @@ export class Tournament {
       if (match.status !== 'completed') return;
       if (groupId && (match.group_id || match.groupId) !== groupId) return;
 
-      const homeId = match.homeClubId || match.home_club_id;
-      const awayId = match.awayClubId || match.away_club_id;
+      const homeId = match.homeClubId || match.home_club_id || match.home_user_id;
+      const awayId = match.awayClubId || match.away_club_id || match.away_user_id;
       const homeScore = Number(match.homeScore ?? match.home_score);
       const awayScore = Number(match.awayScore ?? match.away_score);
 
@@ -471,6 +486,9 @@ export class Tournament {
       status: this.status,
       cancellation_reason: this.cancellationReason,
       champion_club_id: this.championClubId,
+      runner_up_id: this.runnerUpId,
+      third_place_id: this.thirdPlaceId,
+      current_round: this.currentRound,
       created_by: this.createdBy,
       venue_id: this.venueId,
       max_players_per_match: this.maxPlayersPerMatch,

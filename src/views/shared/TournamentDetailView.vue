@@ -46,6 +46,53 @@
           </div>
         </div>
 
+        <!-- Winner Podium (New) -->
+        <div v-if="tournament.status === 'completed'" class="podium-section">
+          <h2 class="podium-title"><i class="pi pi-trophy"></i> Vinh danh nhà vô địch</h2>
+          <div class="podium-container">
+            <!-- 2nd Place -->
+            <div class="podium-item second">
+              <div class="winner-avatar">
+                <img v-if="getWinnerLogo(tournament, 'runner_up')" :src="getWinnerLogo(tournament, 'runner_up')" />
+                <div v-else class="initials">{{ getInitials(getWinnerName(tournament, 'runner_up')) }}</div>
+                <div class="rank-badge">2</div>
+              </div>
+              <div class="winner-info">
+                <p class="winner-name">{{ getWinnerName(tournament, 'runner_up') }}</p>
+                <p class="rank-label">Á quân</p>
+              </div>
+            </div>
+
+            <!-- 1st Place -->
+            <div class="podium-item first">
+              <div class="crown"><i class="pi pi-star-fill"></i></div>
+              <div class="winner-avatar large">
+                <img v-if="getWinnerLogo(tournament, 'champion')" :src="getWinnerLogo(tournament, 'champion')" />
+                <div v-else class="initials">{{ getInitials(getWinnerName(tournament, 'champion')) }}</div>
+                <div class="rank-badge">1</div>
+              </div>
+              <div class="winner-info">
+                <p class="winner-name">{{ getWinnerName(tournament, 'champion') }}</p>
+                <p class="rank-label">Vô địch</p>
+              </div>
+              <div class="confetti"></div>
+            </div>
+
+            <!-- 3rd Place -->
+            <div class="podium-item third">
+              <div class="winner-avatar">
+                <img v-if="getWinnerLogo(tournament, 'third_place')" :src="getWinnerLogo(tournament, 'third_place')" />
+                <div v-else class="initials">{{ getInitials(getWinnerName(tournament, 'third_place')) }}</div>
+                <div class="rank-badge">3</div>
+              </div>
+              <div class="winner-info">
+                <p class="winner-name">{{ getWinnerName(tournament, 'third_place') }}</p>
+                <p class="rank-label">Hạng ba</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Main Layout: 2 columns on desktop -->
         <div class="main-layout">
           <!-- Left Column (Main Content) -->
@@ -70,57 +117,71 @@
               </div>
             </div>
 
-            <!-- Schedule -->
+            <!-- Schedule / Bracket -->
             <div class="section-card">
               <h2 class="section-title">
                 <i class="pi pi-calendar section-icon orange"></i>
-                Lịch thi đấu
+                {{ tournament.format === 'knockout' ? 'Sơ đồ thi đấu' : 'Lịch thi đấu' }}
                 <span class="match-count" v-if="tournament.matches && tournament.matches.length > 0">{{ tournament.matches.length }} trận</span>
               </h2>
-              <div v-if="tournament.matches && tournament.matches.length > 0" class="schedule-list">
-                <div v-for="match in tournament.matches" :key="match.id" class="match-row">
-                  <div class="match-main-info">
-                    <div class="match-teams">
-                      <div class="team home">{{ match.home_club?.name || 'TBD' }}</div>
-                      <div class="vs">VS</div>
-                      <div class="team away">{{ match.away_club?.name || 'TBD' }}</div>
-                    </div>
-                    
-                    <div class="match-meta">
-                      <div class="match-meta-info">
-                        <span class="info-item"><i class="pi pi-calendar"></i> {{ formatDate(match.match_date) }}</span>
-                        <span class="info-item" v-if="match.match_time"><i class="pi pi-clock"></i> {{ match.match_time }}</span>
-                        <span class="info-item" v-if="match.venue?.name"><i class="pi pi-map-marker"></i> {{ match.venue.name }}</span>
-                      </div>
-                      <div class="match-referee" :class="{'no-ref': !match.referee}">
-                        <i class="pi pi-flag"></i> 
-                        {{ match.referee?.full_name || 'Chưa có trọng tài' }}
-                      </div>
-                    </div>
+              
+              <!-- Matches Grid (Simplified View) -->
+              <div v-if="tournament.matches && tournament.matches.length > 0" class="matches-grid-simple">
+                <div v-for="match in tournament.matches" :key="match.id" class="match-card-simple" :class="{ 'is-bye': isByeMatch(match) }">
+                  <div class="match-header-simple">
+                    <span class="round-badge-simple">Vòng {{ match.round }}</span>
+                    <span class="match-time-simple">
+                      <i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }} 
+                      <i class="pi pi-clock ml-2 mr-1"></i>{{ match.match_time }}
+                    </span>
                   </div>
-                  
-                  <div class="match-actions-area">
-                    <div class="match-score-area">
-                      <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
-                        <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+
+                  <div class="match-body-simple">
+                    <div class="team-side-simple home">
+                      <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
+                      <div class="team-avatar-simple">
+                        <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
+                        <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
                       </div>
-                      <span v-if="match.status === 'completed'" class="fulltime-badge">Full-time</span>
                     </div>
 
-                    <div v-if="canManage" class="match-admin-actions">
-                      <button v-if="match.status !== 'completed'" class="icon-btn-small" @click="openRefereeModal(match)" title="Phân công trọng tài">
+                    <div v-if="isByeMatch(match)" class="bye-status-simple">
+                      <span class="bye-badge-simple">MIỄN ĐẤU</span>
+                    </div>
+                    <div v-else-if="match.home_score !== null && match.away_score !== null" class="score-status-simple">
+                      <span class="score-simple">{{ match.home_score }} - {{ match.away_score }}</span>
+                      <span v-if="match.status === 'completed'" class="ft-tag-simple">FT</span>
+                    </div>
+                    <div v-else class="vs-status-simple">VS</div>
+
+                    <div class="team-side-simple away">
+                      <div class="team-avatar-simple">
+                        <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
+                        <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                      </div>
+                      <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
+                    </div>
+                  </div>
+
+                  <div class="match-footer-simple">
+                    <div class="match-venue-simple">
+                      <i class="pi pi-map-marker mr-1"></i>
+                      {{ match.venue?.name || 'Chưa chọn sân' }}
+                    </div>
+                    <div v-if="canManage" class="match-actions-simple">
+                      <button v-if="match.status !== 'completed'" class="action-btn-simple" @click="openRefereeModal(match)" title="Phân công">
                         <i class="pi pi-user-edit"></i>
                       </button>
-                      <RouterLink v-if="match.referee" :to="`/referee/matches/${match.id}`" class="icon-btn-small primary" title="Điều khiển trận đấu">
+                      <RouterLink v-if="match.referee && match.status !== 'completed'" :to="`/referee/matches/${match.id}`" class="action-btn-simple primary" title="Điều khiển">
                         <i class="pi pi-play"></i>
                       </RouterLink>
                     </div>
                   </div>
                 </div>
               </div>
-              <div v-else class="empty-schedule">
+              <div v-else class="empty-schedule-simple">
                 <i class="pi pi-calendar"></i>
-                <p>Lịch thi đấu sẽ được cập nhật sau khi đóng đăng ký</p>
+                <p>Lịch thi đấu chưa được cập nhật</p>
                 <p class="sub-text">(Cần ít nhất {{ tournament.minTeams }} đội để bắt đầu)</p>
               </div>
             </div>
@@ -461,6 +522,7 @@ import { useConfirm } from 'primevue/useconfirm';
 import { userRepository } from '../../repositories/UserRepository.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
 import TournamentStandings from '../../components/tournaments/TournamentStandings.vue';
+import KnockoutBracket from '../../components/tournaments/KnockoutBracket.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -687,8 +749,39 @@ const submitRegistration = async (clubId) => {
 };
 
 const getInitials = (name) => {
-  if (!name) return '?';
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  if (!name) return 'A';
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+};
+
+const isByeMatch = (m) => {
+  const isInd = tournament.value?.participantType === 'individual';
+  const h = isInd ? m.home_user_id : m.home_club_id;
+  const a = isInd ? m.away_user_id : m.away_club_id;
+  return !h || !a;
+};
+
+const getTeamName = (match, side) => {
+  const team = side === 'home' ? (match.home_club || match.home_user) : (match.away_club || match.away_user);
+  return team?.name || team?.full_name || 'TBD';
+};
+
+const getTeamLogo = (match, side) => {
+  const team = side === 'home' ? (match.home_club || match.home_user) : (match.away_club || match.away_user);
+  return team?.logo_url || team?.avatar_url || null;
+};
+
+const getWinnerName = (t, rank) => {
+  if (!t) return '...';
+  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
+  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  return team?.name || team?.full_name || 'Chưa xác định';
+};
+
+const getWinnerLogo = (t, rank) => {
+  if (!t) return null;
+  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
+  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  return team?.logo_url || team?.avatar_url || null;
 };
 
 const formatFormat = (format) => {
@@ -1885,5 +1978,342 @@ onMounted(async () => {
   font-weight: 800;
   text-transform: uppercase;
   border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* ========== PODIUM SECTION ========== */
+.podium-section {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.podium-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+}
+
+.podium-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.podium-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.winner-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 4px solid #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  margin-bottom: 1.5rem;
+}
+.winner-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.winner-avatar.large { width: 140px; height: 140px; border-width: 6px; }
+
+.winner-avatar.large { border-color: #fbbf24; }
+.second .winner-avatar { border-color: #cbd5e1; }
+.third .winner-avatar { border-color: #92400e; }
+
+.rank-badge {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 32px;
+  height: 32px;
+  background: white;
+  color: #0f172a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.crown {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 2rem;
+  color: #fbbf24;
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.5));
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-10px); }
+}
+
+.winner-name {
+  font-weight: 800;
+  color: white;
+  margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+}
+
+.rank-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.first .winner-name { font-size: 1.5rem; color: #fbbf24; }
+
+/* Simplified Match Grid Styles */
+.matches-grid-simple {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.match-card-simple {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.match-card-simple:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.match-header-simple {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.round-badge-simple {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.match-time-simple {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+}
+
+.match-body-simple {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.team-side-simple {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.team-side-simple.home { justify-content: flex-end; text-align: right; }
+.team-side-simple.away { justify-content: flex-start; text-align: left; }
+
+.team-name-simple {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-avatar-simple {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.team-avatar-simple img { width: 100%; height: 100%; object-fit: cover; }
+.team-avatar-simple i { color: rgba(255, 255, 255, 0.3); font-size: 1.1rem; }
+
+.vs-status-simple {
+  font-weight: 900;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.2);
+  min-width: 40px;
+  text-align: center;
+}
+
+.score-status-simple {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.score-simple {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: white;
+  line-height: 1;
+}
+
+.ft-tag-simple {
+  font-size: 0.6rem;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 900;
+}
+
+.bye-status-simple {
+  min-width: 100px;
+  display: flex;
+  justify-content: center;
+}
+
+.bye-badge-simple {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.match-footer-simple {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-venue-simple {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.match-actions-simple {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.action-btn-simple {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn-simple:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.action-btn-simple.primary {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.action-btn-simple.primary:hover {
+  background: #6366f1;
+  color: white;
+}
+
+.empty-schedule-simple {
+  padding: 4rem 2rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1.5rem;
+  border: 2px dashed rgba(255, 255, 255, 0.05);
+}
+
+.empty-schedule-simple i {
+  font-size: 3rem;
+  color: rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+}
+
+.empty-schedule-simple p {
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .matches-grid-simple { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .podium-container { flex-direction: column; align-items: center; gap: 3rem; }
+  .podium-item { order: 2; }
+  .podium-item.first { order: 1; margin-bottom: 2rem; }
 }
 </style>
