@@ -1222,6 +1222,16 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
+.team-name-simple {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .match-teams .team {
   font-size: 0.95rem;
   font-weight: 600;
@@ -2191,7 +2201,7 @@ onMounted(async () => {
 
 .matches-grid-simple {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
