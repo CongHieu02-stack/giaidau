@@ -343,72 +343,108 @@ function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes, 
 // === KNOCKOUT BRACKET BUILDER ===
 function buildKnockoutBracket(tournamentId, teams, venues, startDate, matchTimes, participantType) {
   const shuffled = shuffle([...teams]);
-  let slots = 2;
-  while (slots < shuffled.length) slots *= 2;
-  while (shuffled.length < slots) shuffled.push({ id: null, name: 'BYE' });
-
-  const totalRounds = Math.log2(slots);
+  const n = shuffled.length;
+  
+  // Find the largest power of 2 less than or equal to n
+  let powerOfTwo = 1;
+  while (powerOfTwo * 2 <= n) powerOfTwo *= 2;
+  
+  // Number of matches in the preliminary round (Round 1) to get to powerOfTwo
+  const numPreliminaryMatches = n - powerOfTwo;
   const allMatches = [];
   let matchIdx = 0;
-  const roundMatches = [];
-
-  // Determine which teams play in Round 1 and which get BYEs
-  // Number of matches that actually have 2 teams
-  const numRegularMatches = shuffled.filter(t => t.id).length - (slots / 2);
-  const numByeMatches = (slots / 2) - numRegularMatches;
-
-  const r1 = [];
-  const realTeams = shuffled.filter(t => t.id);
   
-  // 1. Create matches for teams that MUST play
-  for (let i = 0; i < numRegularMatches; i++) {
-    const home = realTeams.pop();
-    const away = realTeams.pop();
+  // Rounds data to keep track of match indices for pairing
+  const roundMatchIndices = [];
+  
+  // --- ROUND 1: Preliminary Round ---
+  const r1Indices = [];
+  const prelimTeams = shuffled.splice(0, numPreliminaryMatches * 2);
+  
+  for (let i = 0; i < numPreliminaryMatches; i++) {
+    const home = prelimTeams[i * 2];
+    const away = prelimTeams[i * 2 + 1];
     const m = createMatchData(tournamentId, home, away, venues, startDate, matchTimes, matchIdx, 1, participantType);
     m.bracket_position = matchIdx;
     m.match_type = 'regular';
-    m._nextIdx = null;
-    r1.push(allMatches.length);
     allMatches.push(m);
+    r1Indices.push(allMatches.length - 1);
     matchIdx++;
   }
-
-  // 2. Create BYE matches for remaining teams
-  for (let i = 0; i < numByeMatches; i++) {
-    const team = realTeams.pop();
-    const m = createMatchData(tournamentId, team, {id: null}, venues, startDate, matchTimes, matchIdx, 1, participantType);
+  
+  // --- ROUND 2: The Main Bracket (Power of 2) ---
+  const r2Indices = [];
+  const r2Date = new Date(startDate);
+  r2Date.setDate(r2Date.getDate() + 2); // Gap for Round 2
+  
+  // We need to fill powerOfTwo / 2 matches in Round 2
+  // Some slots are filled by winners of R1, some by direct entries (shuffled remains)
+  const numR2Matches = powerOfTwo / 2;
+  let r1Ptr = 0;
+  
+  for (let i = 0; i < numR2Matches; i++) {
+    // Each R2 match needs 2 "sources"
+    // Source can be a Winner of R1 or a direct entry
+    const sources = [];
+    for (let s = 0; s < 2; s++) {
+      if (r1Ptr < r1Indices.length) {
+        sources.push({ type: 'winner_of', index: r1Indices[r1Ptr] });
+        r1Ptr++;
+      } else if (shuffled.length > 0) {
+        sources.push({ type: 'team', data: shuffled.shift() });
+      } else {
+        sources.push({ type: 'placeholder' });
+      }
+    }
+    
+    const home = sources[0].type === 'team' ? sources[0].data : { id: null };
+    const away = sources[1].type === 'team' ? sources[1].data : { id: null };
+    
+    const m = createMatchData(tournamentId, home, away, venues, r2Date, matchTimes, matchIdx, 2, participantType);
     m.bracket_position = matchIdx;
-    m.match_type = 'regular';
-    m._nextIdx = null;
-    m.status = 'completed';
-    m.winner_id = team.id;
-    m.home_score = 0; m.away_score = 0;
-    r1.push(allMatches.length);
+    m.match_type = (powerOfTwo === 2) ? 'final' : (powerOfTwo === 4) ? 'semifinal' : 'regular';
+    
+    const currentIdx = allMatches.length;
     allMatches.push(m);
+    r2Indices.push(currentIdx);
+    
+    // Link R1 matches to this R2 match
+    sources.forEach(src => {
+      if (src.type === 'winner_of') {
+        allMatches[src.index]._nextIdx = currentIdx;
+      }
+    });
+    
     matchIdx++;
   }
-  roundMatches.push(r1);
-
-  for (let round = 2; round <= totalRounds; round++) {
-    const prevIndices = roundMatches[round - 2];
-    const thisRound = [];
-    const rd = new Date(startDate);
-    rd.setDate(rd.getDate() + (round - 1) * 2);
-    for (let i = 0; i < prevIndices.length; i += 2) {
-      const m = createMatchData(tournamentId, {id: null}, {id: null}, venues, rd, matchTimes, matchIdx, round, participantType);
+  roundMatchIndices.push(r2Indices);
+  
+  // --- SUBSEQUENT ROUNDS ---
+  let prevRoundIndices = r2Indices;
+  let currentRoundNum = 3;
+  let teamsRemaining = powerOfTwo / 2;
+  
+  while (teamsRemaining > 1) {
+    const nextRoundIndices = [];
+    const rd = new Date(r2Date);
+    rd.setDate(rd.getDate() + (currentRoundNum - 2) * 3);
+    
+    const numMatches = teamsRemaining / 2;
+    for (let i = 0; i < numMatches; i++) {
+      const m = createMatchData(tournamentId, { id: null }, { id: null }, venues, rd, matchTimes, matchIdx, currentRoundNum, participantType);
       m.bracket_position = matchIdx;
-      m._nextIdx = null;
-      delete m.home_club_id; delete m.away_club_id;
-      delete m.home_user_id; delete m.away_user_id;
-      m.match_type = round === totalRounds ? 'final' : (round === totalRounds - 1 && totalRounds > 2) ? 'semifinal' : 'regular';
-      const idx = allMatches.length;
-      thisRound.push(idx);
+      m.match_type = (numMatches === 1) ? 'final' : (numMatches === 2) ? 'semifinal' : 'regular';
+      
+      const currentIdx = allMatches.length;
       allMatches.push(m);
-      allMatches[prevIndices[i]]._nextIdx = idx;
-      allMatches[prevIndices[i + 1]]._nextIdx = idx;
+      nextRoundIndices.push(currentIdx);
+      
+      // Link previous round matches
+      allMatches[prevRoundIndices[i * 2]]._nextIdx = currentIdx;
+      allMatches[prevRoundIndices[i * 2 + 1]]._nextIdx = currentIdx;
+      
       matchIdx++;
     }
-    roundMatches.push(thisRound);
   }
 
   // Third-place match
