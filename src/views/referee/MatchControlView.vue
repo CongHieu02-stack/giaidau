@@ -191,7 +191,18 @@ const isPresent = (pid) => attendance.value.some(a => a.player_id === pid && a.i
 function startTimer() {
   stopTimer();
   if (match.value?.start_time) {
-    timerSeconds.value = Math.floor((Date.now() - new Date(match.value.start_time).getTime()) / 1000);
+    let startTimeStr = match.value.start_time;
+    // Standardize to ISO format and ensure UTC (Z) if missing
+    if (typeof startTimeStr === 'string') {
+      if (startTimeStr.includes(' ') && !startTimeStr.includes('T')) {
+        startTimeStr = startTimeStr.replace(' ', 'T');
+      }
+      if (!startTimeStr.includes('Z') && !startTimeStr.includes('+')) {
+        startTimeStr += 'Z';
+      }
+    }
+    const start = new Date(startTimeStr).getTime();
+    timerSeconds.value = Math.floor((Date.now() - start) / 1000);
   }
   timerInterval = setInterval(() => { timerSeconds.value++; }, 1000);
 }

@@ -89,8 +89,47 @@
                     <span class="match-time" v-if="match.match_time"><i class="pi pi-clock"></i> {{ match.match_time }}</span>
                     <span class="match-venue" v-if="match.venue?.name"><i class="pi pi-map-marker"></i> {{ match.venue.name }}</span>
                   </div>
-                  <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
-                    <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                  <div class="match-score-section">
+                    <div class="match-score-status">
+                      <span v-if="match.status === 'completed' || (match.home_score !== null && match.away_score !== null)" class="full-time-badge">Full-time</span>
+                      <span v-else-if="match.status === 'ongoing'" class="live-badge">Live</span>
+                    </div>
+                    <div class="match-score" v-if="match.home_score !== null && match.away_score !== null">
+                      <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Match Events (Goals & Cards) -->
+                  <div class="match-events" v-if="match.events && match.events.length > 0">
+                    <div class="events-list">
+                      <div v-for="event in match.events.filter(e => ['goal', 'red_card'].includes(e.type))" :key="event.id" class="event-item">
+                        <span class="event-icon" :class="event.type">
+                          {{ event.type === 'goal' ? '⚽' : '🔴' }}
+                        </span>
+                        <span class="event-player">{{ event.player?.full_name }}</span>
+                        <span class="event-minute">{{ event.minute }}'</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="match-footer">
+                    <div class="match-referee" v-if="canManage">
+                      <div v-if="match.referee" class="referee-assigned">
+                        <i class="pi pi-user"></i>
+                        <span>{{ match.referee.full_name }}</span>
+                        <button class="btn-change-ref" @click="openRefereeAssignment(match)" title="Đổi trọng tài">
+                          <i class="pi pi-pencil"></i>
+                        </button>
+                      </div>
+                      <button v-else class="btn-assign-ref" @click="openRefereeAssignment(match)">
+                        <i class="pi pi-user-plus"></i>
+                        Bổ nhiệm trọng tài
+                      </button>
+                    </div>
+                    <div class="match-referee-public" v-else-if="match.referee">
+                      <i class="pi pi-user"></i>
+                      <span>Trọng tài: {{ match.referee.full_name }}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -99,6 +138,15 @@
                 <p>Lịch thi đấu sẽ được cập nhật sau khi đóng đăng ký</p>
                 <p class="sub-text">(Cần ít nhất {{ tournament.minTeams }} đội để bắt đầu)</p>
               </div>
+            </div>
+
+            <!-- Registered Teams -->
+            <div class="section-card" v-if="tournament.matches && tournament.matches.length > 0">
+              <h2 class="section-title">
+                <i class="pi pi-chart-bar section-icon blue"></i>
+                Bảng xếp hạng
+              </h2>
+              <TournamentStandings :tournament="tournament" />
             </div>
 
             <!-- Registered Teams -->
@@ -176,37 +224,120 @@
               </button>
             </div>
 
+            <!-- Admin Start Action -->
+            <div class="section-card" v-if="canStartTournament">
+              <button class="btn-start-tournament" @click="handleStartTournament" :disabled="loading">
+                <i class="pi pi-play"></i>
+                Bắt đầu giải đấu
+              </button>
+              <p class="text-[10px] text-center text-white/40 mt-2 italic">
+                (Đã đủ số lượng đội tối thiểu để bắt đầu)
+              </p>
+            </div>
+
             <!-- Registration Modal -->
-            <Dialog v-model:visible="showRegModal" :header="`Đăng ký tham gia: ${tournament?.name}`" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
-              <div class="flex flex-column gap-3 py-2">
-                <div v-for="club in userClubs" :key="club.id" 
-                     class="club-select-item"
-                     :class="{'selected': selectedClubId === club.id, 'pending-club': club.status !== 'approved'}"
-                     @click="selectedClubId = club.id">
-                  <div class="club-avatar-modal">
-                    <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" class="club-logo-img" />
-                    <span v-else>{{ getInitials(club.name) }}</span>
-                  </div>
-                  <div class="club-select-info">
-                    <div class="flex align-items-center gap-2">
-                      <span class="club-select-name">{{ club.name }}</span>
-                      <span v-if="club.status !== 'approved'" class="pending-badge">Chờ duyệt</span>
+            <Dialog v-model:visible="showRegModal" :header="`Đăng ký tham gia: ${tournament?.name}`" :modal="true" :style="{ width: '500px' }" class="custom-tournament-dialog">
+              <div class="flex flex-column gap-4 py-2">
+                <section>
+                  <h4 class="text-sm font-semibold mb-2 text-white/70">1. Chọn Câu lạc bộ</h4>
+                  <div class="flex flex-column gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                    <div v-for="club in unregisteredClubs" :key="club.id" 
+                         class="club-select-item"
+                         :class="{'selected': selectedClubId === club.id, 'pending-club': club.status !== 'approved'}"
+                         @click="handleClubSelect(club.id)">
+                      <div class="club-avatar-modal">
+                        <img v-if="club.logoUrl" :src="club.logoUrl" :alt="club.name" class="club-logo-img" />
+                        <span v-else>{{ getInitials(club.name) }}</span>
+                      </div>
+                      <div class="club-select-info">
+                        <div class="flex align-items-center gap-2">
+                          <span class="club-select-name">{{ club.name }}</span>
+                          <span v-if="club.status !== 'approved'" class="pending-badge">Chờ duyệt</span>
+                        </div>
+                        <span class="club-select-leader" v-if="club.leaderName">
+                          <i class="pi pi-user text-[10px]"></i> {{ club.leaderName }}
+                        </span>
+                      </div>
                     </div>
-                    <span class="club-select-leader" v-if="club.leaderName">
-                      <i class="pi pi-user text-xs"></i> {{ club.leaderName }}
-                    </span>
-                    <span class="club-select-status" v-if="selectedClubId === club.id">
-                      <i class="pi pi-check-circle"></i> Đã chọn
+                  </div>
+                </section>
+
+                <section v-if="selectedClubId && tournament?.maxPlayersPerMatch > 0">
+                  <div class="flex justify-between items-center mb-2">
+                    <h4 class="text-sm font-semibold text-white/70">2. Chọn vận động viên</h4>
+                    <span class="text-xs font-bold px-2 py-1 rounded" :class="regStore.isReadyToSubmit ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'">
+                      Đã chọn {{ regStore.selectedCount }}/{{ tournament.maxPlayersPerMatch }}
                     </span>
                   </div>
-                </div>
+                  
+                  <div v-if="clubMembersLoading" class="flex justify-center p-4">
+                    <i class="pi pi-spinner pi-spin text-xl"></i>
+                  </div>
+                  <div v-else-if="availableMembers.length === 0" class="text-center p-4 text-white/40 text-sm">
+                    Câu lạc bộ chưa có thành viên nào được duyệt
+                  </div>
+                  <div v-else class="member-selection-list max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    <div v-for="member in availableMembers" :key="member.user_id" 
+                         class="member-item"
+                         :class="{'selected': regStore.isSelected(member.user_id), 'disabled': regStore.isLimitReached && !regStore.isSelected(member.user_id)}"
+                         @click="regStore.togglePlayer(member.user_id)">
+                      <div class="member-checkbox">
+                        <i :class="regStore.isSelected(member.user_id) ? 'pi pi-check-circle text-blue-400' : 'pi pi-circle'"></i>
+                      </div>
+                      <div class="member-avatar">
+                        <img v-if="member.profile?.avatar_url" :src="member.profile.avatar_url" class="w-full h-full object-cover rounded-full" />
+                        <div v-else class="w-full h-full rounded-full bg-white/10 flex items-center justify-center text-xs">
+                          {{ getInitials(member.profile?.full_name) }}
+                        </div>
+                      </div>
+                      <div class="member-info">
+                        <p class="member-name">{{ member.profile?.full_name }}</p>
+                        <p class="member-email text-xs text-white/40">{{ member.profile?.email }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p v-if="regStore.isLimitReached" class="text-[10px] text-yellow-500/70 mt-2 text-center italic">
+                    Đã đạt số lượng tối đa. Bỏ chọn để thay đổi.
+                  </p>
+                </section>
               </div>
               <template #footer>
                 <button class="action-btn secondary" @click="showRegModal = false" :disabled="registering">Hủy</button>
-                <button class="btn-join" @click="submitRegistration(selectedClubId)" :disabled="!selectedClubId || registering">
+                <button class="btn-join" 
+                        @click="submitRegistration(selectedClubId)" 
+                        :disabled="!selectedClubId || registering || (tournament?.maxPlayersPerMatch > 0 && !regStore.isReadyToSubmit)"
+                        :class="{'opacity-50 grayscale cursor-not-allowed': tournament?.maxPlayersPerMatch > 0 && !regStore.isReadyToSubmit}">
                   Xác nhận đăng ký
                 </button>
               </template>
+            </Dialog>
+
+            <!-- Referee Assignment Modal -->
+            <Dialog v-model:visible="showRefereeModal" header="Bổ nhiệm trọng tài" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
+              <div class="referee-list-modal py-2">
+                <div v-if="refereesLoading" class="flex justify-center p-8">
+                  <i class="pi pi-spinner pi-spin text-2xl text-blue-400"></i>
+                </div>
+                <div v-else-if="availableReferees.length === 0" class="text-center p-8">
+                  <i class="pi pi-info-circle text-2xl text-white/20 mb-3 block"></i>
+                  <p class="text-white/50">Không có trọng tài nào khả dụng vào thời gian này.</p>
+                </div>
+                <div v-else class="flex flex-column gap-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                  <div v-for="referee in availableReferees" :key="referee.id" 
+                       class="referee-item"
+                       @click="assignReferee(referee.id)">
+                    <div class="ref-avatar">
+                      <img v-if="referee.avatar_url" :src="referee.avatar_url" :alt="referee.full_name" />
+                      <span v-else>{{ getInitials(referee.full_name) }}</span>
+                    </div>
+                    <div class="ref-info">
+                      <span class="ref-name">{{ referee.full_name }}</span>
+                      <span class="ref-email">{{ referee.email }}</span>
+                    </div>
+                    <i class="pi pi-chevron-right text-white/20"></i>
+                  </div>
+                </div>
+              </div>
             </Dialog>
 
             <!-- Registration Status -->
@@ -231,6 +362,10 @@
                 <div class="info-row">
                   <span class="info-label">Tối thiểu</span>
                   <span class="info-val">{{ tournament.minTeams }} đội</span>
+                </div>
+                <div class="info-row" v-if="tournament.maxPlayersPerMatch > 0">
+                  <span class="info-label">VĐV mỗi đội</span>
+                  <span class="info-val">{{ tournament.maxPlayersPerMatch }} người</span>
                 </div>
                 <div class="info-row">
                   <span class="info-label">Tối đa</span>
@@ -305,15 +440,21 @@ import Dialog from 'primevue/dialog';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useAuthStore } from '../../stores/auth.js';
 import { useTournamentStore } from '../../stores/tournament.js';
+import { useRegistrationStore } from '../../stores/registration.js';
 import { formatDate } from '../../utils/helpers.js';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { userRepository } from '../../repositories/UserRepository.js';
+import { supabase } from '../../config/supabase.js';
+import TournamentStandings from '../../components/common/TournamentStandings.vue';
+import { matchRepository } from '../../repositories/MatchRepository.js';
 
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const tournamentStore = useTournamentStore();
+const regStore = useRegistrationStore();
 const toast = useToast();
 const confirmService = useConfirm();
 
@@ -322,7 +463,13 @@ const loading = ref(true);
 const userClubs = ref([]);
 const registering = ref(false);
 const showRegModal = ref(false);
+const showRefereeModal = ref(false);
 const selectedClubId = ref(null);
+const selectedMatchId = ref(null);
+const availableReferees = ref([]);
+const refereesLoading = ref(false);
+const clubMembersLoading = ref(false);
+const availableMembers = ref([]);
 
 const statusClass = computed(() => {
   const classes = {
@@ -372,6 +519,12 @@ const adminEditPath = computed(() => {
   return `${prefix}/tournaments/${tournament.value.id}/edit`;
 });
 
+const unregisteredClubs = computed(() => {
+  if (!tournament.value || !userClubs.value) return [];
+  const registeredClubIds = tournament.value.registrations?.map(r => r.club_id) || [];
+  return userClubs.value.filter(club => !registeredClubIds.includes(club.id));
+});
+
 const canRegister = computed(() => {
   // Show registration button if tournament is open and has space
   if (tournament.value?.status !== 'registration_open') return false;
@@ -382,6 +535,75 @@ const canRegister = computed(() => {
   
   return true;
 });
+
+const canStartTournament = computed(() => {
+  return canManage.value && 
+         tournament.value?.status === 'registration_open' && 
+         approvedRegistrations.value.length >= (tournament.value?.minTeams || 2);
+});
+
+const handleStartTournament = async () => {
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn bắt đầu giải đấu? Sau khi bắt đầu, việc đăng ký sẽ được đóng lại và giải đấu sẽ chuyển sang trạng thái đang diễn ra.',
+    header: 'Bắt đầu giải đấu',
+    icon: 'pi pi-play',
+    acceptClass: 'p-button-success',
+    accept: async () => {
+      try {
+        const result = await tournamentStore.updateTournamentStatus(tournament.value.id, 'ongoing', authStore.user.id);
+        if (result.success) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Giải đấu đã bắt đầu!', life: 3000 });
+          
+          // Auto-generate schedule if round robin and matches are empty
+          if (tournament.value.format === 'round_robin' && (!tournament.value.matches || tournament.value.matches.length === 0)) {
+            toast.add({ severity: 'info', summary: 'Thông báo', detail: 'Đang tạo lịch thi đấu tự động...', life: 2000 });
+            await tournamentStore.generateSchedule(tournament.value.id, [], authStore.user.id);
+          }
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error || 'Không thể bắt đầu giải đấu', life: 3000 });
+        }
+      } catch (err) {
+        console.error('Start Tournament Error:', err);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: `Có lỗi xảy ra: ${err.message}`, life: 5000 });
+      }
+    }
+  });
+};
+
+const openRefereeAssignment = async (match) => {
+  selectedMatchId.value = match.id;
+  showRefereeModal.value = true;
+  refereesLoading.value = true;
+  
+  try {
+    const result = await userRepository.findAvailableReferees(match.match_date, match.match_time);
+    if (result.isOk()) {
+      availableReferees.value = result.getValue();
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách trọng tài', life: 3000 });
+    }
+  } catch (err) {
+    console.error('Fetch Referees Error:', err);
+  } finally {
+    refereesLoading.value = false;
+  }
+};
+
+const assignReferee = async (refereeId) => {
+  try {
+    const result = await matchRepository.update({ id: selectedMatchId.value, referee_id: refereeId });
+    if (result.isOk()) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã phân công trọng tài', life: 3000 });
+      showRefereeModal.value = false;
+      // Refresh tournament data to show updated referee
+      await tournamentStore.fetchTournament(tournament.value.id);
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError(), life: 3000 });
+    }
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  }
+};
 
 const handleRegister = async () => {
   if (!authStore.isAuthenticated) {
@@ -401,16 +623,19 @@ const handleRegister = async () => {
     return;
   }
 
-  if (userClubs.value.length === 0) {
-    toast.add({ severity: 'warn', summary: 'Thông báo', detail: 'Bạn chưa có câu lạc bộ nào để đăng ký. Vui lòng tạo câu lạc bộ trước.', life: 5000 });
+  if (unregisteredClubs.value.length === 0) {
+    let detail = '';
+    if (userClubs.value.length > 0) {
+      detail = 'Bạn đã đăng ký giải này rồi.';
+    } else {
+      detail = 'Giải đấu này yêu cầu đăng ký theo Câu lạc bộ. Bạn cần là Trưởng hoặc Phó câu lạc bộ để thực hiện đăng ký.';
+    }
+    toast.add({ severity: 'warn', summary: 'Thông báo', detail, life: 5000 });
     return;
   }
 
-  // Filter for approved clubs if we want to enforce approval before registration
-  const approvedClubs = userClubs.value.filter(c => c.status === 'approved');
-  
-  if (userClubs.value.length === 1) {
-    const club = userClubs.value[0];
+  if (unregisteredClubs.value.length === 1 && (tournament.value?.maxPlayersPerMatch || 0) === 0) {
+    const club = unregisteredClubs.value[0];
     
     if (club.status !== 'approved') {
       toast.add({ severity: 'warn', summary: 'Thông báo', detail: `Câu lạc bộ "${club.name}" của bạn đang chờ duyệt. Bạn vẫn có thể gửi yêu cầu đăng ký tham gia giải.`, life: 5000 });
@@ -423,14 +648,47 @@ const handleRegister = async () => {
       reject: () => {}
     });
   } else {
+    regStore.reset();
+    regStore.setMaxPlayers(tournament.value.maxPlayersPerMatch || 0);
     showRegModal.value = true;
+    
+    // Auto-select if only one unregistered club
+    if (unregisteredClubs.value.length === 1) {
+      handleClubSelect(unregisteredClubs.value[0].id);
+    }
+  }
+};
+
+const handleClubSelect = async (clubId) => {
+  if (selectedClubId.value === clubId) return;
+  selectedClubId.value = clubId;
+  regStore.selectedPlayerIds = [];
+  
+  if (tournament.value?.maxPlayersPerMatch > 0) {
+    clubMembersLoading.value = true;
+    try {
+      const { data, error } = await supabase
+        .from('club_members')
+        .select('user_id, profile:profiles(id, full_name, email, avatar_url)')
+        .eq('club_id', clubId)
+        .eq('status', 'approved');
+      
+      if (error) throw error;
+      availableMembers.value = data || [];
+    } catch (err) {
+      console.error('Error fetching club members:', err);
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách thành viên', life: 3000 });
+    } finally {
+      clubMembersLoading.value = false;
+    }
   }
 };
 
 const submitRegistration = async (clubId) => {
   registering.value = true;
   try {
-    const result = await tournamentStore.registerClub(tournament.value.id, clubId, authStore.user.id);
+    const playerIds = tournament.value?.maxPlayersPerMatch > 0 ? regStore.selectedPlayerIds : [];
+    const result = await tournamentStore.registerClub(tournament.value.id, clubId, authStore.user.id, playerIds);
     if (result.success) {
       toast.add({ severity: 'success', summary: 'Thành công', detail: 'Gửi yêu cầu đăng ký tham gia thành công', life: 3000 });
       showRegModal.value = false;
@@ -806,20 +1064,115 @@ onMounted(async () => {
   color: #a78bfa;
 }
 
-.match-score {
-  text-align: center;
+.match-score-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-score-status {
+  height: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.full-time-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.05em;
+}
+
+.live-badge {
+  font-size: 0.625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #ef4444;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.live-badge::before {
+  content: '';
+  display: block;
+  width: 4px;
+  height: 4px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+.match-score {
+  text-align: center;
 }
 
 .score {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: rgba(255, 255, 255, 0.05);
   padding: 0.25rem 1rem;
   border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.match-events {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+}
+
+.events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.event-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.event-icon {
+  font-size: 0.875rem;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.event-player {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.event-minute {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.3);
+  font-variant-numeric: tabular-nums;
+}
+
+.match-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .empty-schedule {
@@ -1003,9 +1356,74 @@ onMounted(async () => {
 }
 
 .organizer-role {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.4);
   font-size: 0.75rem;
-  margin: 0.125rem 0 0 0;
+  margin: 0;
+}
+
+/* Player Selection */
+.member-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.member-item:hover:not(.disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.member-item.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.member-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.member-checkbox {
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.member-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+}
+
+.member-name {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
 /* Info rows */
@@ -1285,6 +1703,39 @@ onMounted(async () => {
   color: #f87171;
 }
 
+.btn-start-tournament {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.btn-start-tournament:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  background: linear-gradient(135deg, #34d399, #10b981);
+}
+
+.btn-start-tournament:active {
+  transform: translateY(0);
+}
+
+.btn-start-tournament:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .icon-btn-small.danger:hover {
   background: #ef4444;
   color: white;
@@ -1292,5 +1743,124 @@ onMounted(async () => {
 
 .text-yellow-400 {
   color: #fbbf24;
+}
+
+/* Match Referee Styles */
+.match-referee {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.referee-assigned {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+}
+
+.btn-change-ref {
+  background: transparent;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  padding: 0.25rem;
+  margin-left: 0.25rem;
+  transition: all 0.2s;
+}
+
+.btn-change-ref:hover {
+  color: #818cf8;
+  transform: scale(1.1);
+}
+
+.btn-assign-ref {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  padding: 0.4rem 0.8rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-assign-ref:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #818cf8;
+}
+
+.match-referee-public {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Referee Modal Styles */
+.referee-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.referee-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateX(4px);
+}
+
+.ref-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #818cf8;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.ref-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ref-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.ref-name {
+  font-weight: 600;
+  color: white;
+}
+
+.ref-email {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
 }
 </style>

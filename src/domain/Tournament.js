@@ -26,6 +26,7 @@ export class Tournament {
     this.championClubId = data.championClubId || data.champion_club_id || null;
     this.createdBy = data.createdBy || data.created_by || null;
     this.venueId = data.venueId || data.venue_id || null;
+    this.maxPlayersPerMatch = data.maxPlayersPerMatch || data.max_players_per_match || 0;
     this.createdAt = data.createdAt || data.created_at || new Date();
     this.updatedAt = data.updatedAt || data.updated_at || new Date();
 
@@ -228,6 +229,105 @@ export class Tournament {
     };
   }
 
+  /**
+   * Calculate standings for the tournament
+   * Custom scoring: Win +1, Loss -1, Draw 0
+   * Tie-breakers: 1. Points, 2. GD, 3. Wins
+   */
+  calculateStandings() {
+    const standings = new Map();
+
+    // Initialize standings with participating clubs (approved registrations)
+    const participatingClubs = this.getApprovedClubs();
+    participatingClubs.forEach(club => {
+      standings.set(club.id, {
+        clubId: club.id,
+        clubName: club.name,
+        logoUrl: club.logoUrl || club.logo_url,
+        played: 0,
+        won: 0,
+        drawn: 0,
+        lost: 0,
+        goalsFor: 0,
+        goalsAgainst: 0,
+        goalDifference: 0,
+        points: 0
+      });
+    });
+
+    // Process completed matches
+    this.matches.forEach(match => {
+      // Handle both snake_case and camelCase
+      const homeScore = match.home_score !== undefined ? match.home_score : match.homeScore;
+      const awayScore = match.away_score !== undefined ? match.away_score : match.awayScore;
+      const homeId = match.home_club_id || match.homeClubId;
+      const awayId = match.away_club_id || match.awayClubId;
+      const status = match.status;
+
+      // Skip if no score yet (unless completed)
+      if (status !== 'completed' && homeScore === null && awayScore === null) return;
+      if (homeScore === undefined || awayScore === undefined) return;
+      if (homeScore === null || awayScore === null) return;
+
+      const home = standings.get(homeId);
+      const away = standings.get(awayId);
+
+      if (!home || !away) return;
+
+      const hScore = Number(homeScore);
+      const aScore = Number(awayScore);
+
+      home.played++;
+      away.played++;
+      home.goalsFor += hScore;
+      home.goalsAgainst += aScore;
+      away.goalsFor += aScore;
+      away.goalsAgainst += hScore;
+
+      if (hScore > aScore) {
+        home.won++;
+        home.points += 2;
+        away.lost++;
+        away.points -= 1;
+      } else if (hScore < aScore) {
+        away.won++;
+        away.points += 2;
+        home.lost++;
+        home.points -= 1;
+      } else {
+        home.drawn++;
+        away.drawn++;
+        home.points += 1;
+        away.points += 1;
+      }
+
+      home.goalDifference = home.goalsFor - home.goalsAgainst;
+      away.goalDifference = away.goalsFor - away.goalsAgainst;
+    });
+
+    // Convert map to array and sort
+    const sortedStandings = Array.from(standings.values()).sort((a, b) => {
+      // 1. Points
+      if (b.points !== a.points) return b.points - a.points;
+      // 2. Goal Difference
+      if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+      // 3. Wins
+      return b.won - a.won;
+    });
+
+    // Assign continuous ranking (Dense Rank)
+    let currentRank = 0;
+    let lastPoints = null;
+    
+    return sortedStandings.map((team) => {
+      if (team.points !== lastPoints) {
+        currentRank++;
+        lastPoints = team.points;
+      }
+      return { ...team, rank: currentRank };
+    });
+  }
+
   // Computed properties
   get registrationCount() {
     return this.registrations.length;
@@ -280,12 +380,15 @@ export class Tournament {
       champion_club_id: this.championClubId,
       created_by: this.createdBy,
       venue_id: this.venueId,
+      max_players_per_match: this.maxPlayersPerMatch,
       created_at: this.createdAt,
       updated_at: this.updatedAt
     };
   }
 
   static fromDB(data) {
-    return new Tournament(data);
+    const tournament = new Tournament(data);
+    tournament.maxPlayersPerMatch = data.max_players_per_match || 0;
+    return tournament;
   }
 }

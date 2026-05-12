@@ -123,7 +123,7 @@ export class TournamentService {
   /**
    * Register club for tournament
    */
-  async registerClub(tournamentId, clubId, userId) {
+  async registerClub(tournamentId, clubId, userId, playerIds = []) {
     try {
       // Get tournament
       const tournamentResult = await this.tournamentRepo.findById(tournamentId);
@@ -165,6 +165,27 @@ export class TournamentService {
           return Result.err('You do not have permission to register this club');
         }
 
+        // Validate player IDs count
+        if (playerIds.length !== tournament.maxPlayersPerMatch) {
+          return Result.err(`Số lượng vận động viên phải bằng đúng ${tournament.maxPlayersPerMatch}`);
+        }
+
+        // Validate player IDs belong to the club
+        const { data: clubMembers, error: membersError } = await supabase
+          .from('club_members')
+          .select('user_id')
+          .eq('club_id', clubId)
+          .eq('status', 'approved')
+          .in('user_id', playerIds);
+
+        if (membersError) {
+          return Result.err('Lỗi khi kiểm tra danh sách vận động viên');
+        }
+
+        if (clubMembers.length !== playerIds.length) {
+          return Result.err('Một số vận động viên không thuộc câu lạc bộ này hoặc chưa được duyệt');
+        }
+
         // Register club logic in domain (if any)
         const registrationResult = tournament.registerClub(club);
         if (!registrationResult.success) {
@@ -186,18 +207,37 @@ export class TournamentService {
         }
       }
 
-      // Save to database
-      const { data, error } = await supabase
+      // Save registration to database
+      const { data: registration, error: regError } = await supabase
         .from('tournament_registrations')
         .insert(registrationData)
         .select()
         .single();
 
-      if (error) {
-        return Result.err(error.message);
+      if (regError) {
+        return Result.err(regError.message);
       }
 
-      return Result.ok(data);
+      // Save players if any
+      if (playerIds.length > 0) {
+        const registrationPlayers = playerIds.map(playerId => ({
+          registration_id: registration.id,
+          player_id: playerId,
+          club_id: clubId
+        }));
+
+        const { error: playersError } = await supabase
+          .from('tournament_registration_players')
+          .insert(registrationPlayers);
+
+        if (playersError) {
+          // Rollback registration (simple version)
+          await supabase.from('tournament_registrations').delete().eq('id', registration.id);
+          return Result.err('Lỗi khi lưu danh sách vận động viên: ' + playersError.message);
+        }
+      }
+
+      return Result.ok(registration);
     } catch (error) {
       return Result.err(error.message || 'Failed to register');
     }
