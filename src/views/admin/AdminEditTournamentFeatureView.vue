@@ -134,7 +134,6 @@
             <template v-if="tournament.status !== 'ongoing' || matches.length === 0">
               <!-- Knockout Start Button -->
               <button 
-                v-if="tournament.format === 'knockout'"
                 type="button" 
                 class="primary-button knockout-start" 
                 :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly || generatingMatches"
@@ -143,40 +142,11 @@
                 <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-sitemap'"></i>
                 {{ generatingMatches ? 'Đang tạo...' : 'Tạo sơ đồ thi đấu' }}
               </button>
-
-              <!-- Group/Hybrid Start Button -->
-              <button 
-                v-else-if="!showConfigurator"
-                type="button" 
-                class="primary-button" 
-                :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly"
-                @click="showConfigurator = true"
-              >
-                <i class="pi pi-cog mr-1"></i> Thiết lập bảng đấu
-              </button>
-              
-              <button 
-                v-else-if="showConfigurator"
-                type="button" 
-                class="secondary-button"
-                @click="showConfigurator = false"
-              >
-                Hủy thiết lập
-              </button>
             </template>
           </div>
         </div>
 
-        <div v-if="showConfigurator" class="configurator-wrapper">
-          <GroupConfigurator 
-            :approved-teams="approvedTeams"
-            :initial-groups="draftGroups"
-            @confirm="handleConfirmGroups"
-            @change="onGroupsChange"
-          />
-        </div>
-
-        <div v-else-if="matches.length > 0" class="matches-list">
+        <div v-if="matches.length > 0" class="matches-list">
           <div class="matches-grid">
             <div v-for="match in matches" :key="match.id" class="match-item">
               <div class="match-time">

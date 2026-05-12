@@ -445,6 +445,9 @@ function buildKnockoutBracket(tournamentId, teams, venues, startDate, matchTimes
       
       matchIdx++;
     }
+    prevRoundIndices = nextRoundIndices;
+    teamsRemaining /= 2;
+    currentRoundNum++;
   }
 
   // Third-place match
