@@ -176,7 +176,11 @@
               </div>
               <div class="match-pairing">
                 <span class="club">{{ match.home_club?.name || '???' }}</span>
-                <span class="vs">VS</span>
+                <div v-if="match.home_score !== null && match.away_score !== null" class="score-container">
+                  <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                  <span v-if="match.status === 'completed'" class="ft-badge">FT</span>
+                </div>
+                <span v-else class="vs">VS</span>
                 <span class="club">{{ match.away_club?.name || '???' }}</span>
               </div>
               <div class="match-venue">
@@ -686,6 +690,35 @@ h2 {
   padding: 2px 6px;
   background: rgba(244, 63, 94, 0.1);
   border-radius: 4px;
+}
+
+.score-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 60px;
+}
+
+.score-container .score {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #ffffff;
+  padding: 2px 8px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.ft-badge {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
 }
 
 .match-venue {
