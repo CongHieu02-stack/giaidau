@@ -523,6 +523,7 @@ import { useRoute, useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
 import ConfirmDialog from 'primevue/confirmdialog';
 import { useAuthStore } from '../../stores/auth.js';
+import { supabase } from '../../config/supabase.js';
 import { useTournamentStore } from '../../stores/tournament.js';
 import { useRegistrationStore } from '../../stores/registration.js';
 import { formatDate } from '../../utils/helpers.js';
