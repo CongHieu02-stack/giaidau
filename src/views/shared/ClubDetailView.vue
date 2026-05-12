@@ -158,17 +158,29 @@
                       <span class="status-chip" :class="getMemberStatusClass(m.status)">{{ getMemberStatusText(m.status) }}</span>
                     </td>
                     <td v-if="isLeader" class="td-center">
-                      <button 
-                        v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
-                        class="btn-remove-member"
-                        :disabled="removingId === m.id"
-                        @click="handleRemove(m)"
-                        title="Xóa khỏi CLB"
-                      >
-                        <i v-if="removingId === m.id" class="pi pi-spinner pi-spin"></i>
-                        <i v-else class="pi pi-user-minus"></i>
-                      </button>
-                      <span v-else class="text-xs text-white/20">—</span>
+                      <div class="action-btns" style="justify-content: center; flex-wrap: nowrap;">
+                        <button 
+                          v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
+                          class="btn-appoint"
+                          :disabled="appointingId === m.id || removingId === m.id"
+                          @click="handleAppointLeader(m)"
+                          title="Bổ nhiệm làm Trưởng câu lạc bộ"
+                        >
+                          <i v-if="appointingId === m.id" class="pi pi-spinner pi-spin"></i>
+                          <i v-else class="pi pi-star"></i>
+                        </button>
+                        <button 
+                          v-if="m.role !== 'leader' && !String(m.id).startsWith('leader-')" 
+                          class="btn-remove-member"
+                          :disabled="removingId === m.id || appointingId === m.id"
+                          @click="handleRemove(m)"
+                          title="Xóa khỏi CLB"
+                        >
+                          <i v-if="removingId === m.id" class="pi pi-spinner pi-spin"></i>
+                          <i v-else class="pi pi-user-minus"></i>
+                        </button>
+                        <span v-if="m.role === 'leader' || String(m.id).startsWith('leader-')" class="text-xs text-white/20">—</span>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -302,6 +314,7 @@ const hasJoinedAnotherClub = ref(false);
 const approvingId = ref(null);
 const rejectingId = ref(null);
 const removingId = ref(null);
+const appointingId = ref(null);
 const activeMemberTab = ref('approved');
 
 // Edit Club
@@ -465,6 +478,82 @@ const handleLeave = async () => {
         toast.add({ severity: 'success', summary: 'Thành công', detail: `Đã ${actionText} câu lạc bộ.`, life: 3000 });
       } catch (err) {
         toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
+      }
+    }
+  });
+};
+
+const handleAppointLeader = (m) => {
+  confirmService.require({
+    message: `Bạn có chắc chắn muốn bổ nhiệm "${m.user?.full_name}" làm Trưởng câu lạc bộ mới?\nBạn sẽ mất quyền quản lý câu lạc bộ này và trở thành thành viên bình thường.`,
+    header: 'Bổ nhiệm Trưởng câu lạc bộ',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-warning',
+    acceptLabel: 'Bổ nhiệm',
+    rejectLabel: 'Hủy',
+    accept: async () => {
+      appointingId.value = m.id;
+      try {
+        const newLeaderId = m.user.id;
+        const oldLeaderId = authStore.user.id;
+
+        // 1. Cập nhật clubs.leader_id
+        const { error: clubError } = await supabase
+          .from('clubs')
+          .update({ leader_id: newLeaderId, updated_at: new Date().toISOString() })
+          .eq('id', club.value.id);
+        if (clubError) throw clubError;
+
+        // 2. Cập nhật role của người mới thành 'leader'
+        const { error: newLeaderError } = await supabase
+          .from('club_members')
+          .update({ role: 'leader' })
+          .eq('club_id', club.value.id)
+          .eq('user_id', newLeaderId);
+        if (newLeaderError) throw newLeaderError;
+
+        // 3. Cập nhật role của mình thành 'member'
+        const { data: myMembership } = await supabase
+          .from('club_members')
+          .select('id')
+          .eq('club_id', club.value.id)
+          .eq('user_id', oldLeaderId)
+          .maybeSingle();
+
+        if (myMembership) {
+          await supabase
+            .from('club_members')
+            .update({ role: 'member' })
+            .eq('id', myMembership.id);
+        } else {
+          await supabase
+            .from('club_members')
+            .insert({
+              club_id: club.value.id,
+              user_id: oldLeaderId,
+              role: 'member',
+              status: 'approved',
+              joined_at: new Date().toISOString()
+            });
+        }
+
+        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã chuyển giao chức trưởng câu lạc bộ.', life: 3000 });
+        
+        // Cập nhật state UI
+        club.value.leaderId = newLeaderId;
+        club.value.leader = m.user;
+        leader.value = m.user;
+        
+        // Reload club data to get fresh members list and roles
+        const result = await clubRepository.findWithDetails(club.value.id);
+        if (result.isOk()) {
+          const clubData = result.getValue();
+          members.value = clubData.members || [];
+        }
+      } catch (err) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: err.message, life: 3000 });
+      } finally {
+        appointingId.value = null;
       }
     }
   });
@@ -841,6 +930,15 @@ onMounted(async () => {
 }
 .btn-reject:hover:not(:disabled) { background: rgba(239,68,68,0.25); color: white; }
 .btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-appoint {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1); color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2); cursor: pointer; transition: all 0.2s;
+}
+.btn-appoint:hover:not(:disabled) { background: #fbbf24; color: white; border-color: #fbbf24; transform: scale(1.05); }
+.btn-appoint:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-remove-member {
   display: inline-flex; align-items: center; justify-content: center;
