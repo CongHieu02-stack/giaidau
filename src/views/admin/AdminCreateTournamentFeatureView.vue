@@ -34,7 +34,6 @@
             <label class="field">
               <span>Hình thức thi đấu</span>
               <select v-model="form.format">
-                <option value="round_robin">Vòng tròn</option>
                 <option value="knockout">Loại trực tiếp</option>
                 <option value="group_stage">Vòng bảng</option>
               </select>
@@ -164,7 +163,7 @@ const form = reactive({
   name: '',
   description: '',
   sportCategoryId: '',
-  format: 'round_robin',
+  format: 'knockout',
   participantType: 'club',
   rules: '',
   minTeams: 4,

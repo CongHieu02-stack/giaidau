@@ -13,7 +13,7 @@ export class Tournament {
     this.sportCategory = data.sportCategory || data.sport_category || null;
     this.participantType = data.participantType || data.participant_type || 'club';
     this.rules = data.rules || '';
-    this.format = data.format || 'round_robin';
+    this.format = data.format || 'knockout';
     this.maxTeams = data.maxTeams || data.max_teams || 16;
     this.minTeams = data.minTeams || data.min_teams || 2;
     this.registrationDeadline = data.registrationDeadline || data.registration_deadline || null;

@@ -126,55 +126,65 @@
               </h2>
               
               <!-- Matches Grid (Simplified View) -->
-              <div v-if="tournament.matches && tournament.matches.length > 0" class="matches-grid-simple">
-                <div v-for="match in tournament.matches" :key="match.id" class="match-card-simple" :class="{ 'is-bye': isByeMatch(match) }">
-                  <div class="match-header-simple">
-                    <span class="round-badge-simple">Vòng {{ match.round }}</span>
-                    <span class="match-time-simple">
-                      <i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }} 
-                      <i class="pi pi-clock ml-2 mr-1"></i>{{ match.match_time }}
-                    </span>
+              <!-- Matches Container (Grouped by Round) -->
+              <div v-if="tournament.matches && tournament.matches.length > 0" class="matches-container-simple">
+                <div v-for="roundNum in Object.keys(groupedMatches).sort((a,b) => a-b)" :key="roundNum" class="round-section-simple">
+                  <div class="round-header-simple">
+                    <h3 class="round-title-simple">{{ getRoundLabel(roundNum) }}</h3>
+                    <div class="round-line-simple"></div>
                   </div>
-
-                  <div class="match-body-simple">
-                    <div class="team-side-simple home">
-                      <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
-                      <div class="team-avatar-simple">
-                        <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
-                        <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                  
+                  <div class="matches-grid-simple">
+                    <div v-for="match in groupedMatches[roundNum]" :key="match.id" class="match-card-simple" :class="{ 'is-bye': isByeMatch(match) }">
+                      <div class="match-header-simple">
+                        <span v-if="getMatchBadge(match)" class="special-match-badge">{{ getMatchBadge(match) }}</span>
+                        <span class="match-time-simple">
+                          <i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }} 
+                          <i class="pi pi-clock ml-2 mr-1"></i>{{ match.match_time }}
+                        </span>
                       </div>
-                    </div>
 
-                    <div v-if="isByeMatch(match)" class="bye-status-simple">
-                      <span class="bye-badge-simple">MIỄN ĐẤU</span>
-                    </div>
-                    <div v-else-if="match.home_score !== null && match.away_score !== null" class="score-status-simple">
-                      <span class="score-simple">{{ match.home_score }} - {{ match.away_score }}</span>
-                      <span v-if="match.status === 'completed'" class="ft-tag-simple">FT</span>
-                    </div>
-                    <div v-else class="vs-status-simple">VS</div>
+                      <div class="match-body-simple">
+                        <div class="team-side-simple home">
+                          <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
+                          <div class="team-avatar-simple">
+                            <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
+                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                          </div>
+                        </div>
 
-                    <div class="team-side-simple away">
-                      <div class="team-avatar-simple">
-                        <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
-                        <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                        <div v-if="isByeMatch(match)" class="bye-status-simple">
+                          <span class="bye-badge-simple">MIỄN ĐẤU</span>
+                        </div>
+                        <div v-else-if="match.home_score !== null && match.away_score !== null" class="score-status-simple">
+                          <span class="score-simple">{{ match.home_score }} - {{ match.away_score }}</span>
+                          <span v-if="match.status === 'completed'" class="ft-tag-simple">FT</span>
+                        </div>
+                        <div v-else class="vs-status-simple">VS</div>
+
+                        <div class="team-side-simple away">
+                          <div class="team-avatar-simple">
+                            <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
+                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                          </div>
+                          <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
+                        </div>
                       </div>
-                      <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
-                    </div>
-                  </div>
 
-                  <div class="match-footer-simple">
-                    <div class="match-venue-simple">
-                      <i class="pi pi-map-marker mr-1"></i>
-                      {{ match.venue?.name || 'Chưa chọn sân' }}
-                    </div>
-                    <div v-if="canManage" class="match-actions-simple">
-                      <button v-if="match.status !== 'completed'" class="action-btn-simple" @click="openRefereeModal(match)" title="Phân công">
-                        <i class="pi pi-user-edit"></i>
-                      </button>
-                      <RouterLink v-if="match.referee && match.status !== 'completed'" :to="`/referee/matches/${match.id}`" class="action-btn-simple primary" title="Điều khiển">
-                        <i class="pi pi-play"></i>
-                      </RouterLink>
+                      <div class="match-footer-simple">
+                        <div class="match-venue-simple">
+                          <i class="pi pi-map-marker mr-1"></i>
+                          {{ match.venue?.name || 'Chưa chọn sân' }}
+                        </div>
+                        <div v-if="canManage" class="match-actions-simple">
+                          <button v-if="match.status !== 'completed'" class="action-btn-simple" @click="openRefereeModal(match)" title="Phân công">
+                            <i class="pi pi-user-edit"></i>
+                          </button>
+                          <RouterLink v-if="match.referee && match.status !== 'completed'" :to="`/referee/matches/${match.id}`" class="action-btn-simple primary" title="Điều khiển">
+                            <i class="pi pi-play"></i>
+                          </RouterLink>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -577,6 +587,54 @@ const statusText = computed(() => {
 const approvedRegistrations = computed(() => {
   return tournament.value?.registrations?.filter(r => r.status === 'approved') || [];
 });
+
+const groupedMatches = computed(() => {
+  if (!tournament.value?.matches) return {};
+  const groups = {};
+  
+  // Sort by round then by bracket position
+  const sorted = [...tournament.value.matches].sort((a, b) => {
+    if (a.round !== b.round) return (a.round || 0) - (b.round || 0);
+    return (a.bracket_position || 0) - (b.bracket_position || 0);
+  });
+  
+  sorted.forEach(m => {
+    // 3rd place match always goes to its own special round key -1 to be at the end or separate
+    let r = m.round || 1;
+    if (m.match_type === 'third_place' || m.matchType === 'third_place') {
+      r = 999; // Put at the very end
+    }
+    
+    if (!groups[r]) groups[r] = [];
+    groups[r].push(m);
+  });
+  return groups;
+});
+
+const getRoundLabel = (roundNum) => {
+  const r = parseInt(roundNum);
+  if (r === 999) return 'Tranh Hạng 3';
+  
+  const rounds = Object.keys(groupedMatches.value)
+    .map(k => parseInt(k))
+    .filter(k => k !== 999);
+  const maxR = Math.max(...rounds);
+  
+  if (tournament.value?.format !== 'knockout') return `Vòng ${r}`;
+  
+  if (r === maxR) return 'Chung kết';
+  if (r === maxR - 1 && maxR > 1) return 'Bán kết';
+  if (r === maxR - 2 && maxR > 2) return 'Tứ kết';
+  if (r === maxR - 3 && maxR > 3) return 'Vòng 1/8';
+  return 'Vòng loại';
+};
+
+const getMatchBadge = (match) => {
+  if (match.match_type === 'final' || match.matchType === 'final') return 'Chung kết';
+  if (match.match_type === 'third_place' || match.matchType === 'third_place') return 'Tranh hạng 3';
+  if (match.match_type === 'semifinal' || match.matchType === 'semifinal') return 'Bán kết';
+  return null;
+};
 
 const pendingRegistrations = computed(() => {
   return tournament.value?.registrations?.filter(r => r.status === 'pending') || [];
@@ -2092,12 +2150,49 @@ onMounted(async () => {
 
 .first .winner-name { font-size: 1.5rem; color: #fbbf24; }
 
-/* Simplified Match Grid Styles */
+/* Grouped Round Styles */
+.matches-container-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  margin-top: 2rem;
+}
+
+.round-section-simple {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.round-header-simple {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid rgba(129, 140, 248, 0.1);
+}
+
+.round-title-simple {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: white;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin: 0;
+  background: linear-gradient(to right, #818cf8, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.round-line-simple {
+  display: none; /* Removed in favor of border-bottom */
+}
+
 .matches-grid-simple {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 1.5rem;
-  margin-top: 1.5rem;
 }
 
 .match-card-simple {
@@ -2133,6 +2228,18 @@ onMounted(async () => {
   border-radius: 6px;
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+.special-match-badge {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.3);
 }
 
 .match-time-simple {
