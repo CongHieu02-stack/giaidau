@@ -331,25 +331,7 @@
               </template>
             </Dialog>
 
-            <!-- Admin Actions -->
-            <div v-if="canManage" class="section-card admin-actions-card mb-4">
-              <h3 class="sidebar-title">
-                <i class="pi pi-shield sidebar-icon red"></i>
-                Quản trị giải đấu
-              </h3>
-              <div class="space-y-3">
-                <RouterLink :to="adminEditPath" class="manage-btn">
-                  <i class="pi pi-cog mr-2"></i>
-                  Quản lý & Thiết lập bảng đấu
-                </RouterLink>
-                <p v-if="approvedRegistrations.length < (tournament.minTeams || 2)" class="text-xs text-white/50 italic mt-2">
-                  * Cần ít nhất {{ tournament.minTeams || 2 }} đội đã duyệt để bắt đầu giải.
-                </p>
-                <div v-if="approvedRegistrations.length >= (tournament.minTeams || 2) && tournament.status === 'registration_open'" class="mt-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-xs text-green-400">
-                  <i class="pi pi-check-circle mr-1"></i> Đã đủ điều kiện bắt đầu giải
-                </div>
-              </div>
-            </div>
+
 
             <!-- Admin Actions -->
             <div v-if="canManage" class="section-card admin-actions-card mb-4">
@@ -493,11 +475,8 @@ const loading = ref(true);
 const userClubs = ref([]);
 const registering = ref(false);
 const showRegModal = ref(false);
-const showRefereeModal = ref(false);
 const selectedClubId = ref(null);
 const selectedMatchId = ref(null);
-const availableReferees = ref([]);
-const refereesLoading = ref(false);
 const clubMembersLoading = ref(false);
 const availableMembers = ref([]);
 
@@ -606,40 +585,7 @@ const handleStartTournament = async () => {
   });
 };
 
-const openRefereeAssignment = async (match) => {
-  selectedMatchId.value = match.id;
-  showRefereeModal.value = true;
-  refereesLoading.value = true;
-  
-  try {
-    const result = await userRepository.findAvailableReferees(match.match_date, match.match_time);
-    if (result.isOk()) {
-      availableReferees.value = result.getValue();
-    } else {
-      toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách trọng tài', life: 3000 });
-    }
-  } catch (err) {
-    console.error('Fetch Referees Error:', err);
-  } finally {
-    refereesLoading.value = false;
-  }
-};
 
-const assignReferee = async (refereeId) => {
-  try {
-    const result = await matchRepository.update({ id: selectedMatchId.value, referee_id: refereeId });
-    if (result.isOk()) {
-      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã phân công trọng tài', life: 3000 });
-      showRefereeModal.value = false;
-      // Refresh tournament data to show updated referee
-      await tournamentStore.fetchTournament(tournament.value.id);
-    } else {
-      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError(), life: 3000 });
-    }
-  } catch (err) {
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
-  }
-};
 
 const handleRegister = async () => {
   if (!authStore.isAuthenticated) {
