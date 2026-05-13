@@ -299,8 +299,25 @@
               </div>
 
               <div class="match-footer">
-                <i class="pi pi-map-marker"></i>
-                <span class="venue-name">{{ match.venue?.name || 'Chưa chọn sân' }}</span>
+                <div class="footer-left">
+                  <i class="pi pi-map-marker"></i>
+                  <span class="venue-name">{{ match.venue?.name || 'Chưa chọn sân' }}</span>
+                </div>
+                <div class="footer-right">
+                  <span v-if="match.referee_id" class="ref-badge">
+                    <i class="pi pi-user-edit mr-1"></i>
+                    {{ match.referee?.full_name || 'Đã gán' }}
+                  </span>
+                  <button 
+                    v-if="!readOnly && match.id" 
+                    type="button" 
+                    class="ref-btn" 
+                    @click="openRefereeModal(match)"
+                    title="Gán trọng tài"
+                  >
+                    <i class="pi pi-cog"></i>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -368,6 +385,41 @@
           <p>Chưa có câu lạc bộ nào đăng ký tham gia.</p>
         </div>
       </section>
+
+      <!-- Referee Assignment Modal -->
+      <Dialog v-model:visible="showRefereeModal" header="Phân công trọng tài" :modal="true" :style="{ width: '450px' }" class="custom-admin-dialog">
+        <div class="flex flex-column gap-3 py-2">
+          <div v-if="refereesLoading" class="flex justify-center p-4">
+            <i class="pi pi-spinner pi-spin"></i>
+          </div>
+          <div v-else-if="availableReferees.length === 0" class="text-center p-4 text-white/50">
+            Không tìm thấy trọng tài nào khả dụng
+          </div>
+          <div v-else v-for="ref in availableReferees" :key="ref.id" 
+               class="referee-select-item"
+               :class="{'selected': selectedRefereeId === ref.id}"
+               @click="selectedRefereeId = ref.id">
+            <div class="referee-avatar-modal">
+              <img v-if="ref.avatarUrl" :src="ref.avatarUrl" :alt="ref.fullName" class="ref-logo-img" />
+              <span v-else>{{ getInitials(ref.fullName) }}</span>
+            </div>
+            <div class="referee-select-info">
+              <span class="referee-select-name">{{ ref.fullName }}</span>
+              <span class="referee-select-email">{{ ref.email }}</span>
+            </div>
+            <div v-if="selectedRefereeId === ref.id" class="selected-check">
+              <i class="pi pi-check-circle"></i>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <button class="secondary-button" @click="showRefereeModal = false">Hủy</button>
+          <button class="primary-button" @click="assignReferee" :disabled="!selectedRefereeId || assigningReferee">
+            <i v-if="assigningReferee" class="pi pi-spinner pi-spin mr-2"></i>
+            Xác nhận
+          </button>
+        </template>
+      </Dialog>
     </div>
   </div>
 </template>
@@ -375,10 +427,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import Dialog from 'primevue/dialog';
 import { supabase } from '../../config/supabase.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import draggable from 'vuedraggable';
+import { userRepository } from '../../repositories/UserRepository.js';
+import { matchRepository } from '../../repositories/MatchRepository.js';
 import {
   fetchAdminTournament,
   updateTournamentForAdmin,
@@ -409,6 +464,65 @@ const showSeeding = ref(false);
 const localOrderedTeams = ref([]);
 const savingBracket = ref(false);
 const tournamentStore = useTournamentStore();
+
+// Referee Assignment
+const showRefereeModal = ref(false);
+const refereesLoading = ref(false);
+const assigningReferee = ref(false);
+const availableReferees = ref([]);
+const selectedRefereeId = ref(null);
+const activeMatch = ref(null);
+
+const getInitials = (name) => {
+  if (!name) return 'A';
+  return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
+};
+
+const openRefereeModal = async (match) => {
+  activeMatch.value = match;
+  selectedRefereeId.value = match.referee_id;
+  showRefereeModal.value = true;
+  
+  if (availableReferees.value.length === 0) {
+    refereesLoading.value = true;
+    try {
+      const result = await userRepository.findByRole('referee');
+      if (result.isOk()) {
+        availableReferees.value = result.getValue().filter(r => r.status === 'active');
+      }
+    } catch (err) {
+      console.error('Error fetching referees:', err);
+    } finally {
+      refereesLoading.value = false;
+    }
+  }
+};
+
+const assignReferee = async () => {
+  if (!activeMatch.value || !selectedRefereeId.value) return;
+  
+  assigningReferee.value = true;
+  try {
+    const result = await matchRepository.update({
+      id: activeMatch.value.id,
+      referee_id: selectedRefereeId.value
+    });
+    
+    if (result.isOk()) {
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã phân công trọng tài', life: 3000 });
+      showRefereeModal.value = false;
+      // Refresh match data
+      await loadTournament();
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError() || 'Phân công thất bại', life: 3000 });
+    }
+  } catch (err) {
+    console.error('Error assigning referee:', err);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+  } finally {
+    assigningReferee.value = false;
+  }
+};
 
 const approvedTeams = computed(() => {
   return (tournament.value?.registrations || [])
@@ -1493,5 +1607,118 @@ option {
 .team-side.away {
   justify-content: flex-end;
   text-align: right;
+}
+.match-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ref-badge {
+  font-size: 0.75rem;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.ref-btn {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ref-btn:hover {
+  background: #8b5cf6;
+  color: white;
+  transform: scale(1.1);
+}
+
+/* Modal Styling */
+.referee-select-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.referee-select-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.referee-select-item.selected {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.referee-avatar-modal {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  overflow: hidden;
+}
+
+.ref-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.referee-select-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.referee-select-name {
+  color: white;
+  font-weight: 700;
+}
+
+.referee-select-email {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.selected-check {
+  color: #60a5fa;
+  font-size: 1.2rem;
 }
 </style>

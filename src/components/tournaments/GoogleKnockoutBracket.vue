@@ -12,7 +12,12 @@
           <div class="round-col-header">{{ round.name }}</div>
           <div class="round-col-matches">
             <MatchCard v-for="match in round.matches" :key="match.id"
-              :match="match" :participantType="participantType" :allMatches="matches" />
+              :match="match" 
+              :participantType="participantType" 
+              :allMatches="matches" 
+              :adminMode="adminMode"
+              @assign-referee="(m) => $emit('assign-referee', m)"
+            />
           </div>
         </div>
 
@@ -21,7 +26,12 @@
           <div class="round-col-header">CHUNG KẾT & TRANH HẠNG 3</div>
           <div class="round-col-matches">
             <MatchCard v-for="match in finalAndThirdPlace" :key="match.id"
-              :match="match" :participantType="participantType" :allMatches="matches" />
+              :match="match" 
+              :participantType="participantType" 
+              :allMatches="matches" 
+              :adminMode="adminMode"
+              @assign-referee="(m) => $emit('assign-referee', m)"
+            />
           </div>
         </div>
       </div>
@@ -31,6 +41,8 @@
 
 <script setup>
 import { computed, h, defineComponent } from 'vue';
+
+const emit = defineEmits(['assign-referee']);
 
 const props = defineProps({
   matches: { type: Array, default: () => [] },
@@ -43,9 +55,11 @@ const MatchCard = defineComponent({
   props: {
     match: Object,
     participantType: String,
-    allMatches: Array
+    allMatches: Array,
+    adminMode: Boolean
   },
-  setup(props) {
+  emits: ['assign-referee'],
+  setup(props, { emit }) {
     const badgeInfo = computed(() => {
       const mt = props.match.match_type;
       const map = {
@@ -121,7 +135,24 @@ const MatchCard = defineComponent({
           h('span', { class: ['match-badge', bi.cls] }, bi.label),
           h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
         ]),
-        h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')])
+        h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')]),
+        // Referee Info & Actions
+        h('div', { class: 'card-footer' }, [
+          h('div', { class: 'referee-info' }, [
+            h('i', { class: 'pi pi-user-edit' }),
+            h('span', { class: 'ref-name' }, m.referee?.full_name || m.referee_name || 'Chưa có trọng tài')
+          ]),
+          props.adminMode ? h('button', { 
+            class: 'ref-assign-btn',
+            title: 'Phân công trọng tài',
+            onClick: (e) => {
+              e.stopPropagation();
+              emit('assign-referee', m);
+            }
+          }, [
+            h('i', { class: 'pi pi-cog' })
+          ]) : null
+        ])
       ]);
     };
   }
@@ -190,4 +221,50 @@ const finalAndThirdPlace = computed(() => {
 .bracket-container .team-name { flex: 1; font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bracket-container .team-name.placeholder { color: rgba(255,255,255,0.3); font-style: italic; }
 .bracket-container .team-score { font-size: 0.9rem; font-weight: 800; color: white; }
+
+/* Card Footer & Referee */
+.bracket-container .card-footer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.bracket-container .referee-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+.bracket-container .referee-info i {
+  color: #fbbf24;
+  font-size: 0.75rem;
+}
+.bracket-container .ref-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.bracket-container .ref-assign-btn {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bracket-container .ref-assign-btn:hover {
+  background: #8b5cf6;
+  color: white;
+  transform: scale(1.1);
+}
 </style>

@@ -25,7 +25,20 @@
                 <span class="status-badge" :class="statusClass">{{ statusText }}</span>
               </div>
               
-              <p class="sport-name">{{ tournament.sportCategory?.name || 'Thể thao' }}</p>
+              <div class="subtitle-row">
+                <div class="organizer-badge" v-if="tournament.organizer">
+                  <div class="org-avatar-box">
+                    <img v-if="tournament.organizer.avatar_url" :src="tournament.organizer.avatar_url" class="org-avatar" />
+                    <span v-else class="org-initials">{{ getInitials(tournament.organizer.full_name) }}</span>
+                  </div>
+                  <span class="org-name">Ban tổ chức: {{ tournament.organizer.full_name }}</span>
+                </div>
+                <span class="subtitle-divider" v-if="tournament.organizer"></span>
+                <div class="sport-badge">
+                  <i class="pi pi-tag text-[10px] opacity-60"></i>
+                  <span>{{ tournament.sportCategory?.name || 'Thể thao' }}</span>
+                </div>
+              </div>
 
               <!-- Meta Info -->
               <div class="meta-row">
@@ -777,16 +790,40 @@ const getTeamLogo = (match, side) => {
 
 const getWinnerName = (t, rank) => {
   if (!t) return '...';
-  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
-  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
-  return team?.name || team?.full_name || 'Chưa xác định';
+  const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
+             rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
+             (t.thirdPlaceId || t.third_place_id);
+             
+  if (!id) return 'Chưa xác định';
+  
+  const regs = t.registrations || [];
+  const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
+  
+  if (reg) {
+    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+    const team = isInd ? (reg.user || reg.profile) : reg.club;
+    return team?.name || team?.full_name || team?.fullName || 'Chưa xác định';
+  }
+  return 'Chưa xác định';
 };
 
 const getWinnerLogo = (t, rank) => {
   if (!t) return null;
-  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
-  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
-  return team?.logo_url || team?.avatar_url || null;
+  const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
+             rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
+             (t.thirdPlaceId || t.third_place_id);
+             
+  if (!id) return null;
+  
+  const regs = t.registrations || [];
+  const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
+  
+  if (reg) {
+    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+    const team = isInd ? (reg.user || reg.profile) : reg.club;
+    return team?.logo_url || team?.logoUrl || team?.avatar_url || team?.avatarUrl || null;
+  }
+  return null;
 };
 
 const formatFormat = (format) => {
@@ -961,17 +998,18 @@ onMounted(async () => {
 <style scoped>
 /* ========== HEADER ========== */
 .header-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.25rem;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .header-content {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  align-items: center;
+  gap: 1.5rem;
 }
 
 .tournament-icon {
@@ -1014,17 +1052,78 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.sport-name {
+.subtitle-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.organizer-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.org-avatar-box {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.org-avatar {
+  width: 100%;
+  height: 100%;
+  object-cover: cover;
+}
+
+.org-initials {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.org-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.subtitle-divider {
+  width: 1px;
+  height: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.sport-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 0.875rem;
-  margin: 0 0 0.75rem 0;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
   font-size: 0.8125rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .meta-item {
