@@ -128,9 +128,7 @@ export class TournamentRepository extends BaseRepository {
       .select(`
         *,
         sport_category:sports_categories(id, name, icon_url),
-        champion_club:clubs!fk_champion_club(id, name, logo_url),
-        runner_up_club:clubs!fk_runner_up_club(id, name, logo_url),
-        third_place_club:clubs!fk_third_place_club(id, name, logo_url),
+        organizer:profiles!created_by(id, full_name, avatar_url),
         registrations:tournament_registrations(
           id,
           club_id,

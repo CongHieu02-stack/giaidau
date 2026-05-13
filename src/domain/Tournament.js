@@ -33,6 +33,9 @@ export class Tournament {
     this.createdAt = data.createdAt || data.created_at || new Date();
     this.updatedAt = data.updatedAt || data.updated_at || new Date();
 
+    // Organizer Object
+    this.organizer = data.organizer || null;
+
     // Embedded collections
     this.registrations = data.registrations || [];
     this.matches = data.matches || [];
