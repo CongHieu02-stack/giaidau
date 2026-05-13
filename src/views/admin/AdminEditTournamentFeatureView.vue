@@ -129,67 +129,178 @@
         <div class="section-header">
           <h2>Bố cục & Lịch thi đấu</h2>
           <div class="header-actions">
-            <span class="teams-count">Đã duyệt: <strong>{{ tournament.approved_count }}</strong> đội</span>
-            
-            <template v-if="tournament.status !== 'ongoing' || matches.length === 0">
-              <!-- Knockout Start Button -->
+            <template v-if="tournament.status !== 'ongoing' || localMatches.length > 0 || (matches && matches.length === 0)">
+              <!-- Knockout Seeding Button -->
               <button 
+                v-if="!showSeeding && !localMatches.length"
+                type="button" 
+                class="secondary-button" 
+                :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly"
+                @click="startSeeding"
+              >
+                <i class="pi pi-sort-alt mr-1"></i>
+                Xếp hạt giống
+              </button>
+
+              <!-- Knockout Preview Button -->
+              <button 
+                v-if="!localMatches.length"
                 type="button" 
                 class="primary-button knockout-start" 
                 :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly || generatingMatches"
-                @click="handleConfirmGroups([])"
+                @click="handlePreviewBracket"
               >
                 <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-sitemap'"></i>
                 {{ generatingMatches ? 'Đang tạo...' : 'Tạo sơ đồ thi đấu' }}
               </button>
+              
+              <template v-else>
+                <button type="button" class="secondary-button" @click="localMatches = []">
+                  <i class="pi pi-refresh mr-1"></i> Làm lại
+                </button>
+                <button 
+                  type="button" 
+                  class="primary-button save-bracket-btn" 
+                  @click="handleSaveBracket"
+                  :disabled="savingBracket"
+                >
+                  <i :class="savingBracket ? 'pi pi-spinner pi-spin' : 'pi pi-save'"></i>
+                  Xác nhận & Lưu lịch thi đấu
+                </button>
+              </template>
             </template>
           </div>
         </div>
 
-        <div v-if="matches.length > 0" class="matches-list">
-          <div class="matches-grid">
-            <div v-for="match in matches" :key="match.id" class="match-item">
-              <div class="match-time">
-                <div class="flex gap-2">
-                  <span v-if="match.group_name || match.group?.name" class="group-badge">
-                    {{ match.group_name || match.group?.name }}
-                  </span>
-                  <span v-else-if="match.round" class="round-badge">Vòng {{ match.round }}</span>
+        <!-- Seeding UI -->
+        <div v-if="showSeeding" class="seeding-container mb-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="m-0"><i class="pi pi-sort-alt mr-2 text-blue-400"></i>Sắp xếp hạt giống</h3>
+            <button class="icon-btn-small" @click="showSeeding = false"><i class="pi pi-times"></i></button>
+          </div>
+          <p class="text-sm text-white/50 mb-4 italic">Kéo thả để thay đổi thứ tự. Các cặp đấu sẽ được ghép theo thứ tự từ trên xuống dưới (1 vs 2, 3 vs 4...).</p>
+          
+          <draggable 
+            v-model="localOrderedTeams" 
+            item-key="id"
+            class="seeding-list"
+            handle=".drag-handle"
+          >
+            <template #item="{ element, index }">
+              <div class="seed-item">
+                <span class="seed-num">{{ index + 1 }}</span>
+                <div class="seed-content">
+                  <img v-if="element.logo_url" :src="element.logo_url" class="seed-logo" />
+                  <span class="seed-name">{{ element.name }}</span>
                 </div>
-                <div class="flex gap-3">
-                  <span><i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }}</span>
-                  <span><i class="pi pi-clock mr-1"></i>{{ match.match_time }}</span>
+                <i class="pi pi-bars drag-handle"></i>
+              </div>
+            </template>
+          </draggable>
+        </div>
+
+        <div v-if="filteredMatches.length > 0" class="matches-list">
+          <div class="matches-grid">
+            <div v-for="match in filteredMatches" :key="match.id || match.originalIdx" class="match-item">
+              <div class="match-header">
+                <span v-if="match.group_name || match.group?.name" class="group-badge">
+                  {{ match.group_name || match.group?.name }}
+                </span>
+                <span v-else class="round-badge" :class="getRoundClass(match)">{{ getMatchLabel(match) }}</span>
+                
+                <div class="match-meta">
+                  <span class="meta-item"><i class="pi pi-calendar"></i>{{ formatDate(match.match_date) }}</span>
+                  <span class="meta-item"><i class="pi pi-clock"></i>{{ match.match_time }}</span>
                 </div>
               </div>
+
               <div class="match-pairing">
-                <div class="team-side home">
-                  <span class="club">{{ match.home_club?.name || '???' }}</span>
-                  <div class="team-avatar-mini">
+                <!-- Home Side -->
+                <div v-if="localMatches.length" :data-m-idx="match.originalIdx" data-side="home" class="team-side-wrapper home">
+                  <draggable 
+                    :model-value="match.home_club ? [match.home_club] : []" 
+                    group="tournament-teams"
+                    item-key="id"
+                    @add="(e) => handleSwap(e, match.originalIdx, 'home')"
+                    class="team-side-draggable"
+                  >
+                    <template #item="{ element }">
+                      <div class="team-side active">
+                        <div class="team-avatar">
+                          <img v-if="element.logo_url" :src="element.logo_url" />
+                          <i v-else :class="tournament?.participant_type === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                        </div>
+                        <span class="club-name">{{ element.name }}</span>
+                      </div>
+                    </template>
+                    <template #footer v-if="!match.home_club">
+                      <div class="team-side empty">
+                        <div class="team-avatar"><i class="pi pi-plus"></i></div>
+                        <span class="club-name placeholder">{{ match.home_source || 'TBD' }}</span>
+                      </div>
+                    </template>
+                  </draggable>
+                </div>
+                <div v-else class="team-side home">
+                  <div class="team-avatar">
                     <img v-if="match.home_club?.logo_url" :src="match.home_club.logo_url" />
                     <i v-else :class="tournament?.participant_type === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
                   </div>
+                  <span class="club-name placeholder">{{ match.home_club?.name || match.home_source || 'TBD' }}</span>
                 </div>
                 
-                <div v-if="match.home_score !== null && match.away_score !== null && (match.home_club_id && match.away_club_id || match.home_user_id && match.away_user_id)" class="score-container">
-                  <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
-                  <span v-if="match.status === 'completed'" class="ft-badge">FT</span>
+                <!-- Center: Score or VS -->
+                <div class="match-center">
+                  <div v-if="match.home_score !== null && match.away_score !== null && (match.home_club_id && match.away_club_id || match.home_user_id && match.away_user_id)" class="score-display">
+                    <span class="score">{{ match.home_score }} - {{ match.away_score }}</span>
+                    <span v-if="match.status === 'completed'" class="ft-tag">FT</span>
+                  </div>
+                  <div v-else-if="!(match.home_club_id && match.away_club_id || match.home_user_id && match.away_user_id) && !localMatches.length" class="bye-display">
+                    <span class="bye-tag">MIỄN ĐẤU</span>
+                  </div>
+                  <div v-else class="vs-display">
+                    <span class="vs-text">VS</span>
+                  </div>
                 </div>
-                <div v-else-if="!(match.home_club_id && match.away_club_id || match.home_user_id && match.away_user_id)" class="bye-container">
-                  <span class="bye-badge">MIỄN ĐẤU</span>
-                </div>
-                <span v-else class="vs">VS</span>
 
-                <div class="team-side away">
-                  <div class="team-avatar-mini">
+                <!-- Away Side -->
+                <div v-if="localMatches.length" :data-m-idx="match.originalIdx" data-side="away" class="team-side-wrapper away">
+                  <draggable 
+                    :model-value="match.away_club ? [match.away_club] : []" 
+                    group="tournament-teams"
+                    item-key="id"
+                    @add="(e) => handleSwap(e, match.originalIdx, 'away')"
+                    class="team-side-draggable"
+                  >
+                    <template #item="{ element }">
+                      <div class="team-side active">
+                        <span class="club-name">{{ element.name }}</span>
+                        <div class="team-avatar">
+                          <img v-if="element.logo_url" :src="element.logo_url" />
+                          <i v-else :class="tournament?.participant_type === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                        </div>
+                      </div>
+                    </template>
+                    <template #footer v-if="!match.away_club">
+                      <div class="team-side empty">
+                        <span class="club-name placeholder">{{ match.away_source || 'TBD' }}</span>
+                        <div class="team-avatar"><i class="pi pi-plus"></i></div>
+                      </div>
+                    </template>
+                  </draggable>
+                </div>
+                <div v-else class="team-side away">
+                  <span class="club-name placeholder">{{ match.away_club?.name || match.away_source || 'TBD' }}</span>
+                  <div class="team-avatar">
                     <img v-if="match.away_club?.logo_url" :src="match.away_club.logo_url" />
                     <i v-else :class="tournament?.participant_type === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
                   </div>
-                  <span class="club">{{ match.away_club?.name || '???' }}</span>
                 </div>
               </div>
-              <div class="match-venue">
+
+              <div class="match-footer">
                 <i class="pi pi-map-marker"></i>
-                {{ match.venue?.name || 'Chưa chọn sân' }}
+                <span class="venue-name">{{ match.venue?.name || 'Chưa chọn sân' }}</span>
               </div>
             </div>
           </div>
@@ -267,12 +378,14 @@ import { useRoute, useRouter } from 'vue-router';
 import { supabase } from '../../config/supabase.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import draggable from 'vuedraggable';
 import {
   fetchAdminTournament,
   updateTournamentForAdmin,
   approveTournamentRegistration,
   rejectTournamentRegistration,
-  startTournament
+  startTournament,
+  buildKnockoutBracket
 } from '../../features/tournaments/adminTournamentManagement.js';
 import { fetchVenues } from '../../features/tournaments/adminCreateTournament.js';
 import GroupConfigurator from '../../components/tournaments/GroupConfigurator.vue';
@@ -291,7 +404,10 @@ const successMessage = ref('');
 const errorMessage = ref('');
 const generatingMatches = ref(false);
 const matches = ref([]);
-const showConfigurator = ref(false);
+const localMatches = ref([]);
+const showSeeding = ref(false);
+const localOrderedTeams = ref([]);
+const savingBracket = ref(false);
 const tournamentStore = useTournamentStore();
 
 const approvedTeams = computed(() => {
@@ -308,6 +424,11 @@ const approvedTeams = computed(() => {
       return r.club;
     })
     .filter(team => team && team.id);
+});
+
+const filteredMatches = computed(() => {
+  const list = localMatches.value.length ? localMatches.value : matches.value;
+  return list.map((m, originalIdx) => ({ ...m, originalIdx }));
 });
 
 const draftGroups = computed(() => tournamentStore.draftGroups);
@@ -466,54 +587,120 @@ function onGroupsChange(groups) {
   tournamentStore.setDraftGroups(groups);
 }
 
-async function handleConfirmGroups(groups) {
+async function handlePreviewBracket() {
   if (!tournament.value) return;
+  generatingMatches.value = true;
+  
+  try {
+    const teams = showSeeding.value ? localOrderedTeams.value : approvedTeams.value;
+    const startDate = form.startDate || tournament.value.start_date;
+    const matchTimes = [form.startTime, form.endTime];
+    
+    let venueIds = [];
+    if (form.venueId) {
+      venueIds = [form.venueId];
+    } else {
+      const sportVenues = venues.value.filter(v => v.sport_category_id === tournament.value.sport_category_id);
+      if (sportVenues.length > 0) venueIds = [sportVenues[0].id];
+    }
 
-  const isKnockout = tournament.value.format === 'knockout';
-  const confirmMsg = isKnockout 
-    ? 'Xác nhận tạo sơ đồ thi đấu loại trực tiếp? Hành động này sẽ tự động ghép cặp các đội và KHÓA việc đăng ký.' 
-    : 'Xác nhận bắt đầu giải đấu với bố cục này? Hành động này sẽ tạo lịch thi đấu và KHÓA việc đăng ký/chỉnh sửa nhân sự.';
+    const bracket = buildKnockoutBracket(tournament.value.id, teams, venues.value, startDate, matchTimes, tournament.value.participant_type);
+    localMatches.value = bracket;
+    showSeeding.value = false;
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 5000 });
+  } finally {
+    generatingMatches.value = false;
+  }
+}
 
+function handleSwap(evt, toIdx, toSide) {
+  const fromEl = evt.from.closest('.team-side-wrapper');
+  if (!fromEl) return;
+  
+  const fromIdx = parseInt(fromEl.dataset.mIdx);
+  const fromSide = fromEl.dataset.side;
+  
+  if (isNaN(fromIdx)) return;
+
+  const matchFrom = localMatches.value[fromIdx];
+  const matchTo = localMatches.value[toIdx];
+
+  // Get team objects
+  const teamFrom = fromSide === 'home' ? matchFrom.home_club : matchFrom.away_club;
+  const teamTo = toSide === 'home' ? matchTo.home_club : matchTo.away_club;
+
+  // Swap IDs and Objects in localMatches
+  if (fromSide === 'home') {
+    matchFrom.home_club = teamTo;
+    matchFrom.home_club_id = teamTo ? teamTo.id : null;
+    if (tournament.value?.participant_type === 'individual') matchFrom.home_user_id = teamTo ? teamTo.id : null;
+  } else {
+    matchFrom.away_club = teamTo;
+    matchFrom.away_club_id = teamTo ? teamTo.id : null;
+    if (tournament.value?.participant_type === 'individual') matchFrom.away_user_id = teamTo ? teamTo.id : null;
+  }
+
+  if (toSide === 'home') {
+    matchTo.home_club = teamFrom;
+    matchTo.home_club_id = teamFrom ? teamFrom.id : null;
+    if (tournament.value?.participant_type === 'individual') matchTo.home_user_id = teamFrom ? teamFrom.id : null;
+  } else {
+    matchTo.away_club = teamFrom;
+    matchTo.away_club_id = teamFrom ? teamFrom.id : null;
+    if (tournament.value?.participant_type === 'individual') matchTo.away_user_id = teamFrom ? teamFrom.id : null;
+  }
+}
+
+async function handleSaveBracket() {
   confirmService.require({
-    message: confirmMsg,
-    header: isKnockout ? 'Tạo sơ đồ thi đấu' : 'Xác nhận bắt đầu giải',
-    icon: isKnockout ? 'pi pi-sitemap' : 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
+    message: 'Xác nhận lưu sơ đồ và bắt đầu giải đấu? Hành động này sẽ tạo lịch thi đấu chính thức.',
+    header: 'Xác nhận lưu',
+    icon: 'pi pi-save',
     accept: async () => {
-      generatingMatches.value = true;
-      errorMessage.value = '';
-      
-      let venueIds = [];
-      if (form.venueId) {
-        venueIds = [form.venueId];
-      } else {
-        const sportVenues = venues.value.filter(v => v.sport_category_id === tournament.value.sport_category_id);
-        if (sportVenues.length > 0) {
-          venueIds = [sportVenues[0].id];
+      savingBracket.value = true;
+      try {
+        // We need a modified startTournament that accepts pre-built matches
+        const { startTournamentWithMatches } = await import('../../features/tournaments/adminTournamentManagement.js');
+        const result = await startTournamentWithMatches(tournament.value.id, localMatches.value);
+        if (result.success) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã lưu lịch thi đấu.', life: 3000 });
+          localMatches.value = [];
+          await loadTournament();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
         }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 5000 });
+      } finally {
+        savingBracket.value = false;
       }
-
-      if (venueIds.length === 0) {
-        toast.add({ severity: 'warn', summary: 'Thiếu thông tin', detail: 'Không có sân đấu hợp lệ để ghép lịch.', life: 5000 });
-        generatingMatches.value = false;
-        return;
-      }
-
-      const result = await startTournament(tournament.value.id, groups, venueIds);
-      
-      if (result.success) {
-        toast.add({ severity: 'success', summary: 'Thành công', detail: 'Giải đấu đã bắt đầu và lịch thi đấu đã được tạo.', life: 3000 });
-        showConfigurator.value = false;
-        tournamentStore.clearDraftGroups();
-        await loadTournament();
-      } else {
-        toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
-      }
-      
-      generatingMatches.value = false;
     }
   });
 }
+
+const getMatchLabel = (match) => {
+  if (match.match_type === 'third_place' || match.matchType === 'third_place') return 'Tranh hạng 3';
+  
+  // Calculate labels based on total rounds for consistency
+  const allMatchRounds = (localMatches.value.length ? localMatches.value : matches.value).map(m => m.round || 1);
+  const maxR = Math.max(...allMatchRounds, 0);
+  const currentR = match.round || 1;
+  const fromEnd = maxR - currentR + 1;
+
+  if (fromEnd === 1) return 'Chung kết';
+  if (fromEnd === 2) return 'Bán kết';
+  if (fromEnd === 3) return 'Tứ kết';
+  return 'Vòng loại';
+};
+
+const getRoundClass = (match) => {
+  const type = match.match_type || match.matchType;
+  if (type === 'final') return 'round-final';
+  if (type === 'semifinal') return 'round-semi';
+  if (type === 'quarterfinal') return 'round-quarter';
+  return 'round-prelim';
+};
 
 async function handleSubmit() {
   saving.value = true;
@@ -650,139 +837,217 @@ h2 {
 
 .matches-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 20px;
 }
 
 .match-item {
-  padding: 16px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
+  position: relative;
+  padding: 20px;
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.match-time {
+.match-item:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.match-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
-  color: #a5b4fc;
-  font-weight: 700;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.match-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: rgba(165, 180, 252, 0.8);
+  font-weight: 600;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.meta-item i {
+  font-size: 0.8rem;
+  color: #6366f1;
 }
 
 .group-badge,
 .round-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
   font-size: 0.7rem;
+  font-weight: 800;
   text-transform: uppercase;
-}
-
-.group-badge {
-  background: rgba(34, 197, 94, 0.2);
-  color: #4ade80;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.round-badge {
-  background: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.3);
+  letter-spacing: 0.05em;
 }
 
 .match-pairing {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.team-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
 }
 
-.match-pairing .club {
-  font-weight: 800;
+.team-side.home {
+  justify-content: flex-start;
+}
+
+.team-side.away {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.team-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+}
+
+.team-avatar i {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.club-name {
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #ffffff;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.9rem;
 }
 
-.match-pairing .vs {
+.club-name.placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
   font-size: 0.75rem;
-  font-weight: 900;
-  color: #f43f5e;
-  padding: 2px 6px;
-  background: rgba(244, 63, 94, 0.1);
-  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.score-container {
+.match-center {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-width: 60px;
-}
-
-.score-container .score {
-  font-size: 1.1rem;
-  font-weight: 900;
-  color: #ffffff;
-  padding: 2px 8px;
-  background: rgba(99, 102, 241, 0.2);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: 6px;
-  line-height: 1;
-}
-
-.ft-badge {
-  font-size: 0.6rem;
-  font-weight: 900;
-  color: #4ade80;
-  background: rgba(34, 197, 94, 0.15);
-  padding: 1px 4px;
-  border-radius: 3px;
-  text-transform: uppercase;
-}
-
-.bye-container {
-  display: flex;
   justify-content: center;
-  align-items: center;
   min-width: 80px;
 }
 
-.bye-badge {
+.score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.score-display .score {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(99, 102, 241, 0.15);
+  padding: 4px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  font-family: 'JetBrains Mono', monospace;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}
+
+.ft-tag {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.vs-display {
+  background: rgba(244, 63, 94, 0.1);
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.vs-text {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #f43f5e;
+}
+
+.bye-tag {
   font-size: 0.65rem;
   font-weight: 900;
   color: #fbbf24;
-  background: rgba(245, 158, 11, 0.15);
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  text-transform: uppercase;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
-.match-venue {
-  font-size: 0.85rem;
-  color: #94a3b8;
+.match-footer {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.7);
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.venue-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .empty-matches {
-  padding: 32px;
+  padding: 48px;
   text-align: center;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.4);
+  border: 2px dashed rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  color: rgba(148, 163, 184, 0.6);
   font-style: italic;
 }
 
@@ -790,6 +1055,118 @@ h2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.round-badge.round-final {
+  background: rgba(244, 63, 94, 0.2);
+  color: #f43f5e;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.round-badge.round-semi {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.round-badge.round-quarter {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.round-badge.round-prelim {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.seeding-container {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.seeding-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.seed-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: grab;
+}
+
+.seed-item:active { cursor: grabbing; }
+
+.seed-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+  color: #6366f1;
+  width: 20px;
+}
+
+.seed-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.seed-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.seed-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drag-handle {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.team-side-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-side.active {
+  cursor: grab;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.team-side.active:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.team-side.active:active { cursor: grabbing; }
+
+.team-side.empty {
+  opacity: 0.4;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 4px 8px;
+}
+
+.save-bracket-btn {
+  background: linear-gradient(135deg, #059669, #10b981);
 }
 
 .field {
@@ -1104,48 +1481,17 @@ option {
 .team-side {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex: 1;
   min-width: 0;
-  width: 0; /* Ensures flex takes priority over content width */
 }
 
 .team-side.home {
-  justify-content: flex-end;
-  text-align: right;
+  justify-content: flex-start;
 }
 
 .team-side.away {
-  justify-content: flex-start;
-  text-align: left;
-}
-
-.team-side .club {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.team-avatar-mini {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.team-avatar-mini img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.team-avatar-mini i {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  justify-content: flex-end;
+  text-align: right;
 }
 </style>

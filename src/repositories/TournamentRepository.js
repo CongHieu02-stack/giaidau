@@ -160,8 +160,14 @@ export class TournamentRepository extends BaseRepository {
           home_score,
           away_score,
           status,
+          match_type,
+          bracket_type,
+          bracket_position,
+          round,
+          next_match_id,
+          loser_next_match_id,
           group_id
-        ),
+        ).order('match_date', { ascending: true }).order('match_time', { ascending: true }),
         groups:tournament_groups(*)
       `)
       .eq('id', id)

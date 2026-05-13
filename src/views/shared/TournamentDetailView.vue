@@ -125,69 +125,14 @@
                 <span class="match-count" v-if="tournament.matches && tournament.matches.length > 0">{{ tournament.matches.length }} trận</span>
               </h2>
               
-              <!-- Matches Grid (Simplified View) -->
-              <!-- Matches Container (Grouped by Round) -->
-              <div v-if="tournament.matches && tournament.matches.length > 0" class="matches-container-simple">
-                <div v-for="roundNum in Object.keys(groupedMatches).sort((a,b) => a-b)" :key="roundNum" class="round-section-simple">
-                  <div class="round-header-simple">
-                    <h3 class="round-title-simple">{{ getRoundLabel(roundNum) }}</h3>
-                    <div class="round-line-simple"></div>
-                  </div>
-                  
-                  <div class="matches-grid-simple">
-                    <div v-for="match in groupedMatches[roundNum]" :key="match.id" class="match-card-simple" :class="{ 'is-bye': isByeMatch(match) }">
-                      <div class="match-header-simple">
-                        <span v-if="getMatchBadge(match)" class="special-match-badge">{{ getMatchBadge(match) }}</span>
-                        <span class="match-time-simple">
-                          <i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }} 
-                          <i class="pi pi-clock ml-2 mr-1"></i>{{ match.match_time }}
-                        </span>
-                      </div>
-
-                      <div class="match-body-simple">
-                        <div class="team-side-simple home">
-                          <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
-                          <div class="team-avatar-simple">
-                            <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
-                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
-                          </div>
-                        </div>
-
-                        <div v-if="isByeMatch(match)" class="bye-status-simple">
-                          <span class="bye-badge-simple">MIỄN ĐẤU</span>
-                        </div>
-                        <div v-else-if="match.home_score !== null && match.away_score !== null" class="score-status-simple">
-                          <span class="score-simple">{{ match.home_score }} - {{ match.away_score }}</span>
-                          <span v-if="match.status === 'completed'" class="ft-tag-simple">FT</span>
-                        </div>
-                        <div v-else class="vs-status-simple">VS</div>
-
-                        <div class="team-side-simple away">
-                          <div class="team-avatar-simple">
-                            <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
-                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
-                          </div>
-                          <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
-                        </div>
-                      </div>
-
-                      <div class="match-footer-simple">
-                        <div class="match-venue-simple">
-                          <i class="pi pi-map-marker mr-1"></i>
-                          {{ match.venue?.name || 'Chưa chọn sân' }}
-                        </div>
-                        <div v-if="canManage" class="match-actions-simple">
-                          <button v-if="match.status !== 'completed'" class="action-btn-simple" @click="openRefereeModal(match)" title="Phân công">
-                            <i class="pi pi-user-edit"></i>
-                          </button>
-                          <RouterLink v-if="match.referee && match.status !== 'completed'" :to="`/referee/matches/${match.id}`" class="action-btn-simple primary" title="Điều khiển">
-                            <i class="pi pi-play"></i>
-                          </RouterLink>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <!-- Google Style Bracket (New) -->
+              <div v-if="tournament.matches && tournament.matches.length > 0" class="mt-4">
+                <GoogleKnockoutBracket 
+                  :matches="tournament.matches" 
+                  :participant-type="tournament.participantType"
+                  :admin-mode="canManage"
+                  @assign-referee="openRefereeModal"
+                />
               </div>
               <div v-else class="empty-schedule-simple">
                 <i class="pi pi-calendar"></i>
@@ -534,6 +479,7 @@ import { userRepository } from '../../repositories/UserRepository.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
 import TournamentStandings from '../../components/tournaments/TournamentStandings.vue';
 import KnockoutBracket from '../../components/tournaments/KnockoutBracket.vue';
+import GoogleKnockoutBracket from '../../components/tournaments/GoogleKnockoutBracket.vue';
 
 const route = useRoute();
 const router = useRouter();
