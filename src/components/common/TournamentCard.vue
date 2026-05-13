@@ -69,7 +69,7 @@ const canRegister = computed(() => {
   const hasManagedClub = userClubs.value && userClubs.value.length > 0;
   return (isManager || hasManagedClub) && 
          props.tournament.status === 'registration_open' &&
-         (props.tournament.approved_count || 0) < (props.tournament.max_teams || 16);
+         (props.tournament.approvedCount || 0) < (props.tournament.maxTeams || 16);
 });
 
 onMounted(async () => {
@@ -155,6 +155,9 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
   opacity: 0;
   animation: fadeUp 0.5s ease forwards;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 @keyframes fadeUp {
@@ -216,13 +219,19 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
 
 /* ── Body ── */
-.card-body { padding: 1.125rem 1.25rem 0.75rem; }
+.card-body { 
+  padding: 1.125rem 1.25rem 0.75rem; 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+}
 
 .t-name {
   font-size: 1.05rem; font-weight: 700; color: white;
   margin-bottom: 0.875rem; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden;
+  height: 2.8rem;
 }
 
 .info-list { display: flex; flex-direction: column; gap: 0.45rem; }
@@ -230,6 +239,14 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 .info-row {
   display: flex; align-items: center; gap: 0.6rem;
   font-size: 0.82rem; color: rgba(255,255,255,0.55);
+}
+
+.info-list {
+  margin-bottom: 1rem;
+}
+
+.champion-row {
+  margin-top: auto;
 }
 
 .info-icon {

@@ -12,6 +12,43 @@ export class TournamentRepository extends BaseRepository {
   }
 
   /**
+   * Override findAll to include related data
+   */
+  async findAll(options = {}) {
+    const { filters = {}, orderBy = 'created_at', order = 'desc', limit = null } = options;
+    
+    let query = this.client
+      .from(this.tableName)
+      .select(`
+        *,
+        sport_category:sports_categories(id, name, icon_url),
+        registrations:tournament_registrations(id, status)
+      `);
+
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        query = query.in(key, value);
+      } else if (value !== null && value !== undefined) {
+        query = query.eq(key, value);
+      }
+    });
+
+    // Apply ordering
+    query = query.order(orderBy, { ascending: order === 'asc' });
+
+    // Apply limit
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
+    if (error) return Result.err(error.message);
+    
+    return Result.ok((data || []).map(item => this.domainClass.fromDB(item)));
+  }
+
+  /**
    * Find tournaments by status
    */
   async findByStatus(status) {
