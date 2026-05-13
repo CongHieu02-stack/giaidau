@@ -237,25 +237,33 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
 
       const bracketMatches = buildKnockoutBracket(tournamentId, allTeams, venues, startDate, matchTimes, tournament.participant_type);
       
-      // Insert matches one-by-one to get IDs for next_match_id linking
-      const insertedIds = [];
+      // Insert matches one-by-one to get IDs for linking
+      const idMap = [];
       for (const m of bracketMatches) {
-        const { _nextIdx, ...dbData } = m;
+        const { 
+          nextIdx, loserNextIdx, tempIdx, displayIdx, 
+          home_source, away_source,
+          home_club, away_club, venue, home_user, away_user,
+          ...dbData 
+        } = m;
         const { data: inserted, error: iErr } = await supabase.from('matches').insert(dbData).select('id').single();
         if (iErr) throw new Error(iErr.message);
-        insertedIds.push(inserted.id);
+        idMap.push({ tempIdx: tempIdx ?? idMap.length, realId: inserted.id, nextIdx, loserNextIdx });
       }
 
-      // Link next_match_id: match at position i feeds into match at floor((i-1)/2) in next round
-      for (let i = 0; i < bracketMatches.length; i++) {
-        const nextIdx = bracketMatches[i]._nextIdx;
-        if (nextIdx !== null && nextIdx !== undefined && insertedIds[nextIdx]) {
-          await supabase.from('matches').update({ next_match_id: insertedIds[nextIdx] }).eq('id', insertedIds[i]);
-          
-          // If Round 1 match is a BYE (already marked completed in builder), advance it now
-          if (bracketMatches[i].status === 'completed' && bracketMatches[i].winner_id) {
-            await advanceKnockoutWinner(insertedIds[i]);
-          }
+      // Link next_match_id AND loser_next_match_id
+      for (const item of idMap) {
+        const updates = {};
+        if (item.nextIdx != null) {
+          const t = idMap.find(i => i.tempIdx === item.nextIdx);
+          if (t) updates.next_match_id = t.realId;
+        }
+        if (item.loserNextIdx != null) {
+          const t = idMap.find(i => i.tempIdx === item.loserNextIdx);
+          if (t) updates.loser_next_match_id = t.realId;
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('matches').update(updates).eq('id', item.realId);
         }
       }
 
@@ -305,6 +313,62 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
   }
 }
 
+export async function startTournamentWithMatches(tournamentId, bracketMatches) {
+  try {
+    // Clear existing matches first
+    const { error: dErr } = await supabase.from('matches').delete().eq('tournament_id', tournamentId);
+    if (dErr) throw new Error(dErr.message);
+
+    const idMap = []; // { tempIdx, realId, nextIdx, loserNextIdx }
+    for (const m of bracketMatches) {
+      // Strip ALL non-DB fields
+      const { 
+        nextIdx, loserNextIdx, tempIdx, displayIdx, 
+        home_source, away_source,
+        home_club, away_club, venue, home_user, away_user,
+        ...dbData 
+      } = m;
+      
+      const { data: inserted, error: iErr } = await supabase.from('matches').insert(dbData).select('id').single();
+      if (iErr) throw new Error(iErr.message);
+      idMap.push({ 
+        tempIdx: tempIdx ?? idMap.length, 
+        realId: inserted.id, 
+        nextIdx: nextIdx ?? null, 
+        loserNextIdx: loserNextIdx ?? null 
+      });
+    }
+
+    // Link next_match_id AND loser_next_match_id
+    for (const item of idMap) {
+      const updates = {};
+      
+      if (item.nextIdx !== null && item.nextIdx !== undefined) {
+        const target = idMap.find(i => i.tempIdx === item.nextIdx);
+        if (target) updates.next_match_id = target.realId;
+      }
+      
+      if (item.loserNextIdx !== null && item.loserNextIdx !== undefined) {
+        const loserTarget = idMap.find(i => i.tempIdx === item.loserNextIdx);
+        if (loserTarget) updates.loser_next_match_id = loserTarget.realId;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await supabase.from('matches').update(updates).eq('id', item.realId);
+      }
+    }
+
+    await supabase.from('tournaments')
+      .update({ status: 'ongoing', current_round: 1, updated_at: new Date().toISOString() })
+      .eq('id', tournamentId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving bracket:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function generateTournamentMatches(tournamentId, venueIds) {
   // Existing function kept for backward compatibility or simple cases
   // but we will mainly use startTournament now.
@@ -340,133 +404,148 @@ function generateRoundRobin(tournamentId, clubs, venues, startDate, matchTimes, 
   return matches;
 }
 
-// === KNOCKOUT BRACKET BUILDER ===
-function buildKnockoutBracket(tournamentId, teams, venues, startDate, matchTimes, participantType) {
-  const shuffled = shuffle([...teams]);
-  const n = shuffled.length;
-  
-  // Find the largest power of 2 less than or equal to n
-  let powerOfTwo = 1;
-  while (powerOfTwo * 2 <= n) powerOfTwo *= 2;
-  
-  // Number of matches in the preliminary round (Round 1) to get to powerOfTwo
-  const numPreliminaryMatches = n - powerOfTwo;
+// === INTERNATIONAL SINGLE ELIMINATION BRACKET BUILDER ===
+export function buildKnockoutBracket(tournamentId, teams, venues, startDate, matchTimes, participantType) {
+  const N = teams.length;
+  if (N < 2) return [];
+
   const allMatches = [];
-  let matchIdx = 0;
-  
-  // Rounds data to keep track of match indices for pairing
-  const roundMatchIndices = [];
-  
-  // --- ROUND 1: Preliminary Round ---
-  const r1Indices = [];
-  const prelimTeams = shuffled.splice(0, numPreliminaryMatches * 2);
-  
-  for (let i = 0; i < numPreliminaryMatches; i++) {
-    const home = prelimTeams[i * 2];
-    const away = prelimTeams[i * 2 + 1];
-    const m = createMatchData(tournamentId, home, away, venues, startDate, matchTimes, matchIdx, 1, participantType);
-    m.bracket_position = matchIdx;
-    m.match_type = 'regular';
-    allMatches.push(m);
-    r1Indices.push(allMatches.length - 1);
-    matchIdx++;
-  }
-  
-  // --- ROUND 2: The Main Bracket (Power of 2) ---
-  const r2Indices = [];
-  const r2Date = new Date(startDate);
-  r2Date.setDate(r2Date.getDate() + 2); // Gap for Round 2
-  
-  // We need to fill powerOfTwo / 2 matches in Round 2
-  // Some slots are filled by winners of R1, some by direct entries (shuffled remains)
-  const numR2Matches = powerOfTwo / 2;
-  let r1Ptr = 0;
-  
-  for (let i = 0; i < numR2Matches; i++) {
-    // Each R2 match needs 2 "sources"
-    // Source can be a Winner of R1 or a direct entry
-    const sources = [];
-    for (let s = 0; s < 2; s++) {
-      if (r1Ptr < r1Indices.length) {
-        sources.push({ type: 'winner_of', index: r1Indices[r1Ptr] });
-        r1Ptr++;
-      } else if (shuffled.length > 0) {
-        sources.push({ type: 'team', data: shuffled.shift() });
-      } else {
-        sources.push({ type: 'placeholder' });
-      }
+  let idx = 0;
+
+  const addDays = (d, days) => {
+    const r = new Date(d);
+    r.setDate(r.getDate() + days);
+    return r;
+  };
+
+  const make = (round, dateOffset, pos = 0) => {
+    const m = createMatchData(tournamentId, null, null, venues, addDays(startDate, dateOffset * 2), matchTimes, idx, round, participantType);
+    m.bracket_type = 'winner';
+    m.bracket_position = pos;
+    m.tempIdx = idx;
+    m.displayIdx = idx + 1;
+    m.nextIdx = null;
+    m.loserNextIdx = null;
+    idx++;
+    return m;
+  };
+
+  const assignTeam = (m, side, team) => {
+    if (!team) return;
+    if (participantType === 'individual') {
+      m[side === 'home' ? 'home_user_id' : 'away_user_id'] = team.id;
+    } else {
+      m[side === 'home' ? 'home_club_id' : 'away_club_id'] = team.id;
     }
-    
-    const home = sources[0].type === 'team' ? sources[0].data : { id: null };
-    const away = sources[1].type === 'team' ? sources[1].data : { id: null };
-    
-    const m = createMatchData(tournamentId, home, away, venues, r2Date, matchTimes, matchIdx, 2, participantType);
-    m.bracket_position = matchIdx;
-    m.match_type = (powerOfTwo === 2) ? 'final' : (powerOfTwo === 4) ? 'semifinal' : 'regular';
-    
-    const currentIdx = allMatches.length;
-    allMatches.push(m);
-    r2Indices.push(currentIdx);
-    
-    // Link R1 matches to this R2 match
-    sources.forEach(src => {
-      if (src.type === 'winner_of') {
-        allMatches[src.index]._nextIdx = currentIdx;
-      }
-    });
-    
-    matchIdx++;
-  }
-  roundMatchIndices.push(r2Indices);
+    m[side === 'home' ? 'home_club' : 'away_club'] = team;
+  };
+
+  // 1. Determine base power of 2 (P) where P <= N
+  let P = 1;
+  while (P * 2 <= N) P *= 2;
   
-  // --- SUBSEQUENT ROUNDS ---
-  let prevRoundIndices = r2Indices;
-  let currentRoundNum = 3;
-  let teamsRemaining = powerOfTwo / 2;
+  // Preliminary round matches (R1)
+  const numR1Matches = N - P;
+  const byeTeamsCount = N - 2 * numR1Matches;
   
-  while (teamsRemaining > 1) {
-    const nextRoundIndices = [];
-    const rd = new Date(r2Date);
-    rd.setDate(rd.getDate() + (currentRoundNum - 2) * 3);
-    
-    const numMatches = teamsRemaining / 2;
-    for (let i = 0; i < numMatches; i++) {
-      const m = createMatchData(tournamentId, { id: null }, { id: null }, venues, rd, matchTimes, matchIdx, currentRoundNum, participantType);
-      m.bracket_position = matchIdx;
-      m.match_type = (numMatches === 1) ? 'final' : (numMatches === 2) ? 'semifinal' : 'regular';
-      
-      const currentIdx = allMatches.length;
+  const rounds = [];
+  
+  // --- ROUND 1 (Preliminary) ---
+  const r1Matches = [];
+  if (numR1Matches > 0) {
+    for (let i = 0; i < numR1Matches; i++) {
+      const m = make(1, 0, i);
+      m.match_type = 'regular';
+      assignTeam(m, 'home', teams[i * 2]);
+      assignTeam(m, 'away', teams[i * 2 + 1]);
+      r1Matches.push(m);
       allMatches.push(m);
-      nextRoundIndices.push(currentIdx);
-      
-      // Link previous round matches
-      allMatches[prevRoundIndices[i * 2]]._nextIdx = currentIdx;
-      allMatches[prevRoundIndices[i * 2 + 1]]._nextIdx = currentIdx;
-      
-      matchIdx++;
     }
-    prevRoundIndices = nextRoundIndices;
-    teamsRemaining /= 2;
-    currentRoundNum++;
+  }
+  rounds.push(r1Matches);
+
+  // Teams that get a Bye
+  const byeTeams = teams.slice(numR1Matches * 2);
+
+  // --- ROUND 2 (Main Round of P teams) ---
+  const r2Matches = [];
+  const numR2Matches = P / 2;
+  for (let i = 0; i < numR2Matches; i++) {
+    const m = make(2, 1, i);
+    m.match_type = 'regular';
+    
+    // Link winners from R1 (if any)
+    const p1 = r1Matches[i * 2];
+    const p2 = r1Matches[i * 2 + 1];
+    if (p1) p1.nextIdx = m.tempIdx;
+    if (p2) p2.nextIdx = m.tempIdx;
+
+    // Assign Bye teams to remaining slots
+    if (byeTeams.length > 0) {
+      // Logic to fill slots not taken by R1 winners
+      if (!p1 && byeTeams.length > 0) assignTeam(m, 'home', byeTeams.shift());
+      if (!p2 && byeTeams.length > 0) assignTeam(m, 'away', byeTeams.shift());
+    }
+
+    r2Matches.push(m);
+    allMatches.push(m);
+  }
+  rounds.push(r2Matches);
+
+  // --- SUBSEQUENT ROUNDS ---
+  let prevRoundMatches = r2Matches;
+  let currRoundNum = 3;
+  while (prevRoundMatches.length > 1) {
+    const currRoundMatches = [];
+    const numMatches = prevRoundMatches.length / 2;
+    for (let i = 0; i < numMatches; i++) {
+      const m = make(currRoundNum, currRoundNum - 1, i);
+      m.match_type = 'regular';
+      
+      const p1 = prevRoundMatches[i * 2];
+      const p2 = prevRoundMatches[i * 2 + 1];
+      if (p1) p1.nextIdx = m.tempIdx;
+      if (p2) p2.nextIdx = m.tempIdx;
+      
+      currRoundMatches.push(m);
+      allMatches.push(m);
+    }
+    rounds.push(currRoundMatches);
+    prevRoundMatches = currRoundMatches;
+    currRoundNum++;
   }
 
-  // Third-place match
-  if (totalRounds >= 2) {
-    const td = new Date(startDate);
-    td.setDate(td.getDate() + (totalRounds - 1) * 2);
-    const m3 = createMatchData(tournamentId, {id: null}, {id: null}, venues, td, matchTimes, matchIdx, totalRounds, participantType);
-    m3.bracket_position = matchIdx;
-    m3.match_type = 'third_place';
-    m3._nextIdx = null;
-    delete m3.home_club_id; delete m3.away_club_id;
-    delete m3.home_user_id; delete m3.away_user_id;
-    allMatches.push(m3);
+  // --- FINAL & THIRD PLACE ---
+  const finalMatch = allMatches[allMatches.length - 1];
+  finalMatch.match_type = 'final';
+  
+  // Find Semi-final matches to link to Third Place
+  const semifinals = allMatches.filter(m => m.nextIdx === finalMatch.tempIdx);
+  if (semifinals.length === 2) {
+    const thirdPlace = make(currRoundNum, currRoundNum - 1, 1);
+    thirdPlace.match_type = 'third_place';
+    thirdPlace.bracket_type = 'third_place';
+    semifinals[0].loserNextIdx = thirdPlace.tempIdx;
+    semifinals[1].loserNextIdx = thirdPlace.tempIdx;
+    allMatches.push(thirdPlace);
   }
 
-  return allMatches.map(m => {
-    const { _nextIdx, ...dbMatch } = m;
-    return { ...dbMatch, _nextIdx };
+  // --- LABELING BADGES ---
+  allMatches.forEach(m => {
+    if (m.match_type === 'final') return;
+    if (m.match_type === 'third_place') return;
+    
+    const roundMatches = allMatches.filter(x => x.round === m.round && x.bracket_type === 'winner');
+    const totalInRound = roundMatches.length;
+    
+    if (m.round === 1 && numR1Matches > 0) m.match_type = 'preliminary';
+    else if (totalInRound === 1) m.match_type = 'semifinal'; // Wait, if it's not final it's semi
+    else if (totalInRound === 2) m.match_type = 'quarterfinal';
+    else if (totalInRound === 4) m.match_type = 'round_of_16';
+    else m.match_type = 'regular';
   });
+
+  return allMatches;
 }
 
 // === ADVANCE KNOCKOUT WINNER ===
@@ -489,24 +568,7 @@ export async function advanceKnockoutWinner(matchId) {
     const hf = isInd ? 'home_user_id' : 'home_club_id';
     const af = isInd ? 'away_user_id' : 'away_club_id';
 
-    if (match.match_type === 'final') {
-      await supabase.from('tournaments').update({ champion_club_id: winnerId, runner_up_id: loserId, updated_at: new Date().toISOString() }).eq('id', match.tournament_id);
-      await checkKnockoutComplete(match.tournament_id);
-      return { success: true };
-    }
-    if (match.match_type === 'third_place') {
-      await supabase.from('tournaments').update({ third_place_id: winnerId, updated_at: new Date().toISOString() }).eq('id', match.tournament_id);
-      await checkKnockoutComplete(match.tournament_id);
-      return { success: true };
-    }
-    if (match.match_type === 'semifinal') {
-      const { data: thirdMatch } = await supabase.from('matches').select('*').eq('tournament_id', match.tournament_id).eq('match_type', 'third_place').single();
-      if (thirdMatch) {
-        const u = {};
-        if (!thirdMatch[hf]) u[hf] = loserId; else if (!thirdMatch[af]) u[af] = loserId;
-        if (Object.keys(u).length > 0) await supabase.from('matches').update(u).eq('id', thirdMatch.id);
-      }
-    }
+    // 1. Advance Winner
     if (match.next_match_id) {
       const { data: next } = await supabase.from('matches').select('*').eq('id', match.next_match_id).single();
       if (next) {
@@ -515,6 +577,36 @@ export async function advanceKnockoutWinner(matchId) {
         if (Object.keys(u).length > 0) await supabase.from('matches').update(u).eq('id', match.next_match_id);
       }
     }
+
+    // 2. Advance Loser (ONLY for Third Place match)
+    if (match.loser_next_match_id) {
+      const { data: loserNext } = await supabase.from('matches').select('*').eq('id', match.loser_next_match_id).single();
+      if (loserNext) {
+        const u = {};
+        if (!loserNext[hf]) u[hf] = loserId; else if (!loserNext[af]) u[af] = loserId;
+        if (Object.keys(u).length > 0) await supabase.from('matches').update(u).eq('id', match.loser_next_match_id);
+      }
+    }
+
+    // 3. Special: Champion & Runner-up
+    if (match.match_type === 'final') {
+      await supabase.from('tournaments').update({ 
+        champion_club_id: winnerId, 
+        runner_up_id: loserId, 
+        updated_at: new Date().toISOString() 
+      }).eq('id', match.tournament_id);
+      await checkKnockoutComplete(match.tournament_id);
+    }
+    
+    // 4. Special: Third Place
+    if (match.match_type === 'third_place') {
+      await supabase.from('tournaments').update({ 
+        third_place_id: winnerId, 
+        updated_at: new Date().toISOString() 
+      }).eq('id', match.tournament_id);
+      await checkKnockoutComplete(match.tournament_id);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('[advanceKnockoutWinner]', error);
@@ -615,13 +707,13 @@ function createMatchData(tournamentId, home, away, venues, startDate, matchTimes
   const dayOffset = Math.floor(matchIndex / (matchTimes.length * venues.length));
   const slotInDay = matchIndex % (matchTimes.length * venues.length);
   const timeIndex = slotInDay % matchTimes.length;
-  const venueIndex = Math.floor(slotInDay / matchTimes.length) % venues.length;
+  const venueIndex = Math.floor(slotInDay / matchTimes.length) % (venues.length || 1);
   const matchDate = new Date(startDate);
   matchDate.setDate(matchDate.getDate() + dayOffset);
 
   const match = {
     tournament_id: tournamentId,
-    venue_id: venues[venueIndex].id,
+    venue_id: venues[venueIndex]?.id || null,
     match_date: matchDate.toISOString().split('T')[0],
     match_time: matchTimes[timeIndex],
     status: 'scheduled',
@@ -629,12 +721,17 @@ function createMatchData(tournamentId, home, away, venues, startDate, matchTimes
   };
 
   if (participantType === 'individual') {
-    match.home_user_id = home.id;
-    match.away_user_id = away.id;
+    match.home_user_id = home?.id || null;
+    match.away_user_id = away?.id || null;
+    match.home_club = home?.id ? home : null;
+    match.away_club = away?.id ? away : null;
   } else {
-    match.home_club_id = home.id;
-    match.away_club_id = away.id;
+    match.home_club_id = home?.id || null;
+    match.away_club_id = away?.id || null;
+    match.home_club = home?.id ? home : null;
+    match.away_club = away?.id ? away : null;
   }
+  match.venue = venues[venueIndex] || null;
   return match;
 }
 

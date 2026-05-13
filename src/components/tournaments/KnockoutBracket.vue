@@ -111,11 +111,23 @@ const bracketRounds = computed(() => {
   return result;
 });
 
-const getRoundName = (idx, total) => {
-  if (idx === total - 1) return 'Chung kết';
-  if (idx === total - 2) return 'Bán kết';
-  if (idx === total - 3) return 'Tứ kết';
-  return '';
+const getRoundLabel = (rIdx) => {
+  const total = bracketRounds.value.length;
+  const currentFromEnd = total - rIdx;
+  
+  if (currentFromEnd === 1) return 'Chung kết';
+  if (currentFromEnd === 2) return 'Bán kết';
+  if (currentFromEnd === 3) return 'Tứ kết';
+  return 'Vòng loại';
+};
+
+const getMatchLabel = (match) => {
+  const type = match.match_type || match.matchType;
+  if (type === 'final') return 'Chung kết';
+  if (type === 'semifinal') return 'Bán kết';
+  if (type === 'quarterfinal') return 'Tứ kết';
+  if (type === 'third_place') return 'Tranh hạng 3';
+  return 'Vòng loại';
 };
 
 const getTeamName = (m, side) => {
