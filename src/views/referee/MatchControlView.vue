@@ -13,8 +13,11 @@
     <!-- Scoreboard -->
     <div class="scoreboard">
       <div class="sb-team">
-        <div class="sb-logo"><img v-if="match.home_club?.logo_url" :src="match.home_club.logo_url"/><span v-else>{{ initials(match.home_club?.name) }}</span></div>
-        <div class="sb-name">{{ match.home_club?.name || 'TBD' }}</div>
+        <div class="sb-logo">
+          <img v-if="getTeamLogo('home')" :src="getTeamLogo('home')"/>
+          <span v-else>{{ initials(getTeamName('home')) }}</span>
+        </div>
+        <div class="sb-name">{{ getTeamName('home') }}</div>
         <!-- Home Events -->
         <div class="sb-events">
           <div v-for="ev in homeSummary" :key="ev.id" class="sb-ev-item">
@@ -32,8 +35,11 @@
         <div class="sc-label">{{ statusText }}</div>
       </div>
       <div class="sb-team">
-        <div class="sb-logo"><img v-if="match.away_club?.logo_url" :src="match.away_club.logo_url"/><span v-else>{{ initials(match.away_club?.name) }}</span></div>
-        <div class="sb-name">{{ match.away_club?.name || 'TBD' }}</div>
+        <div class="sb-logo">
+          <img v-if="getTeamLogo('away')" :src="getTeamLogo('away')"/>
+          <span v-else>{{ initials(getTeamName('away')) }}</span>
+        </div>
+        <div class="sb-name">{{ getTeamName('away') }}</div>
         <!-- Away Events -->
         <div class="sb-events">
           <div v-for="ev in awaySummary" :key="ev.id" class="sb-ev-item">
@@ -48,10 +54,10 @@
 
     <!-- Controls -->
     <div class="controls">
-      <button v-if="match.status==='scheduled'" @click="doStart" class="ctrl-btn green"><i class="pi pi-play"></i> Bắt đầu trận</button>
-      <button v-if="match.status==='in_progress'" @click="doPause" class="ctrl-btn yellow"><i class="pi pi-pause"></i> Tạm dừng</button>
-      <button v-if="match.status==='paused'" @click="doResume" class="ctrl-btn blue"><i class="pi pi-play"></i> Tiếp tục</button>
-      <button v-if="match.status==='in_progress'||match.status==='paused'" @click="doEnd" class="ctrl-btn red"><i class="pi pi-stop"></i> Kết thúc</button>
+      <button v-if="match.status==='scheduled'" @click="doStart" class="ctrl-btn green"><i class="pi pi-play"></i> <span>Bắt đầu trận</span></button>
+      <button v-if="match.status==='in_progress'" @click="doPause" class="ctrl-btn yellow"><i class="pi pi-pause"></i> <span>Tạm dừng</span></button>
+      <button v-if="match.status==='paused'" @click="doResume" class="ctrl-btn blue"><i class="pi pi-play"></i> <span>Tiếp tục</span></button>
+      <button v-if="match.status==='in_progress'||match.status==='paused'" @click="doEnd" class="ctrl-btn red"><i class="pi pi-stop"></i> <span>Kết thúc</span></button>
     </div>
 
     <!-- Tabs -->
@@ -65,8 +71,8 @@
     <div v-if="activeTab==='events' && match.status!=='scheduled'" class="panel">
       <h3 class="panel-title">Ghi nhận sự kiện</h3>
       <div class="event-actions">
-        <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.home_club?.name }})</button>
-        <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name }})</button>
+        <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ getTeamName('home') }})</button>
+        <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ getTeamName('away') }})</button>
         <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="card-icon yellow large"></span>Thẻ vàng</button>
         <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="card-icon red large"></span>Thẻ đỏ</button>
         <button @click="openEventModal('substitution_in',null)" class="ev-btn"><span class="ev-icon sub">🔄</span>Thay người</button>
@@ -94,10 +100,10 @@
 
     <!-- Tab: Attendance -->
     <div v-if="activeTab==='attendance'" class="panel">
-      <h3 class="panel-title">Danh sách cầu thủ</h3>
+      <h3 class="panel-title">Danh sách thành viên thi đấu</h3>
       <div v-for="side in ['home','away']" :key="side" class="att-section">
-        <h4 class="att-club">{{ side==='home' ? match.home_club?.name : match.away_club?.name }}</h4>
-        <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
+        <h4 class="att-club">{{ getTeamName(side) }}</h4>
+        <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thông tin</div>
         <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
           <span class="att-name">{{ p.user?.full_name }}</span>
           <label class="att-check">
@@ -113,11 +119,11 @@
       <div class="modal-box">
         <h3>{{ modalTitle }}</h3>
         <div class="modal-form">
-          <label v-if="modalType!=='goal'">
-            <span>Đội</span>
+          <label v-if="modalType!=='goal' || match.tournament?.participant_type === 'individual'">
+            <span>Đội / Vận động viên</span>
             <select v-model="modalClubId">
-              <option :value="match.home_club_id">{{ match.home_club?.name }}</option>
-              <option :value="match.away_club_id">{{ match.away_club?.name }}</option>
+              <option :value="match.home_club_id || match.home_user_id">{{ getTeamName('home') }}</option>
+              <option :value="match.away_club_id || match.away_user_id">{{ getTeamName('away') }}</option>
             </select>
           </label>
           <label>
@@ -125,7 +131,7 @@
             <input type="number" v-model.number="modalMinute" min="0"/>
           </label>
           <label>
-            <span>Cầu thủ <span class="text-red-500">*</span></span>
+            <span>Thành viên <span class="text-red-500">*</span></span>
             <select v-model="modalPlayerId">
               <option value="">-- Chọn --</option>
               <option v-for="p in modalPlayers" :key="p.user?.id" :value="p.user?.id">{{ p.user?.full_name }}</option>
@@ -201,26 +207,40 @@ const modalTitle = computed(() => ({
 
 const modalPlayers = computed(() => {
   const cid = modalClubId.value;
-  if (cid === match.value?.home_club_id) return homePlayers.value;
-  if (cid === match.value?.away_club_id) return awayPlayers.value;
+  const homeId = match.value?.home_club_id || match.value?.home_user_id;
+  const awayId = match.value?.away_club_id || match.value?.away_user_id;
+  if (cid === homeId) return homePlayers.value;
+  if (cid === awayId) return awayPlayers.value;
   return [];
 });
 
-const initials = (n) => n ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
+const initials = (n) => n && n !== 'TBD' ? n.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2) : '?';
+
+const getTeamName = (side) => {
+  const team = side === 'home' ? (match.value?.home_club || match.value?.home_user) : (match.value?.away_club || match.value?.away_user);
+  return team?.name || team?.full_name || 'TBD';
+};
+
+const getTeamLogo = (side) => {
+  const team = side === 'home' ? (match.value?.home_club || match.value?.home_user) : (match.value?.away_club || match.value?.away_user);
+  return team?.logo_url || team?.avatar_url || null;
+};
 const eventEmoji = (t) => ({'goal':'⚽','yellow_card':'🟡','red_card':'🔴','substitution_in':'🔄','substitution_out':'↩️','start':'▶️','pause':'⏸','resume':'▶️','end':'⏹'}[t]||'📌');
 const getPlayers = (side) => side==='home' ? homePlayers.value : awayPlayers.value;
 const isPresent = (pid) => attendance.value.some(a => a.player_id === pid && a.is_present);
 
 const homeSummary = computed(() => {
+  const homeId = match.value?.home_club_id || match.value?.home_user_id;
   return events.value.filter(e => 
-    e.club_id === match.value?.home_club_id && 
+    e.club_id === homeId && 
     ['goal', 'yellow_card', 'red_card'].includes(e.type)
   );
 });
 
 const awaySummary = computed(() => {
+  const awayId = match.value?.away_club_id || match.value?.away_user_id;
   return events.value.filter(e => 
-    e.club_id === match.value?.away_club_id && 
+    e.club_id === awayId && 
     ['goal', 'yellow_card', 'red_card'].includes(e.type)
   );
 });
@@ -254,13 +274,18 @@ async function loadAll() {
     const attR = await matchRepository.getMatchAttendance(match.value.id);
     if (attR.isOk()) attendance.value = attR.getValue();
     // Load players
-    if (match.value.home_club_id) {
-      const hp = await matchRepository.getClubMembers(match.value.home_club_id);
-      if (hp.isOk()) homePlayers.value = hp.getValue();
-    }
-    if (match.value.away_club_id) {
-      const ap = await matchRepository.getClubMembers(match.value.away_club_id);
-      if (ap.isOk()) awayPlayers.value = ap.getValue();
+    if (match.value.tournament?.participant_type === 'individual') {
+      homePlayers.value = match.value.home_user ? [{ user: match.value.home_user }] : [];
+      awayPlayers.value = match.value.away_user ? [{ user: match.value.away_user }] : [];
+    } else {
+      if (match.value.home_club_id) {
+        const hp = await matchRepository.getClubMembers(match.value.home_club_id);
+        if (hp.isOk()) homePlayers.value = hp.getValue();
+      }
+      if (match.value.away_club_id) {
+        const ap = await matchRepository.getClubMembers(match.value.away_club_id);
+        if (ap.isOk()) awayPlayers.value = ap.getValue();
+      }
     }
   }
   loading.value = false;
@@ -320,7 +345,9 @@ async function doEnd() {
 function openEventModal(type, side) {
   modalType.value = type;
   modalSide.value = side;
-  modalClubId.value = side === 'home' ? match.value.home_club_id : side === 'away' ? match.value.away_club_id : match.value.home_club_id;
+  const homeId = match.value.home_club_id || match.value.home_user_id;
+  const awayId = match.value.away_club_id || match.value.away_user_id;
+  modalClubId.value = side === 'home' ? homeId : side === 'away' ? awayId : homeId;
   modalPlayerId.value = '';
   modalMinute.value = Math.floor(timerSeconds.value / 60);
   modalDesc.value = '';
@@ -360,7 +387,8 @@ async function submitEvent() {
     events.value.sort((a,b) => a.minute - b.minute);
     // Update score if goal
     if (modalType.value === 'goal') {
-      const isHome = modalClubId.value === match.value.home_club_id;
+      const homeId = match.value.home_club_id || match.value.home_user_id;
+      const isHome = modalClubId.value === homeId;
       const newHome = (match.value.home_score ?? 0) + (isHome ? 1 : 0);
       const newAway = (match.value.away_score ?? 0) + (isHome ? 0 : 1);
       const scoreR = await matchRepository.updateScore(match.value.id, newHome, newAway);
@@ -383,7 +411,8 @@ async function removeEvent(evId) {
   await matchRepository.deleteMatchEvent(evId);
   events.value = events.value.filter(e => e.id !== evId);
   if (ev?.type === 'goal') {
-    const isHome = ev.club_id === match.value.home_club_id;
+    const homeId = match.value.home_club_id || match.value.home_user_id;
+    const isHome = ev.club_id === homeId;
     const newHome = Math.max(0, (match.value.home_score ?? 0) - (isHome ? 1 : 0));
     const newAway = Math.max(0, (match.value.away_score ?? 0) - (isHome ? 0 : 1));
     await matchRepository.updateScore(match.value.id, newHome, newAway);
@@ -446,8 +475,36 @@ onUnmounted(stopTimer);
 
 /* Controls */
 .controls { display:flex; justify-content:center; gap:0.75rem; flex-wrap:wrap; }
-.ctrl-btn { display:flex; align-items:center; gap:0.4rem; padding:0.7rem 1.5rem; border-radius:0.75rem; font-weight:700; font-size:0.9rem; color:white; border:none; cursor:pointer; transition:all 0.2s; }
-.ctrl-btn:hover { transform:translateY(-2px); }
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.ctrl-btn i {
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(1px);
+}
+.ctrl-btn span {
+  display: inline-flex;
+  align-items: center;
+}
+.ctrl-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
 .ctrl-btn.green { background:linear-gradient(135deg,#16a34a,#22c55e); box-shadow:0 4px 16px rgba(34,197,94,0.3); }
 .ctrl-btn.yellow { background:linear-gradient(135deg,#d97706,#f59e0b); box-shadow:0 4px 16px rgba(245,158,11,0.3); }
 .ctrl-btn.blue { background:linear-gradient(135deg,#2563eb,#3b82f6); box-shadow:0 4px 16px rgba(59,130,246,0.3); }

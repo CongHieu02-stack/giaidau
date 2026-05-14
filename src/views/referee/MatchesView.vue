@@ -62,10 +62,10 @@
           <div class="card-teams">
             <div class="team-col">
               <div class="team-logo">
-                <img v-if="m.home_club?.logo_url" :src="m.home_club.logo_url" />
-                <span v-else>{{ getInitials(m.home_club?.name) }}</span>
+                <img v-if="getTeamLogo(m, 'home')" :src="getTeamLogo(m, 'home')" />
+                <span v-else>{{ getInitials(getTeamName(m, 'home')) }}</span>
               </div>
-              <span class="team-name">{{ m.home_club?.name || 'TBD' }}</span>
+              <span class="team-name">{{ getTeamName(m, 'home') }}</span>
             </div>
 
             <div class="score-col">
@@ -79,39 +79,41 @@
 
             <div class="team-col">
               <div class="team-logo">
-                <img v-if="m.away_club?.logo_url" :src="m.away_club.logo_url" />
-                <span v-else>{{ getInitials(m.away_club?.name) }}</span>
+                <img v-if="getTeamLogo(m, 'away')" :src="getTeamLogo(m, 'away')" />
+                <span v-else>{{ getInitials(getTeamName(m, 'away')) }}</span>
               </div>
-              <span class="team-name">{{ m.away_club?.name || 'TBD' }}</span>
+              <span class="team-name">{{ getTeamName(m, 'away') }}</span>
             </div>
           </div>
 
           <!-- Info -->
           <div class="card-info">
-            <span class="info-item">
-              <i class="pi pi-calendar"></i>
-              {{ formatDate(m.match_date) }}
-            </span>
-            <span v-if="m.match_time" class="info-item">
-              <i class="pi pi-clock"></i>
-              {{ m.match_time }}
-            </span>
-            <span class="info-item">
+            <div class="info-main">
+              <span class="info-item">
+                <i class="pi pi-calendar"></i>
+                {{ formatDate(m.match_date) }}
+              </span>
+              <span v-if="m.match_time" class="info-item">
+                <i class="pi pi-clock"></i>
+                {{ m.match_time }}
+              </span>
+            </div>
+            <div class="info-item venue-item">
               <i class="pi pi-map-marker"></i>
-              {{ m.venue?.name || 'Chưa xác định' }}
-            </span>
+              <span>{{ m.venue?.name || 'Chưa xác định' }}</span>
+            </div>
           </div>
 
           <!-- Action -->
           <router-link :to="`/referee/matches/${m.id}`" class="card-action">
             <template v-if="m.status === 'scheduled'">
-              <i class="pi pi-play"></i> Vào điều khiển
+              <i class="pi pi-play"></i> <span>Vào điều khiển</span>
             </template>
             <template v-else-if="m.status === 'in_progress' || m.status === 'paused'">
-              <i class="pi pi-bolt"></i> Tiếp tục điều khiển
+              <i class="pi pi-bolt"></i> <span>Tiếp tục điều khiển</span>
             </template>
             <template v-else>
-              <i class="pi pi-eye"></i> Xem chi tiết
+              <i class="pi pi-eye"></i> <span>Xem chi tiết</span>
             </template>
           </router-link>
         </div>
@@ -151,8 +153,18 @@ const getCount = (filter) => {
   return matches.value.filter(m => m.status === filter).length;
 };
 
+const getTeamName = (m, side) => {
+  const team = side === 'home' ? (m.home_club || m.home_user) : (m.away_club || m.away_user);
+  return team?.name || team?.full_name || 'TBD';
+};
+
+const getTeamLogo = (m, side) => {
+  const team = side === 'home' ? (m.home_club || m.home_user) : (m.away_club || m.away_user);
+  return team?.logo_url || team?.avatar_url || null;
+};
+
 const getInitials = (name) =>
-  name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
+  name && name !== 'TBD' ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?';
 
 const formatDate = (date) => {
   if (!date) return '';
@@ -351,24 +363,49 @@ onMounted(async () => {
 }
 
 /* Card Info */
-.card-info { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.card-info { display: flex; flex-direction: column; gap: 0.5rem; }
+.info-main { display: flex; flex-wrap: wrap; gap: 1rem; }
 .info-item {
   font-size: 0.72rem; color: rgba(255,255,255,0.4);
-  display: flex; align-items: center; gap: 0.3rem;
+  display: flex; align-items: center; gap: 0.35rem;
 }
-.info-item i { font-size: 0.65rem; }
+.info-item i { font-size: 0.7rem; color: #60a5fa; }
+.venue-item { color: rgba(255,255,255,0.5); }
+.venue-item i { color: #f87171; }
 
 /* Card Action */
 .card-action {
-  display: flex; align-items: center; justify-content: center; gap: 0.4rem;
-  padding: 0.6rem;
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
   border-radius: 0.75rem;
-  color: #60a5fa; font-size: 0.8rem; font-weight: 600;
-  text-decoration: none; transition: all 0.2s;
+  color: #60a5fa;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.2s;
+  line-height: 1;
 }
-.card-action:hover { background: rgba(59,130,246,0.2); transform: translateY(-1px); }
+.card-action i {
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(1px); /* Slight adjustment for play icon */
+}
+.card-action span {
+  display: inline-flex;
+  align-items: center;
+}
+.card-action:hover {
+  background: rgba(59, 130, 246, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
 
 /* States */
 .loading-state, .empty-state {
