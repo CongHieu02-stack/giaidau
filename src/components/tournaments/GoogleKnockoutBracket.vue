@@ -41,7 +41,6 @@
 
 <script setup>
 import { computed, h, defineComponent } from 'vue';
-import { useRouter } from 'vue-router';
 
 const emit = defineEmits(['assign-referee']);
 
@@ -61,8 +60,6 @@ const MatchCard = defineComponent({
   },
   emits: ['assign-referee'],
   setup(props, { emit }) {
-    const router = useRouter();
-
     const badgeInfo = computed(() => {
       const mt = props.match.match_type;
       const map = {
@@ -113,11 +110,6 @@ const MatchCard = defineComponent({
       return side === 'home' ? m.home_score > m.away_score : m.away_score > m.home_score;
     };
 
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '';
-      return new Date(dateStr).toLocaleDateString('vi-VN');
-    };
-
     return () => {
       const m = props.match;
       const bi = badgeInfo.value;
@@ -161,14 +153,8 @@ const MatchCard = defineComponent({
 
       return h('div', { class: ['match-card', m.match_type + '-card'] }, [
         h('div', { class: 'card-top' }, [
-          h('div', { class: 'card-top-main' }, [
-            h('span', { class: ['match-badge', bi.cls] }, bi.label),
-            h('span', { class: 'card-meta-time' }, m.match_time || '')
-          ]),
-          (m.match_date || m.venue?.name) ? h('div', { class: 'card-top-sub' }, [
-            h('span', { class: 'card-meta-date' }, m.match_date ? formatDate(m.match_date) : ''),
-            h('span', { class: 'card-meta-venue' }, m.venue?.name || '')
-          ]) : null
+          h('span', { class: ['match-badge', bi.cls] }, bi.label),
+          h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
         ]),
         h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')]),
         // Referee Info & Actions
@@ -177,29 +163,16 @@ const MatchCard = defineComponent({
             h('i', { class: 'pi pi-user-edit' }),
             h('span', { class: 'ref-name' }, m.referee?.full_name || m.referee_name || 'Chưa có trọng tài')
           ]),
-          h('div', { class: 'card-actions' }, [
-            (props.adminMode && m.status !== 'completed') ? h('button', { 
-              class: 'ref-assign-btn',
-              title: 'Phân công trọng tài',
-              onClick: (e) => {
-                e.stopPropagation();
-                emit('assign-referee', m);
-              }
-            }, [
-              h('i', { class: 'pi pi-cog' })
-            ]) : null,
-            
-            m.status === 'completed' ? h('button', {
-              class: 'view-details-btn',
-              title: 'Xem chi tiết trận đấu',
-              onClick: (e) => {
-                e.stopPropagation();
-                router.push(`/matches/${m.id}`);
-              }
-            }, [
-              h('i', { class: 'pi pi-info-circle' })
-            ]) : null
-          ])
+          props.adminMode ? h('button', { 
+            class: 'ref-assign-btn',
+            title: 'Phân công trọng tài',
+            onClick: (e) => {
+              e.stopPropagation();
+              emit('assign-referee', m);
+            }
+          }, [
+            h('i', { class: 'pi pi-cog' })
+          ]) : null
         ])
       ]);
     };
@@ -212,19 +185,14 @@ const allRounds = computed(() => {
   const g = {};
   winnerMatches.forEach(m => { const r = m.round || 1; (g[r] = g[r] || []).push(m); });
   
-  const winnerRounds = Object.keys(g).map(k => parseInt(k));
-  const maxR = Math.max(...winnerRounds, 0);
-  
   return Object.keys(g).sort((a,b) => a - b).map(r => {
     const ms = g[r].sort((a,b) => (a.bracket_position || 0) - (b.bracket_position || 0));
     let name = `VÒNG ${r}`;
     const mt = ms[0]?.match_type;
-    const fromEnd = maxR - r + 1;
-    
     if (mt === 'preliminary') name = 'VÒNG SƠ LOẠI';
-    else if (fromEnd === 1) name = 'BÁN KẾT';
-    else if (fromEnd === 2) name = 'TỨ KẾT';
-    else if (fromEnd === 3) name = 'VÒNG 1/8';
+    else if (mt === 'round_of_16') name = 'VÒNG 1/8';
+    else if (mt === 'quarterfinal') name = 'TỨ KẾT';
+    else if (mt === 'semifinal') name = 'BÁN KẾT';
     
     return { num: r, name, matches: ms };
   });
@@ -234,7 +202,7 @@ const finalAndThirdPlace = computed(() => {
   return (props.matches || [])
     .filter(m => m.match_type === 'final' || m.match_type === 'third_place')
     .sort((a, b) => {
-      if (a.match_type === 'final') return -1;
+      if (a.match_type === 'third_place') return -1;
       return 1;
     });
 });
@@ -257,18 +225,14 @@ const finalAndThirdPlace = computed(() => {
   background: rgba(30,31,45,0.95); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px; padding: 12px; transition: all 0.2s;
 }
-.bracket-container .card-top { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.bracket-container .card-top-main { display: flex; justify-content: space-between; align-items: center; }
-.bracket-container .card-top-sub { display: flex; justify-content: space-between; align-items: center; font-size: 0.62rem; color: rgba(255,255,255,0.3); font-weight: 600; }
-.bracket-container .card-meta-time { font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: 700; }
-.bracket-container .card-meta-venue { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
-
+.bracket-container .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .bracket-container .match-badge { font-size: 0.6rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
-.bracket-container .badge-pre { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.bracket-container .badge-regular { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
-.bracket-container .badge-semi { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-.bracket-container .badge-final { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.bracket-container .badge-third { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.bracket-container .badge-pre { background: rgba(245,158,11,0.2); color: #fbbf24; }
+.bracket-container .badge-regular { background: rgba(139,92,246,0.2); color: #a78bfa; }
+.bracket-container .badge-semi { background: rgba(16,185,129,0.2); color: #34d399; }
+.bracket-container .badge-final { background: rgba(239,68,68,0.2); color: #f87171; }
+.bracket-container .badge-third { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.bracket-container .card-meta { font-size: 0.65rem; color: rgba(255,255,255,0.4); font-weight: 600; }
 
 .bracket-container .card-teams { display: flex; flex-direction: column; gap: 4px; }
 .bracket-container .team-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.02); }
@@ -277,6 +241,7 @@ const finalAndThirdPlace = computed(() => {
 .bracket-container .team-logo img { width: 100% !important; height: 100% !important; object-fit: cover; }
 .bracket-container .team-name { flex: 1; font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bracket-container .team-name.placeholder { color: rgba(255,255,255,0.3); font-style: italic; }
+
 .bracket-container .team-cards { display: flex; gap: 4px; margin-right: 8px; }
 .bracket-container .card-icon {
   width: 12px; height: 16px; border-radius: 2px;
@@ -315,35 +280,22 @@ const finalAndThirdPlace = computed(() => {
   text-overflow: ellipsis;
   max-width: 150px;
 }
-.bracket-container .card-actions { display: flex; gap: 4px; }
-.bracket-container .ref-assign-btn, .bracket-container .view-details-btn {
+.bracket-container .ref-assign-btn {
   background: rgba(139, 92, 246, 0.2);
   border: 1px solid rgba(139, 92, 246, 0.3);
   color: #a78bfa;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
 }
-.bracket-container .view-details-btn {
-  background: rgba(96, 165, 250, 0.15);
-  border-color: rgba(96, 165, 250, 0.25);
-  color: #60a5fa;
-}
-.bracket-container .ref-assign-btn:hover, .bracket-container .view-details-btn:hover {
-  transform: scale(1.1);
-  filter: brightness(1.2);
-}
-.bracket-container .view-details-btn:hover {
-  background: #3b82f6;
-  color: white;
-}
 .bracket-container .ref-assign-btn:hover {
   background: #8b5cf6;
   color: white;
+  transform: scale(1.1);
 }
 </style>

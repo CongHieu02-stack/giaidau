@@ -52,12 +52,6 @@ const routes = [
     component: () => import('../views/shared/TournamentDetailView.vue'),
     meta: { public: true }
   },
-  {
-    path: '/matches/:id',
-    name: 'MatchDetail',
-    component: () => import('../views/shared/MatchDetailView.vue'),
-    meta: { public: true }
-  },
 
   // Club Routes (Public/Authenticated)
   {
