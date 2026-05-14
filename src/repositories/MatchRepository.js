@@ -22,8 +22,10 @@ export class MatchRepository extends BaseRepository {
         *,
         home_club:clubs!home_club_id(id, name, logo_url),
         away_club:clubs!away_club_id(id, name, logo_url),
+        home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
+        away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
         venue:venues(id, name),
-        tournament:tournaments(id, name, sport_category:sports_categories(id, name))
+        tournament:tournaments(id, name, participant_type, sport_category:sports_categories(id, name))
       `)
       .eq('referee_id', refereeId)
       .order('match_date', { ascending: true });
@@ -39,6 +41,8 @@ export class MatchRepository extends BaseRepository {
         *,
         home_club:clubs!home_club_id(id, name, logo_url),
         away_club:clubs!away_club_id(id, name, logo_url),
+        home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
+        away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
         venue:venues(id, name),
         tournament:tournaments(id, name, format, participant_type, sport_category:sports_categories(id, name)),
         referee:profiles!referee_id(id, full_name, avatar_url)
