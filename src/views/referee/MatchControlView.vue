@@ -672,5 +672,16 @@ onUnmounted(stopTimer);
 .p-name { font-weight: 600; }
 .res-input { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-weight: 700; text-align: right; }
 .res-input:focus { outline: none; border-color: #60a5fa; background: rgba(255,255,255,0.08); }
+
+/* Hide number input spinners */
+.res-input::-webkit-outer-spin-button,
+.res-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.res-input[type=number] {
+  -moz-appearance: textfield;
+}
+
 .text-center { text-align: center; }
 </style>
