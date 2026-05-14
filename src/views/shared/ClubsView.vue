@@ -354,7 +354,12 @@ const handleJoin = async (club) => {
 .pill-label { font-size: 0.75rem; color: rgba(255,255,255,0.45); margin-top: 0.25rem; }
 
 /* Grid */
-.clubs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; }
+.clubs-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
+  grid-auto-rows: 1fr; /* All cards in a row have same height */
+  gap: 1.5rem; 
+}
 
 /* Club Card */
 .club-card {
@@ -364,6 +369,9 @@ const handleJoin = async (club) => {
   border-radius: 1.25rem; overflow: hidden;
   transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
   opacity: 0; animation: fadeUp 0.5s ease forwards;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 .club-card:hover { transform: translateY(-8px); border-color: rgba(99,102,241,0.3); box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(99,102,241,0.1); }
@@ -400,15 +408,32 @@ const handleJoin = async (club) => {
 .sb-dissolved{ background: rgba(107,114,128,0.15);color: #9ca3af; border: 1px solid rgba(107,114,128,0.2); }
 
 /* Club Body */
-.club-body { padding: 1rem 1.25rem; }
-.club-name { font-size: 1.1rem; font-weight: 700; color: white; margin-bottom: 0.4rem; }
+.club-body { 
+  padding: 1rem 1.25rem; 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+}
+.club-name { 
+  font-size: 1.1rem; 
+  font-weight: 700; 
+  color: white; 
+  margin-bottom: 0.4rem;
+  /* Fixed height for 2 lines to ensure alignment */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 2.8rem;
+  line-height: 1.4rem;
+}
 .club-desc {
   font-size: 0.82rem; color: rgba(255,255,255,0.45); margin-bottom: 0.875rem;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .club-leader-row { display: flex; align-items: center; gap: 0.5rem; color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.6rem; }
 .club-leader-name { font-weight: 600; color: rgba(255,255,255,0.85); }
-.club-stats { display: flex; gap: 1rem; }
+.club-stats { display: flex; gap: 1rem; margin-top: auto; }
 .c-stat { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: rgba(255,255,255,0.5); }
 .c-stat-icon {
   width: 24px; height: 24px; border-radius: 6px;

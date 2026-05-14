@@ -246,7 +246,6 @@ const finalAndThirdPlace = computed(() => {
 .bracket-container .team-logo img { width: 100% !important; height: 100% !important; object-fit: cover; }
 .bracket-container .team-name { flex: 1; font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bracket-container .team-name.placeholder { color: rgba(255,255,255,0.3); font-style: italic; }
-
 .bracket-container .team-cards { display: flex; gap: 4px; margin-right: 8px; }
 .bracket-container .card-icon {
   width: 12px; height: 16px; border-radius: 2px;
