@@ -234,7 +234,7 @@ const finalAndThirdPlace = computed(() => {
   return (props.matches || [])
     .filter(m => m.match_type === 'final' || m.match_type === 'third_place')
     .sort((a, b) => {
-      if (a.match_type === 'third_place') return -1;
+      if (a.match_type === 'final') return -1;
       return 1;
     });
 });
