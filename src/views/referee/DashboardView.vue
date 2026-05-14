@@ -65,7 +65,21 @@
 
         <div v-else class="match-list">
           <div v-for="m in upcomingMatches.slice(0, 5)" :key="m.id" class="match-card">
-            <div class="match-teams">
+            <!-- Single Heat Mode -->
+            <div v-if="m.tournament?.tournament_mode === 'single_heat'" class="heat-match-card-dashboard">
+              <div class="heat-icon-container">🏁</div>
+              <div class="heat-info-container">
+                <span class="heat-type">Lượt thi đấu tổng hợp</span>
+                <span class="heat-desc">Chế độ thi đấu một lượt (Single Heat)</span>
+                <div class="match-time-row">
+                  <span class="match-time-label"><i class="pi pi-calendar mr-1"></i>{{ formatMatchDate(m.match_date) }}</span>
+                  <span v-if="m.match_time" class="match-time-label ml-3"><i class="pi pi-clock mr-1"></i>{{ m.match_time }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Standard Mode -->
+            <div v-else class="match-teams">
               <div class="team-side">
                 <div class="team-logo">
                   <img v-if="m.home_club?.logo_url || m.home_user?.avatar_url" :src="m.home_club?.logo_url || m.home_user?.avatar_url" />
@@ -296,5 +310,49 @@ onMounted(async () => {
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .hero-title { font-size: 1.5rem; }
+}
+
+/* Heat Dashboard Styles */
+.heat-match-card-dashboard {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  width: 100%;
+}
+
+.heat-icon-container {
+  width: 4rem;
+  height: 4rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.heat-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.heat-type {
+  font-weight: 800;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.heat-desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 0.5rem;
+}
+
+.match-time-row {
+  display: flex;
+  align-items: center;
 }
 </style>

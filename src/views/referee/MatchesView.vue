@@ -58,8 +58,15 @@
             <span class="tournament-name">{{ m.tournament?.name }}</span>
           </div>
 
-          <!-- Teams -->
-          <div class="card-teams">
+          <!-- Teams / Heat Info -->
+          <div v-if="m.tournament?.tournament_mode === 'single_heat'" class="card-heat-overview">
+            <div class="heat-icon-small">🏁</div>
+            <div class="heat-text">
+              <span class="heat-title">Lượt thi đấu tổng hợp</span>
+              <span class="heat-sub">Chế độ thi đấu một lượt (Single Heat)</span>
+            </div>
+          </div>
+          <div v-else class="card-teams">
             <div class="team-col">
               <div class="team-logo">
                 <img v-if="m.home_club?.logo_url || m.home_user?.avatar_url" :src="m.home_club?.logo_url || m.home_user?.avatar_url" />
@@ -396,5 +403,42 @@ onMounted(async () => {
 
 @media (max-width: 500px) {
   .matches-grid { grid-template-columns: 1fr; }
+}
+
+/* Heat Card Styles */
+.card-heat-overview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+}
+
+.heat-icon-small {
+  width: 3rem;
+  height: 3rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.heat-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.heat-title {
+  font-weight: 700;
+  color: white;
+  font-size: 1rem;
+}
+
+.heat-sub {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
 }
 </style>

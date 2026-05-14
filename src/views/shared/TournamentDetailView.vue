@@ -60,7 +60,7 @@
         </div>
 
         <!-- Winner Podium (New) -->
-        <div v-if="tournament.status === 'completed'" class="podium-section">
+        <div v-if="tournament.status === 'completed' || (tournament.tournamentMode === 'single_heat' && tournament.matches?.[0]?.status === 'completed')" class="podium-section">
           <h2 class="podium-title"><i class="pi pi-trophy"></i> Vinh danh nhà vô địch</h2>
           <div class="podium-container">
             <!-- 2nd Place -->
@@ -138,8 +138,8 @@
                 <span class="match-count" v-if="tournament.matches && tournament.matches.length > 0">{{ tournament.matches.length }} trận</span>
               </h2>
               
-              <!-- Google Style Bracket (New) -->
-              <div v-if="tournament.matches && tournament.matches.length > 0 && tournament.tournamentMode !== 'single_heat'" class="mt-4">
+              <!-- Knockout Bracket -->
+              <div v-if="tournament.matches && tournament.matches.length > 0 && tournament.format === 'knockout' && tournament.tournamentMode !== 'single_heat'" class="mt-4">
                 <GoogleKnockoutBracket 
                   :matches="tournament.matches" 
                   :participant-type="tournament.participantType"
@@ -147,11 +147,117 @@
                   @assign-referee="openRefereeModal"
                 />
               </div>
-              <div v-else-if="tournament.tournamentMode === 'single_heat' && tournament.matches && tournament.matches.length > 0" class="mt-4">
-                <div class="heat-info-card">
+
+              <!-- List view for Round Robin or Single Heat -->
+              <div v-else-if="tournament.matches && tournament.matches.length > 0" class="mt-4">
+                <div v-if="tournament.tournamentMode === 'single_heat'" class="heat-info-card mb-4">
                   <p class="text-sm text-white/60"><i class="pi pi-info-circle mr-2"></i>Giải đấu đang diễn ra theo hình thức thi đấu một lượt (Single Heat). Kết quả được cập nhật trực tiếp tại Bảng xếp hạng bên dưới.</p>
                 </div>
+
+                <div class="matches-container-simple">
+                  <div v-for="(matches, roundNum) in groupedMatches" :key="roundNum" class="round-section-simple">
+                    <div class="round-header-simple">
+                      <h3 class="round-title-simple">{{ getRoundLabel(roundNum) }}</h3>
+                    </div>
+                    
+                    <div class="matches-grid-simple">
+                      <div v-for="match in matches" :key="match.id" class="match-card-simple">
+                        <div class="match-header-simple">
+                          <span class="round-badge-simple" v-if="getMatchBadge(match)">{{ getMatchBadge(match) }}</span>
+                          <span class="match-time-simple" v-if="match.match_date">
+                            <i class="pi pi-clock mr-1"></i>
+                            {{ formatDate(match.match_date) }} {{ match.match_time?.substring(0, 5) }}
+                          </span>
+                        </div>
+
+                        <div class="match-body-simple">
+                          <!-- Single Heat Mode -->
+                          <template v-if="tournament.tournamentMode === 'single_heat'">
+                            <div class="heat-match-overview">
+                              <div class="heat-main-icon">
+                                <span>{{ tournament.sportCategory?.icon_emoji || '🏆' }}</span>
+                              </div>
+                              <div class="heat-match-details">
+                                <div class="heat-title">Lượt thi đấu tổng hợp</div>
+                                <div class="heat-participants-count">
+                                  <i class="pi pi-users mr-1"></i>
+                                  {{ match.match_attendance?.length || approvedRegistrations.length }} Vận động viên
+                                </div>
+                              </div>
+                              <div class="heat-status-pill" :class="match.status">
+                                {{ statusTextMap[match.status] || match.status }}
+                              </div>
+                            </div>
+                          </template>
+
+                          <!-- Standard Match Mode (Knockout/Round Robin) -->
+                          <template v-else-if="!isByeMatch(match)">
+                            <!-- Home -->
+                            <div class="team-side-simple home">
+                              <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
+                              <div class="team-avatar-simple">
+                                <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
+                                <i v-else class="pi pi-user"></i>
+                              </div>
+                            </div>
+
+                            <!-- Score / VS -->
+                            <div class="score-status-simple">
+                              <div v-if="match.status === 'finished'" class="score-simple">
+                                {{ match.home_score }} - {{ match.away_score }}
+                              </div>
+                              <div v-else class="vs-status-simple">VS</div>
+                              <span v-if="match.status === 'finished'" class="ft-tag-simple">FT</span>
+                            </div>
+
+                            <!-- Away -->
+                            <div class="team-side-simple away">
+                              <div class="team-avatar-simple">
+                                <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
+                                <i v-else class="pi pi-user"></i>
+                              </div>
+                              <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
+                            </div>
+                          </template>
+                          
+                          <div v-else class="bye-status-simple">
+                            <span class="bye-badge-simple">MIỄN ĐẤU (BYE)</span>
+                          </div>
+                        </div>
+
+                        <div class="match-footer-simple">
+                          <div class="match-venue-simple">
+                            <i class="pi pi-map-marker mr-1"></i>
+                            {{ match.venue?.name || 'Chưa xác định sân' }}
+                          </div>
+                          
+                          <div class="match-actions-simple">
+                            <!-- Assign Referee Button -->
+                            <button v-if="canManage" 
+                                    class="action-btn-simple" 
+                                    :class="{'primary': !match.referee_id}"
+                                    @click="openRefereeModal(match)"
+                                    title="Phân công trọng tài">
+                              <i class="pi pi-user-plus"></i>
+                            </button>
+                            
+                            <RouterLink :to="`/matches/${match.id}`" class="action-btn-simple" title="Chi tiết">
+                              <i class="pi pi-external-link"></i>
+                            </RouterLink>
+                          </div>
+                        </div>
+
+                        <!-- Referee Indicator -->
+                        <div v-if="match.referee" class="match-referee mt-2">
+                          <i class="pi pi-shield mr-1"></i>
+                          Trọng tài: {{ match.referee.full_name }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+
               <div v-else class="empty-schedule-simple">
                 <i class="pi pi-calendar"></i>
                 <p>Lịch thi đấu chưa được cập nhật</p>
@@ -771,6 +877,14 @@ const submitRegistration = async (clubId) => {
   }
 };
 
+const statusTextMap = {
+  'scheduled': 'Chờ thi đấu',
+  'in_progress': 'Đang diễn ra',
+  'paused': 'Tạm dừng',
+  'completed': 'Đã kết thúc',
+  'cancelled': 'Đã hủy'
+};
+
 const getInitials = (name) => {
   if (!name) return 'A';
   return name.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2);
@@ -795,6 +909,16 @@ const getTeamLogo = (match, side) => {
 
 const getWinnerName = (t, rank) => {
   if (!t) return '...';
+
+  // Support for Individual tournaments or Single Heat: Get from standings automatically
+  const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+  if (isInd || t.tournamentMode === 'single_heat' || t.tournament_mode === 'single_heat') {
+    const standings = t.calculateStandings ? t.calculateStandings() : [];
+    const rankNum = rank === 'champion' ? 1 : rank === 'runner_up' ? 2 : 3;
+    const winner = standings.find(s => s.rank === rankNum);
+    if (winner) return winner.name;
+  }
+
   const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
              rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
              (t.thirdPlaceId || t.third_place_id);
@@ -805,7 +929,6 @@ const getWinnerName = (t, rank) => {
   const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
   
   if (reg) {
-    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
     const team = isInd ? (reg.user || reg.profile) : reg.club;
     return team?.name || team?.full_name || team?.fullName || 'Chưa xác định';
   }
@@ -814,6 +937,16 @@ const getWinnerName = (t, rank) => {
 
 const getWinnerLogo = (t, rank) => {
   if (!t) return null;
+
+  // Support for Individual tournaments or Single Heat: Get from standings automatically
+  const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+  if (isInd || t.tournamentMode === 'single_heat' || t.tournament_mode === 'single_heat') {
+    const standings = t.calculateStandings ? t.calculateStandings() : [];
+    const rankNum = rank === 'champion' ? 1 : rank === 'runner_up' ? 2 : 3;
+    const winner = standings.find(s => s.rank === rankNum);
+    if (winner) return winner.logoUrl || winner.avatar_url;
+  }
+
   const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
              rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
              (t.thirdPlaceId || t.third_place_id);
@@ -824,7 +957,6 @@ const getWinnerLogo = (t, rank) => {
   const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
   
   if (reg) {
-    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
     const team = isInd ? (reg.user || reg.profile) : reg.club;
     return team?.logo_url || team?.logoUrl || team?.avatar_url || team?.avatarUrl || null;
   }
@@ -1892,6 +2024,59 @@ onMounted(async () => {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Heat Match Overview */
+.heat-match-overview {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.heat-main-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+}
+
+.heat-match-details {
+  flex: 1;
+}
+
+.heat-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.heat-participants-count {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+}
+
+.heat-status-pill {
+  padding: 0.4rem 0.8rem;
+  border-radius: 2rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.heat-status-pill.scheduled { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); }
+.heat-status-pill.in_progress { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+.heat-status-pill.paused { background: rgba(234, 179, 8, 0.2); color: #fbbf24; }
+.heat-status-pill.completed { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
 </style>
 
 <style>
