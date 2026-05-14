@@ -380,7 +380,10 @@ export class Tournament {
     approvedClubs.forEach(club => {
       // If groupId is provided, only include clubs in that group
       // This requires registration data to have group_id
-      const reg = this.registrations.find(r => r.clubId === club.id || r.club_id === club.id);
+      const reg = this.registrations.find(r => 
+        r.club_id === club.id || r.clubId === club.id || 
+        r.user_id === club.id || r.userId === club.id
+      );
       if (groupId && reg && reg.group_id !== groupId) return;
 
       standings.set(club.id, {
