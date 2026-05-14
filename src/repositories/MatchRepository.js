@@ -185,6 +185,18 @@ export class MatchRepository extends BaseRepository {
     return Result.ok(data);
   }
 
+  async updateResultValueById(id, value) {
+    const { data, error } = await this.client
+      .from('match_attendance')
+      .update({ result_value: value })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) return Result.err(error.message);
+    return Result.ok(data);
+  }
+
   // Get club members for attendance
   async getClubMembers(clubId) {
     const { data, error } = await this.client

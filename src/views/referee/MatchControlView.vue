@@ -158,13 +158,14 @@
                 <td>
                   <div class="result-input-group">
                     <input 
-                      type="number" 
-                      step="any"
-                      :value="att.result_value" 
-                      @change="updateHeatResult(att.player_id, $event.target.value)"
+                      type="text" 
+                      :value="localResults[att.id]" 
+                      @input="(e) => localResults[att.id] = e.target.value"
+                      @change="(e) => updateHeatResult(att, e.target.value)"
                       class="res-input"
                       placeholder="Nhập..."
                       :disabled="!att.is_present"
+                      inputmode="decimal"
                     />
                   </div>
                 </td>
@@ -218,7 +219,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
@@ -252,6 +253,7 @@ const modalClubId = ref('');
 const modalPlayerId = ref('');
 const modalMinute = ref(0);
 const modalDesc = ref('');
+const localResults = reactive({});
 
 const isSingleHeat = computed(() => match.value?.tournament?.tournament_mode === 'single_heat');
 
@@ -339,7 +341,14 @@ async function loadAll() {
     if (evR.isOk()) events.value = evR.getValue();
     // Load attendance
     const attR = await matchRepository.getMatchAttendance(match.value.id);
-    if (attR.isOk()) attendance.value = attR.getValue();
+    if (attR.isOk()) {
+      const attData = attR.getValue();
+      attendance.value = attData;
+      // Initialize local results
+      attData.forEach(a => {
+        localResults[a.id] = a.result_value;
+      });
+    }
     // Load players
     if (match.value.home_club_id) {
       const hp = await matchRepository.getClubMembers(match.value.home_club_id);
@@ -407,11 +416,17 @@ async function doEnd() {
       // Post-match tournament logic
       if (isSingleHeat.value) {
         // For single heat, we just finalize the tournament standings
-        await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        if (fin.success) {
+          toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Giải đấu đã kết thúc và chốt kết quả chung cuộc', life: 5000 });
+        }
       } else if (match.value.tournament?.format === 'knockout') {
         await advanceKnockoutWinner(match.value.id);
       } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
-        await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        if (fin.success) {
+          toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Vòng đấu đã được cập nhật', life: 3000 });
+        }
       }
     }
   });
@@ -520,15 +535,35 @@ async function toggleAttendance(playerId, clubId, e) {
   }
 }
 
-async function updateHeatResult(playerId, value) {
-  const numVal = value === '' ? null : parseFloat(value);
-  const r = await matchRepository.updateResultValue(match.value.id, playerId, numVal);
-  if (r.isOk()) {
-    const idx = attendance.value.findIndex(a => a.player_id === playerId);
-    if (idx >= 0) attendance.value[idx].result_value = numVal;
-    toast.add({ severity: 'success', summary: 'Đã lưu', detail: 'Kết quả đã được cập nhật', life: 1500 });
-  } else {
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: r.getError(), life: 3000 });
+async function updateHeatResult(att, value) {
+  if (!att?.id) return;
+  
+  // Update local state immediately for responsiveness
+  localResults[att.id] = value;
+  
+  if (value === null || value === undefined || value === '') {
+    await matchRepository.updateResultValueById(att.id, null);
+    return;
+  }
+
+  const numVal = parseFloat(value.toString().replace(',', '.'));
+  if (isNaN(numVal)) {
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Vui lòng nhập số hợp lệ', life: 2000 });
+    return;
+  }
+  
+  try {
+    const r = await matchRepository.updateResultValueById(att.id, numVal);
+    if (r.isOk()) {
+      // Sync back to master list if needed, but localResults remains the source for the input
+      att.result_value = numVal;
+      localResults[att.id] = numVal;
+      toast.add({ severity: 'success', summary: 'Đã lưu', detail: `Kết quả: ${numVal}`, life: 1000 });
+    } else {
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: r.getError(), life: 3000 });
+    }
+  } catch (err) {
+    console.error('Update error:', err);
   }
 }
 

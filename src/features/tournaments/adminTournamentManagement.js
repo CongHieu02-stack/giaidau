@@ -733,13 +733,48 @@ export async function generateNextRound(tournamentId) {
   }
 }
 
-// === FINALIZE TOURNAMENT (Round Robin) ===
+// === FINALIZE TOURNAMENT (Round Robin & Heat) ===
 export async function checkAndFinalizeTournament(tournamentId) {
   try {
     const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
     if (!tournament || tournament.status === 'completed') return { success: true };
-    const currentRound = tournament.current_round || 1;
 
+    if (tournament.tournament_mode === 'single_heat') {
+      // Special logic for Heat: Get all attendances from the match
+      const { data: matchData } = await supabase.from('matches').select('id').eq('tournament_id', tournamentId).limit(1);
+      if (!matchData?.length) return { success: false, error: 'Không tìm thấy trận đấu của giải Heat' };
+      
+      const { data: atts } = await supabase.from('match_attendance')
+        .select('*, player:profiles!player_id(id, full_name), club:clubs!club_id(id, name)')
+        .eq('match_id', matchData[0].id);
+
+      if (!atts) return { success: false, error: 'Không tìm thấy dữ liệu thi đấu' };
+
+      // Sort based on scoring type
+      const sorted = atts.filter(a => a.is_present).sort((a, b) => {
+        const valA = Number(a.result_value || 0);
+        const valB = Number(b.result_value || 0);
+        if (tournament.scoring_type === 'time') return valA - valB;
+        return valB - valA;
+      });
+
+      const winnerId = sorted[0]?.player_id || sorted[0]?.club_id;
+      const runnerUpId = sorted[1]?.player_id || sorted[1]?.club_id;
+      const thirdPlaceId = sorted[2]?.player_id || sorted[2]?.club_id;
+
+      const { error: updateError } = await supabase.from('tournaments').update({
+        status: 'completed',
+        champion_club_id: winnerId,
+        runner_up_id: runnerUpId,
+        third_place_id: thirdPlaceId,
+        updated_at: new Date().toISOString()
+      }).eq('id', tournamentId);
+
+      if (updateError) throw new Error(updateError.message);
+      return { success: true };
+    }
+
+    const currentRound = tournament.current_round || 1;
     const { data: roundMatches } = await supabase.from('matches').select('status').eq('tournament_id', tournamentId).eq('round', currentRound);
     if (!roundMatches?.every(m => m.status === 'completed')) return { success: false, error: 'Chưa hoàn thành vòng' };
     if (currentRound < 4) return await generateNextRound(tournamentId);
