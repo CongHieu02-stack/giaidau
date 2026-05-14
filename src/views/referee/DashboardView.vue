@@ -68,10 +68,10 @@
             <div class="match-teams">
               <div class="team-side">
                 <div class="team-logo">
-                  <img v-if="m.home_club?.logo_url" :src="m.home_club.logo_url" :alt="m.home_club.name" />
-                  <span v-else>{{ getInitials(m.home_club?.name) }}</span>
+                  <img v-if="m.home_club?.logo_url || m.home_user?.avatar_url" :src="m.home_club?.logo_url || m.home_user?.avatar_url" />
+                  <span v-else>{{ getInitials(m.home_club?.name || m.home_user?.full_name) }}</span>
                 </div>
-                <span class="team-name">{{ m.home_club?.name || 'TBD' }}</span>
+                <span class="team-name">{{ m.home_club?.name || m.home_user?.full_name || 'TBD' }}</span>
               </div>
               <div class="match-center">
                 <span class="vs-text">VS</span>
@@ -80,10 +80,10 @@
               </div>
               <div class="team-side">
                 <div class="team-logo">
-                  <img v-if="m.away_club?.logo_url" :src="m.away_club.logo_url" :alt="m.away_club.name" />
-                  <span v-else>{{ getInitials(m.away_club?.name) }}</span>
+                  <img v-if="m.away_club?.logo_url || m.away_user?.avatar_url" :src="m.away_club?.logo_url || m.away_user?.avatar_url" />
+                  <span v-else>{{ getInitials(m.away_club?.name || m.away_user?.full_name) }}</span>
                 </div>
-                <span class="team-name">{{ m.away_club?.name || 'TBD' }}</span>
+                <span class="team-name">{{ m.away_club?.name || m.away_user?.full_name || 'TBD' }}</span>
               </div>
             </div>
             <div class="match-footer">
