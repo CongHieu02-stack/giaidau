@@ -745,24 +745,46 @@ function handleSwap(evt, toIdx, toSide) {
   const teamTo = toSide === 'home' ? matchTo.home_club : matchTo.away_club;
 
   // Swap IDs and Objects in localMatches
+  const isInd = tournament.value?.participant_type === 'individual';
+
   if (fromSide === 'home') {
     matchFrom.home_club = teamTo;
-    matchFrom.home_club_id = teamTo ? teamTo.id : null;
-    if (tournament.value?.participant_type === 'individual') matchFrom.home_user_id = teamTo ? teamTo.id : null;
+    if (isInd) {
+      matchFrom.home_user_id = teamTo ? teamTo.id : null;
+      matchFrom.home_club_id = null;
+    } else {
+      matchFrom.home_club_id = teamTo ? teamTo.id : null;
+      matchFrom.home_user_id = null;
+    }
   } else {
     matchFrom.away_club = teamTo;
-    matchFrom.away_club_id = teamTo ? teamTo.id : null;
-    if (tournament.value?.participant_type === 'individual') matchFrom.away_user_id = teamTo ? teamTo.id : null;
+    if (isInd) {
+      matchFrom.away_user_id = teamTo ? teamTo.id : null;
+      matchFrom.away_club_id = null;
+    } else {
+      matchFrom.away_club_id = teamTo ? teamTo.id : null;
+      matchFrom.away_user_id = null;
+    }
   }
 
   if (toSide === 'home') {
     matchTo.home_club = teamFrom;
-    matchTo.home_club_id = teamFrom ? teamFrom.id : null;
-    if (tournament.value?.participant_type === 'individual') matchTo.home_user_id = teamFrom ? teamFrom.id : null;
+    if (isInd) {
+      matchTo.home_user_id = teamFrom ? teamFrom.id : null;
+      matchTo.home_club_id = null;
+    } else {
+      matchTo.home_club_id = teamFrom ? teamFrom.id : null;
+      matchTo.home_user_id = null;
+    }
   } else {
     matchTo.away_club = teamFrom;
-    matchTo.away_club_id = teamFrom ? teamFrom.id : null;
-    if (tournament.value?.participant_type === 'individual') matchTo.away_user_id = teamFrom ? teamFrom.id : null;
+    if (isInd) {
+      matchTo.away_user_id = teamFrom ? teamFrom.id : null;
+      matchTo.away_club_id = null;
+    } else {
+      matchTo.away_club_id = teamFrom ? teamFrom.id : null;
+      matchTo.away_user_id = null;
+    }
   }
 }
 

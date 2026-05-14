@@ -508,4 +508,3 @@ export class Tournament {
     return tournament;
   }
 }
-}
