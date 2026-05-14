@@ -684,10 +684,19 @@ export async function advanceKnockoutWinner(matchId) {
 
 async function checkKnockoutComplete(tournamentId) {
   const { data: matches } = await supabase.from('matches').select('status, match_type').eq('tournament_id', tournamentId);
-  const finalDone = matches?.find(m => m.match_type === 'final')?.status === 'completed';
-  const thirdDone = matches?.find(m => m.match_type === 'third_place')?.status === 'completed';
+  if (!matches) return;
+
+  const finalMatch = matches.find(m => m.match_type === 'final');
+  const thirdPlaceMatch = matches.find(m => m.match_type === 'third_place');
+
+  const finalDone = finalMatch?.status === 'completed';
+  const thirdDone = thirdPlaceMatch ? thirdPlaceMatch.status === 'completed' : true; // Nếu không có trận hạng 3, coi như đã xong
+
   if (finalDone && thirdDone) {
-    await supabase.from('tournaments').update({ status: 'completed', updated_at: new Date().toISOString() }).eq('id', tournamentId);
+    await supabase.from('tournaments').update({ 
+      status: 'completed', 
+      updated_at: new Date().toISOString() 
+    }).eq('id', tournamentId);
   }
 }
 
@@ -735,9 +744,11 @@ export async function generateNextRound(tournamentId) {
 
 // === FINALIZE TOURNAMENT (Round Robin & Heat) ===
 export async function checkAndFinalizeTournament(tournamentId) {
+  if (!tournamentId) return { success: false, error: 'Thiếu ID giải đấu' };
   try {
-    const { data: tournament } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
-    if (!tournament || tournament.status === 'completed') return { success: true };
+    const { data: tournament, error: tourError } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single();
+    if (tourError || !tournament) return { success: false, error: 'Không tìm thấy thông tin giải đấu' };
+    if (tournament.status === 'completed') return { success: true };
 
     if (tournament.tournament_mode === 'single_heat') {
       // Special logic for Heat: Get all attendances from the match
@@ -762,15 +773,21 @@ export async function checkAndFinalizeTournament(tournamentId) {
       const runnerUpId = sorted[1]?.player_id || sorted[1]?.club_id;
       const thirdPlaceId = sorted[2]?.player_id || sorted[2]?.club_id;
 
-      const { error: updateError } = await supabase.from('tournaments').update({
+      // Prepare update data - use generic columns if possible or the ones we have
+      const updateData = {
         status: 'completed',
-        champion_club_id: winnerId,
-        runner_up_id: runnerUpId,
-        third_place_id: thirdPlaceId,
         updated_at: new Date().toISOString()
-      }).eq('id', tournamentId);
+      };
 
-      if (updateError) throw new Error(updateError.message);
+      // If it's a team tournament, use club_id columns. 
+      // If individual, we might need to store user_id in these columns (assuming the DB allows it or we've relaxed constraints)
+      updateData.champion_club_id = winnerId;
+      updateData.runner_up_id = runnerUpId;
+      updateData.third_place_id = thirdPlaceId;
+
+      const { error: updateError } = await supabase.from('tournaments').update(updateData).eq('id', tournamentId);
+
+      if (updateError) throw new Error(`Lỗi cập nhật giải đấu: ${updateError.message}`);
       return { success: true };
     }
 

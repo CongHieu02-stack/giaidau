@@ -412,16 +412,20 @@ async function doEnd() {
       // Post-match tournament logic
       if (isSingleHeat.value) {
         // For single heat, we just finalize the tournament standings
-        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id || match.value.tournament?.id);
         if (fin.success) {
           toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Giải đấu đã kết thúc và chốt kết quả chung cuộc', life: 5000 });
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi chốt giải', detail: fin.error || 'Không thể cập nhật trạng thái giải đấu', life: 5000 });
         }
       } else if (match.value.tournament?.format === 'knockout') {
         await advanceKnockoutWinner(match.value.id);
       } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
-        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id || match.value.tournament?.id);
         if (fin.success) {
           toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Vòng đấu đã được cập nhật', life: 3000 });
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi cập nhật', detail: fin.error || 'Không thể cập nhật trạng thái vòng đấu', life: 5000 });
         }
       }
     }
