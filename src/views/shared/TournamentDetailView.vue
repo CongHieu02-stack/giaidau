@@ -1,6 +1,5 @@
 <template>
   <div class="tournament-detail-page">
-    <ConfirmDialog />
     <div class="min-h-screen py-6 px-4">
     <div class="max-w-6xl mx-auto">
       <!-- Loading -->
@@ -479,7 +478,6 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
-import ConfirmDialog from 'primevue/confirmdialog';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
 import { useTournamentStore } from '../../stores/tournament.js';
