@@ -2491,6 +2491,3 @@ onMounted(async () => {
   .podium-item.first { order: 1; margin-bottom: 2rem; }
 }
 </style>
-  .podium-item.first { order: 1; margin-bottom: 2rem; }
-}
-</style>
