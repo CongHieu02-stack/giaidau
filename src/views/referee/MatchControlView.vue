@@ -160,6 +160,11 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAuthStore } from '../../stores/auth.js';
+import { matchRepository } from '../../repositories/MatchRepository.js';
+import { supabase } from '../../config/supabase.js';
+import { advanceKnockoutWinner, checkAndFinalizeTournament } from '../../features/tournaments/adminTournamentManagement.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import Toast from 'primevue/toast';
