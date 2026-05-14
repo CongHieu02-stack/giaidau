@@ -22,7 +22,7 @@ export class TournamentRepository extends BaseRepository {
       .select(`
         *,
         sport_category:sports_categories(id, name, icon_url),
-        registrations:tournament_registrations(id, status)
+        registrations:tournament_registrations(id, status, user_id, club_id)
       `);
 
     // Apply filters
@@ -262,6 +262,32 @@ export class TournamentRepository extends BaseRepository {
     }
 
     return Result.ok(data);
+  }
+
+  /**
+   * Cancel/Delete a tournament registration
+   */
+  async cancelRegistration(registrationId) {
+    // Delete players first (if not cascading)
+    const { error: playersError } = await this.client
+      .from('tournament_registration_players')
+      .delete()
+      .eq('registration_id', registrationId);
+    
+    if (playersError) {
+      console.warn('Error deleting registration players:', playersError.message);
+    }
+
+    const { error } = await this.client
+      .from('tournament_registrations')
+      .delete()
+      .eq('id', registrationId);
+
+    if (error) {
+      return Result.err(error.message);
+    }
+
+    return Result.ok(true);
   }
 
   /**

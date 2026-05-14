@@ -21,7 +21,13 @@
             <div class="header-info">
               <div class="title-row">
                 <h1 class="tournament-title">{{ tournament.name }}</h1>
-                <span class="status-badge" :class="statusClass">{{ statusText }}</span>
+                <div class="flex gap-2 items-center flex-wrap">
+                  <span class="status-badge" :class="statusClass">{{ statusText }}</span>
+                  <span v-if="myRegistration" class="status-badge reg-badge" :class="myRegistration.status">
+                    <i :class="myRegistration.status === 'approved' ? 'pi pi-check-circle' : (myRegistration.status === 'pending' ? 'pi pi-clock' : 'pi pi-times-circle')"></i>
+                    {{ myRegistration.status === 'approved' ? 'Đã tham gia' : (myRegistration.status === 'pending' ? 'Đang chờ duyệt' : 'Bị từ chối') }}
+                  </span>
+                </div>
               </div>
               
               <div class="subtitle-row">
@@ -339,8 +345,34 @@
 
           <!-- Right Column (Sidebar) -->
           <div class="right-column">
-            <!-- Actions -->
-            <div class="section-card" v-if="canRegister">
+            <!-- Actions / Registration Status -->
+            <div class="section-card" v-if="myRegistration">
+              <div class="reg-status-card" :class="myRegistration.status">
+                <div class="status-icon-wrap">
+                  <i :class="myRegistration.status === 'approved' ? 'pi pi-check-circle' : (myRegistration.status === 'pending' ? 'pi pi-clock' : 'pi pi-times-circle')"></i>
+                </div>
+                <div class="status-info">
+                  <p class="status-label">
+                    {{ myRegistration.status === 'approved' ? 'Đã tham gia' : (myRegistration.status === 'pending' ? 'Đang chờ duyệt' : 'Bị từ chối') }}
+                  </p>
+                  <p class="status-sub">
+                    {{ myRegistration.status === 'approved' ? 'Chúc bạn thi đấu tốt!' : (myRegistration.status === 'pending' ? 'Yêu cầu đang được xem xét' : 'Vui lòng liên hệ BTC') }}
+                  </p>
+                </div>
+                <!-- Cancel Button for Pending -->
+                <button 
+                  v-if="myRegistration.status === 'pending'" 
+                  @click="handleCancelRegistration" 
+                  class="btn-cancel-reg" 
+                  :disabled="cancellingReg"
+                  title="Hủy đăng ký"
+                >
+                  <i v-if="cancellingReg" class="pi pi-spinner pi-spin"></i>
+                  <i v-else class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+            <div class="section-card" v-else-if="canRegister">
               <button class="btn-join" @click="handleRegister" :disabled="registering">
                 <i :class="registering ? 'pi pi-spinner pi-spin' : 'pi pi-sign-in'"></i>
                 {{ registering ? 'Đang xử lý...' : 'Đăng ký tham gia' }}
@@ -589,6 +621,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from 'primevue/dialog';
+import { tournamentRepository } from '../../repositories/TournamentRepository.js';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
 import { useTournamentStore } from '../../stores/tournament.js';
@@ -615,6 +648,7 @@ const tournament = computed(() => tournamentStore.currentTournament);
 const loading = ref(true);
 const userClubs = ref([]);
 const registering = ref(false);
+const cancellingReg = ref(false);
 const showRegModal = ref(false);
 const selectedClubId = ref(null);
 const selectedMatchId = ref(null);
@@ -730,6 +764,9 @@ const unregisteredClubs = computed(() => {
 });
 
 const canRegister = computed(() => {
+  // Hide if already registered
+  if (myRegistration.value) return false;
+
   // Show registration button if tournament is open and has space
   if (tournament.value?.status !== 'registration_open') return false;
   if (approvedRegistrations.value.length >= (tournament.value?.maxTeams || 0)) return false;
@@ -738,6 +775,17 @@ const canRegister = computed(() => {
   if (authStore.user?.id === tournament.value?.created_by) return false;
   
   return true;
+});
+
+const myRegistration = computed(() => {
+  if (!authStore.isAuthenticated || !authStore.user || !tournament.value?.registrations) return null;
+  
+  if (tournament.value.participantType === 'individual') {
+    return tournament.value.registrations.find(r => r.user_id === authStore.user.id);
+  }
+  
+  const managedClubIds = userClubs.value.map(c => c.id);
+  return tournament.value.registrations.find(r => r.club_id && managedClubIds.includes(r.club_id));
 });
 
 const canStartTournament = computed(() => {
@@ -775,6 +823,35 @@ const handleStartTournament = async () => {
 };
 
 
+
+const handleCancelRegistration = async () => {
+  if (!myRegistration.value) return;
+  
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn hủy đăng ký tham gia giải đấu này?',
+    header: 'Hủy đăng ký',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      cancellingReg.value = true;
+      try {
+        const result = await tournamentRepository.cancelRegistration(myRegistration.value.id);
+        if (result.isOk()) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã hủy đăng ký tham gia', life: 3000 });
+          // Refresh tournament data to update UI
+          await tournamentStore.fetchTournament(tournament.value.id);
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError() || 'Không thể hủy đăng ký', life: 3000 });
+        }
+      } catch (err) {
+        console.error('Error cancelling registration:', err);
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra', life: 3000 });
+      } finally {
+        cancellingReg.value = false;
+      }
+    }
+  });
+};
 
 const handleRegister = async () => {
   if (!authStore.isAuthenticated) {
@@ -1208,6 +1285,12 @@ onMounted(async () => {
   font-weight: 600;
   white-space: nowrap;
 }
+
+.reg-badge.pending { background: rgba(245, 158, 11, 0.25); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); animation: pulse 2s infinite; }
+.reg-badge.approved { background: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.3); }
+.reg-badge.rejected { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
 
 .subtitle-row {
   display: flex;
@@ -2708,5 +2791,89 @@ onMounted(async () => {
   border-radius: 0.75rem;
   display: flex;
   align-items: center;
+}
+
+/* Registration Status Card */
+.reg-status-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reg-status-card.pending {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+.reg-status-card.pending .status-icon-wrap { background: #f59e0b; color: white; animation: pulse 2s infinite; }
+.reg-status-card.pending .status-label { color: #fbbf24; }
+
+.reg-status-card.approved {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+.reg-status-card.approved .status-icon-wrap { background: #22c55e; color: white; }
+.reg-status-card.approved .status-label { color: #4ade80; }
+
+.reg-status-card.rejected {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+.reg-status-card.rejected .status-icon-wrap { background: #ef4444; color: white; }
+.reg-status-card.rejected .status-label { color: #f87171; }
+
+.status-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-label {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 0.1rem;
+}
+
+.status-sub {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-cancel-reg {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-cancel-reg:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  transform: scale(1.05);
+}
+
+.btn-cancel-reg:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

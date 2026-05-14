@@ -10,6 +10,11 @@
         <i :class="statusIcon"></i>
         {{ statusText }}
       </span>
+      <!-- Registration Status Badge -->
+      <span v-if="myRegistration" class="status-badge reg-badge" :class="myRegistration.status">
+        <i :class="myRegistration.status === 'approved' ? 'pi pi-check-circle' : (myRegistration.status === 'pending' ? 'pi pi-clock' : 'pi pi-times-circle')"></i>
+        {{ myRegistration.status === 'approved' ? 'Đã tham gia' : (myRegistration.status === 'pending' ? 'Đang chờ duyệt' : 'Bị từ chối') }}
+      </span>
     </div>
 
     <!-- Body -->
@@ -42,9 +47,25 @@
 
     <!-- Footer CTA -->
     <div class="card-footer">
-      <button v-if="canRegister" @click.stop="onJoinClick" class="btn-join">
+      <!-- Status Badge if registered -->
+      <template v-if="myRegistration">
+        <div v-if="myRegistration.status === 'pending'" class="reg-status pending" title="Đang chờ phê duyệt">
+          <i class="pi pi-clock"></i> Chờ duyệt
+        </div>
+        <div v-else-if="myRegistration.status === 'approved'" class="reg-status approved" title="Đã tham gia giải đấu">
+          <i class="pi pi-check-circle"></i> Đã tham gia
+        </div>
+        <div v-else class="reg-status rejected" title="Đăng ký bị từ chối">
+          <i class="pi pi-times-circle"></i> Bị từ chối
+        </div>
+      </template>
+
+      <!-- Join Button if can register -->
+      <button v-else-if="canRegister" @click.stop="onJoinClick" class="btn-join">
         <i class="pi pi-sign-in"></i> Tham gia
       </button>
+
+      <!-- Always show View Details -->
       <span class="btn-view">Xem chi tiết <i class="pi pi-arrow-right"></i></span>
     </div>
   </div>
@@ -64,12 +85,26 @@ const authStore = useAuthStore();
 const userClubs = ref([]);
 
 const canRegister = computed(() => {
+  if (myRegistration.value) return false;
   if (!authStore.isAuthenticated) return true;
   const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
   const hasManagedClub = userClubs.value && userClubs.value.length > 0;
   return (isManager || hasManagedClub) && 
          props.tournament.status === 'registration_open' &&
          (props.tournament.approvedCount || 0) < (props.tournament.maxTeams || 16);
+});
+
+const myRegistration = computed(() => {
+  if (!authStore.isAuthenticated || !authStore.user || !props.tournament.registrations) return null;
+  
+  // Individual tournament
+  if (props.tournament.participant_type === 'individual') {
+    return props.tournament.registrations.find(r => r.user_id === authStore.user.id);
+  }
+  
+  // Team tournament
+  const managedClubIds = userClubs.value.map(c => c.id);
+  return props.tournament.registrations.find(r => r.club_id && managedClubIds.includes(r.club_id));
 });
 
 onMounted(async () => {
@@ -216,6 +251,11 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 .sb-done      { background:rgba(107,114,128,0.3); color:#d1d5db; border:1px solid rgba(107,114,128,0.3); }
 .sb-cancel    { background:rgba(239,68,68,0.25);  color:#fca5a5; border:1px solid rgba(239,68,68,0.3); }
 
+.reg-badge { top: 10px; left: 10px; right: auto !important; z-index: 3; }
+.reg-badge.pending { background: rgba(245, 158, 11, 0.25); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.3); animation: pulse 2s infinite; }
+.reg-badge.approved { background: rgba(34, 197, 94, 0.25); color: #86efac; border: 1px solid rgba(34, 197, 94, 0.3); }
+.reg-badge.rejected { background: rgba(239, 68, 68, 0.25); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
 
 /* ── Body ── */
@@ -297,4 +337,42 @@ const navigateToDetail = () => router.push(`/tournaments/${props.tournament.id}`
 .btn-view:hover .pi { transform: translateX(3px); }
 
 .btn-join { /* uses global .btn-join from src/style.css */ }
+
+.reg-status {
+  flex: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.reg-status.pending {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  animation: pulse-status 2s infinite;
+}
+
+.reg-status.approved {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.reg-status.rejected {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+@keyframes pulse-status {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 </style>

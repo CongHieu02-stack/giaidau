@@ -147,7 +147,7 @@ const fetchFeaturedTournaments = async () => {
       .select(`
         *,
         sport_category:sports_categories(id, name, icon_url),
-        registrations:tournament_registrations(id, status)
+        registrations:tournament_registrations(id, status, user_id, club_id)
       `)
       .in('status', ['ongoing', 'registration_open', 'upcoming', 'registration_closed'])
       .limit(20); // Get a pool of 20 latest active tournaments
