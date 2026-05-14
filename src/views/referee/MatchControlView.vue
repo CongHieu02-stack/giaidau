@@ -1,6 +1,8 @@
 <template>
 <div class="ref-page">
-<div class="shell">
+  <Toast />
+  <ConfirmDialog />
+  <div class="shell">
   <div v-if="loading" class="center-msg"><i class="pi pi-spinner pi-spin"></i> Đang tải...</div>
   <template v-else-if="match">
     <!-- Header -->
@@ -158,14 +160,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { useAuthStore } from '../../stores/auth.js';
-import { matchRepository } from '../../repositories/MatchRepository.js';
-import { supabase } from '../../config/supabase.js';
-import { advanceKnockoutWinner, checkAndFinalizeTournament } from '../../features/tournaments/adminTournamentManagement.js';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const route = useRoute();
 const authStore = useAuthStore();
+const toast = useToast();
+const confirm = useConfirm();
 const match = ref(null);
 const events = ref([]);
 const attendance = ref([]);
@@ -297,7 +300,7 @@ async function updateMatchStatus(status, extra = {}) {
 
 async function doStart() { 
   if (!match.value.referee_id) {
-    alert('Trận đấu này chưa được phân công trọng tài. Vui lòng phân công trọng tài trước khi bắt đầu.');
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Trận đấu này chưa được phân công trọng tài.', life: 3000 });
     return;
   }
   startTimer(); 
@@ -307,25 +310,30 @@ async function doPause() { stopTimer(); await updateMatchStatus('paused'); }
 async function doResume() { startTimer(); await updateMatchStatus('in_progress'); }
 
 async function doEnd() {
-  if (!confirm('Bạn có chắc muốn kết thúc trận đấu?')) return;
+  confirm.require({
+    message: 'Bạn có chắc muốn kết thúc trận đấu?',
+    header: 'Xác nhận',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      // Knockout format check: must have a winner
+      if (match.value.tournament?.format === 'knockout') {
+        if (match.value.home_score === match.value.away_score) {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Trận đấu loại trực tiếp không được phép hòa.', life: 3000 });
+          return;
+        }
+      }
 
-  // Knockout format check: must have a winner
-  if (match.value.tournament?.format === 'knockout') {
-    if (match.value.home_score === match.value.away_score) {
-      alert('Trận đấu loại trực tiếp không được phép có kết quả hòa. Vui lòng cập nhật tỉ số (Penalty/Hiệp phụ) để xác định đội thắng.');
-      return;
+      stopTimer();
+      await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
+
+      // Post-match tournament logic
+      if (match.value.tournament?.format === 'knockout') {
+        await advanceKnockoutWinner(match.value.id);
+      } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
+        await checkAndFinalizeTournament(match.value.tournament_id);
+      }
     }
-  }
-
-  stopTimer();
-  await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
-
-  // Post-match tournament logic
-  if (match.value.tournament?.format === 'knockout') {
-    await advanceKnockoutWinner(match.value.id);
-  } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
-    await checkAndFinalizeTournament(match.value.tournament_id);
-  }
+  });
 }
 
 function openEventModal(type, side) {
@@ -342,66 +350,78 @@ function openEventModal(type, side) {
 
 async function submitEvent() {
   if (!modalPlayerId.value) {
-    alert('Vui lòng chọn cầu thủ thực hiện.');
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Vui lòng chọn cầu thủ thực hiện.', life: 3000 });
     return;
   }
   if (modalMinute.value === null || modalMinute.value === undefined || modalMinute.value < 0) {
-    alert('Vui lòng nhập phút xảy ra sự kiện.');
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Vui lòng nhập phút xảy ra sự kiện.', life: 3000 });
     return;
   }
 
-  // Chặn ghi nhận sự kiện ở tương lai
   const currentMinute = Math.floor(timerSeconds.value / 60);
   if (modalMinute.value > currentMinute) {
-    alert(`Không thể ghi nhận sự kiện ở phút ${modalMinute.value}. Thời gian hiện tại của trận đấu mới là phút ${currentMinute}.`);
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: `Không thể ghi nhận sự kiện ở phút ${modalMinute.value}.`, life: 3000 });
     return;
   }
   
   saving.value = true;
+  const isIndividual = match.value.tournament?.participant_type === 'individual';
+  
   const evData = {
     match_id: match.value.id,
     type: modalType.value,
-    club_id: modalClubId.value || null,
+    club_id: isIndividual ? null : (modalClubId.value || null),
     player_id: modalPlayerId.value || null,
     minute: modalMinute.value,
     second: modalMinute.value === 0 ? (timerSeconds.value % 60) : 0,
     description: modalDesc.value || modalTitle.value
   };
+  
   const r = await matchRepository.addMatchEvent(evData);
   if (r.isOk()) {
     events.value.push(r.getValue());
     events.value.sort((a,b) => a.minute - b.minute);
-    // Update score if goal
+    
     if (modalType.value === 'goal') {
-      const isHome = modalClubId.value === match.value.home_club_id;
+      const homeId = match.value.home_club_id || match.value.home_user_id;
+      const isHome = modalClubId.value === homeId;
       const newHome = (match.value.home_score ?? 0) + (isHome ? 1 : 0);
       const newAway = (match.value.away_score ?? 0) + (isHome ? 0 : 1);
       const scoreR = await matchRepository.updateScore(match.value.id, newHome, newAway);
       if (scoreR.isOk()) {
         match.value = { ...match.value, home_score: newHome, away_score: newAway };
       } else {
-        alert('Lỗi cập nhật tỉ số: ' + scoreR.getError());
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi cập nhật tỉ số', life: 3000 });
       }
     }
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã ghi nhận sự kiện', life: 2000 });
   } else {
-    alert('Lỗi ghi nhận sự kiện: ' + r.getError());
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: r.getError(), life: 5000 });
   }
   showModal.value = false;
   saving.value = false;
 }
 
 async function removeEvent(evId) {
-  if (!confirm('Xóa sự kiện này?')) return;
-  const ev = events.value.find(e => e.id === evId);
-  await matchRepository.deleteMatchEvent(evId);
-  events.value = events.value.filter(e => e.id !== evId);
-  if (ev?.type === 'goal') {
-    const isHome = ev.club_id === match.value.home_club_id;
-    const newHome = Math.max(0, (match.value.home_score ?? 0) - (isHome ? 1 : 0));
-    const newAway = Math.max(0, (match.value.away_score ?? 0) - (isHome ? 0 : 1));
-    await matchRepository.updateScore(match.value.id, newHome, newAway);
-    match.value = { ...match.value, home_score: newHome, away_score: newAway };
-  }
+  confirm.require({
+    message: 'Bạn có chắc chắn muốn xóa sự kiện này?',
+    header: 'Xác nhận xóa',
+    icon: 'pi pi-trash',
+    accept: async () => {
+      const ev = events.value.find(e => e.id === evId);
+      await matchRepository.deleteMatchEvent(evId);
+      events.value = events.value.filter(e => e.id !== evId);
+      if (ev?.type === 'goal') {
+        const homeId = match.value.home_club_id || match.value.home_user_id;
+        const isHome = ev.club_id === homeId;
+        const newHome = Math.max(0, (match.value.home_score ?? 0) - (isHome ? 1 : 0));
+        const newAway = Math.max(0, (match.value.away_score ?? 0) - (isHome ? 0 : 1));
+        await matchRepository.updateScore(match.value.id, newHome, newAway);
+        match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      }
+      toast.add({ severity: 'info', summary: 'Thông báo', detail: 'Đã xóa sự kiện', life: 2000 });
+    }
+  });
 }
 
 async function toggleAttendance(playerId, clubId, e) {
