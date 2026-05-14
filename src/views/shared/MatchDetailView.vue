@@ -203,10 +203,10 @@ onMounted(loadAll);
 .sb-logo img { width: 100%; height: 100%; object-fit: cover; }
 .sb-name { font-size: 1.1rem; font-weight: 700; text-align: center; }
 
-.sb-score { display: flex; flex-direction: column; align-items: center; }
+.sb-score { display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 0.25rem; }
 .sc-num { font-size: 4rem; font-weight: 900; line-height: 1; }
-.sc-sep { font-size: 2.5rem; color: rgba(255,255,255,0.2); margin: 0 1rem; }
-.sc-label { font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+.sc-sep { font-size: 2.5rem; color: rgba(255,255,255,0.2); margin: 0 0.5rem; }
+.sc-label { width: 100%; text-align: center; font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
 
 .sb-events { display: flex; flex-direction: column; gap: 0.4rem; width: 100%; margin-top: 1rem; }
 .sb-ev-item { font-size: 0.75rem; color: rgba(255,255,255,0.6); }
