@@ -42,8 +42,8 @@
               <input :value="statusLabels[tournament?.status] || tournament?.status" disabled>
             </label>
             <label class="field">
-              <span>Số đội đã đăng ký</span>
-              <input :value="tournament?.registration_count || 0" disabled>
+              <span>Số đội đã duyệt</span>
+              <input :value="tournament?.approved_count || 0" disabled>
             </label>
           </div>
         </section>
@@ -90,7 +90,7 @@
             <label class="field">
               <span>Sân thi đấu</span>
               <select v-model="form.venueId" :disabled="readOnly">
-                <option value="">Chọn sân đấu (không bắt buộc)</option>
+                <option value="">Chọn sân đấu </option>
                 <option v-for="venue in filteredVenues" :key="venue.id" :value="venue.id">
                   {{ venue.name }}
                 </option>
@@ -680,20 +680,20 @@ async function handleReject(regId) {
   const reason = prompt('Nhập lý do từ chối đăng ký:');
   if (reason === null) return;
   if (!reason.trim()) {
-    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Vui lòng nhập lý do từ chối.', life: 3000 });
+    alert('Vui lòng nhập lý do từ chối.');
     return;
   }
   
   try {
     const result = await rejectTournamentRegistration(regId, reason);
     if (result.success) {
-      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã từ chối đăng ký.', life: 3000 });
+      successMessage.value = 'Đã từ chối đăng ký.';
       await loadTournament();
     } else {
-      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
+      errorMessage.value = result.error;
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Lỗi khi từ chối đăng ký.', life: 5000 });
+    errorMessage.value = error.message || 'Lỗi khi từ chối đăng ký.';
   }
 }
 
@@ -827,7 +827,7 @@ async function handleSubmit() {
   const result = await updateTournamentForAdmin(
     route.params.id,
     form,
-    tournament.value?.registration_count || 0
+    tournament.value?.approved_count || 0
   );
 
   if (!result.success) {

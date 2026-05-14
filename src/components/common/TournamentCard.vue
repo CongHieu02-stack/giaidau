@@ -36,7 +36,7 @@
       <!-- Champion -->
       <div v-if="isCompleted && tournament.champion_club" class="champion-row">
         <i class="pi pi-star-fill"></i>
-        <span>Vô địch: {{ tournament.champion_club.name }}</span>
+        <span>Vô dịch: {{ tournament.champion_club.name }}</span>
       </div>
     </div>
 
@@ -133,9 +133,9 @@ const dateDisplay = computed(() => {
 });
 
 const registrationDisplay = computed(() => {
-  const c = props.tournament.registrationCount || 0;
+  const c = props.tournament.approvedCount || 0;
   const m = props.tournament.maxTeams || 0;
-  return m > 0 ? `${c}/${m} đội` : `${c} đội đăng ký`;
+  return m > 0 ? `${c}/${m} đội` : `${c} đội tham gia`;
 });
 
 

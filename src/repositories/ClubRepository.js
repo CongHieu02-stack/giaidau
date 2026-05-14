@@ -108,11 +108,11 @@ export class ClubRepository extends BaseRepository {
       .from('clubs')
       .select(`
         *,
-        leader:profiles!clubs_leader_id_fkey(id, full_name, avatar_url),
-        deputy:profiles!clubs_deputy_id_fkey(id, full_name, avatar_url),
+        leader:profiles!clubs_leader_id_fkey(id, full_name, avatar_url, gender, email, phone, birth_date),
+        deputy:profiles!clubs_deputy_id_fkey(id, full_name, avatar_url, gender, email, phone, birth_date),
         members:club_members(
           id,
-          user:profiles(id, full_name, avatar_url, gender),
+          user:profiles(id, full_name, avatar_url, gender, email, phone, birth_date),
           role,
           status,
           joined_at

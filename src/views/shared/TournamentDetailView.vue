@@ -24,20 +24,7 @@
                 <span class="status-badge" :class="statusClass">{{ statusText }}</span>
               </div>
               
-              <div class="subtitle-row">
-                <div class="organizer-badge" v-if="tournament.organizer">
-                  <div class="org-avatar-box">
-                    <img v-if="tournament.organizer.avatar_url" :src="tournament.organizer.avatar_url" class="org-avatar" />
-                    <span v-else class="org-initials">{{ getInitials(tournament.organizer.full_name) }}</span>
-                  </div>
-                  <span class="org-name">Ban tổ chức: {{ tournament.organizer.full_name }}</span>
-                </div>
-                <span class="subtitle-divider" v-if="tournament.organizer"></span>
-                <div class="sport-badge">
-                  <i class="pi pi-tag text-[10px] opacity-60"></i>
-                  <span>{{ tournament.sportCategory?.name || 'Thể thao' }}</span>
-                </div>
-              </div>
+              <p class="sport-name">{{ tournament.sportCategory?.name || 'Thể thao' }}</p>
 
               <!-- Meta Info -->
               <div class="meta-row">
@@ -137,14 +124,69 @@
                 <span class="match-count" v-if="tournament.matches && tournament.matches.length > 0">{{ tournament.matches.length }} trận</span>
               </h2>
               
-              <!-- Google Style Bracket (New) -->
-              <div v-if="tournament.matches && tournament.matches.length > 0" class="mt-4">
-                <GoogleKnockoutBracket 
-                  :matches="tournament.matches" 
-                  :participant-type="tournament.participantType"
-                  :admin-mode="canManage"
-                  @assign-referee="openRefereeModal"
-                />
+              <!-- Matches Grid (Simplified View) -->
+              <!-- Matches Container (Grouped by Round) -->
+              <div v-if="tournament.matches && tournament.matches.length > 0" class="matches-container-simple">
+                <div v-for="roundNum in Object.keys(groupedMatches).sort((a,b) => a-b)" :key="roundNum" class="round-section-simple">
+                  <div class="round-header-simple">
+                    <h3 class="round-title-simple">{{ getRoundLabel(roundNum) }}</h3>
+                    <div class="round-line-simple"></div>
+                  </div>
+                  
+                  <div class="matches-grid-simple">
+                    <div v-for="match in groupedMatches[roundNum]" :key="match.id" class="match-card-simple" :class="{ 'is-bye': isByeMatch(match) }">
+                      <div class="match-header-simple">
+                        <span v-if="getMatchBadge(match)" class="special-match-badge">{{ getMatchBadge(match) }}</span>
+                        <span class="match-time-simple">
+                          <i class="pi pi-calendar mr-1"></i>{{ formatDate(match.match_date) }} 
+                          <i class="pi pi-clock ml-2 mr-1"></i>{{ match.match_time }}
+                        </span>
+                      </div>
+
+                      <div class="match-body-simple">
+                        <div class="team-side-simple home">
+                          <span class="team-name-simple">{{ getTeamName(match, 'home') }}</span>
+                          <div class="team-avatar-simple">
+                            <img v-if="getTeamLogo(match, 'home')" :src="getTeamLogo(match, 'home')" />
+                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                          </div>
+                        </div>
+
+                        <div v-if="isByeMatch(match)" class="bye-status-simple">
+                          <span class="bye-badge-simple">MIỄN ĐẤU</span>
+                        </div>
+                        <div v-else-if="match.home_score !== null && match.away_score !== null" class="score-status-simple">
+                          <span class="score-simple">{{ match.home_score }} - {{ match.away_score }}</span>
+                          <span v-if="match.status === 'completed'" class="ft-tag-simple">FT</span>
+                        </div>
+                        <div v-else class="vs-status-simple">VS</div>
+
+                        <div class="team-side-simple away">
+                          <div class="team-avatar-simple">
+                            <img v-if="getTeamLogo(match, 'away')" :src="getTeamLogo(match, 'away')" />
+                            <i v-else :class="tournament.participantType === 'individual' ? 'pi pi-user' : 'pi pi-shield'"></i>
+                          </div>
+                          <span class="team-name-simple">{{ getTeamName(match, 'away') }}</span>
+                        </div>
+                      </div>
+
+                      <div class="match-footer-simple">
+                        <div class="match-venue-simple">
+                          <i class="pi pi-map-marker mr-1"></i>
+                          {{ match.venue?.name || 'Chưa chọn sân' }}
+                        </div>
+                        <div v-if="canManage" class="match-actions-simple">
+                          <button v-if="match.status !== 'completed'" class="action-btn-simple" @click="openRefereeModal(match)" title="Phân công">
+                            <i class="pi pi-user-edit"></i>
+                          </button>
+                          <RouterLink v-if="match.referee && match.status !== 'completed'" :to="`/referee/matches/${match.id}`" class="action-btn-simple primary" title="Điều khiển">
+                            <i class="pi pi-play"></i>
+                          </RouterLink>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div v-else class="empty-schedule-simple">
                 <i class="pi pi-calendar"></i>
@@ -490,7 +532,6 @@ import { userRepository } from '../../repositories/UserRepository.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
 import TournamentStandings from '../../components/tournaments/TournamentStandings.vue';
 import KnockoutBracket from '../../components/tournaments/KnockoutBracket.vue';
-import GoogleKnockoutBracket from '../../components/tournaments/GoogleKnockoutBracket.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -576,7 +617,7 @@ const getRoundLabel = (roundNum) => {
   const rounds = Object.keys(groupedMatches.value)
     .map(k => parseInt(k))
     .filter(k => k !== 999);
-  const maxR = Math.max(...rounds, 0);
+  const maxR = Math.max(...rounds);
   
   if (tournament.value?.format !== 'knockout') return `Vòng ${r}`;
   
@@ -788,6 +829,15 @@ const getTeamLogo = (match, side) => {
 
 const getWinnerName = (t, rank) => {
   if (!t) return '...';
+  
+  // Method 1: Try joined objects (Local logic)
+  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
+  const joinedTeam = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  if (joinedTeam?.name || joinedTeam?.full_name) {
+    return joinedTeam.name || joinedTeam.full_name;
+  }
+
+  // Method 2: Lookup by ID (Remote logic)
   const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
              rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
              (t.thirdPlaceId || t.third_place_id);
@@ -811,6 +861,15 @@ const getWinnerName = (t, rank) => {
 
 const getWinnerLogo = (t, rank) => {
   if (!t) return null;
+
+  // Method 1: Try joined objects (Local logic)
+  const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
+  const joinedTeam = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  if (joinedTeam?.logo_url || joinedTeam?.avatar_url) {
+    return joinedTeam.logo_url || joinedTeam.avatar_url;
+  }
+
+  // Method 2: Lookup by ID (Remote logic)
   const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
              rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
              (t.thirdPlaceId || t.third_place_id);
@@ -1004,18 +1063,17 @@ onMounted(async () => {
 <style scoped>
 /* ========== HEADER ========== */
 .header-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1.25rem;
-  padding: 1.5rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.25rem;
 }
 
 .header-content {
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .tournament-icon {
@@ -1058,78 +1116,17 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.subtitle-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.organizer-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
-  border-radius: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.org-avatar-box {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 50%;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.org-avatar {
-  width: 100%;
-  height: 100%;
-  object-cover: cover;
-}
-
-.org-initials {
-  font-size: 0.65rem;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.org-name {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.subtitle-divider {
-  width: 1px;
-  height: 1rem;
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.sport-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8125rem;
+.sport-name {
   color: rgba(255, 255, 255, 0.6);
-  background: rgba(99, 102, 241, 0.1);
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  font-size: 0.875rem;
+  margin: 0 0 0.75rem 0;
 }
 
 .meta-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.5rem;
+  gap: 1rem;
   font-size: 0.8125rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .meta-item {
