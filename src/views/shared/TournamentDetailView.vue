@@ -829,16 +829,66 @@ const getTeamLogo = (match, side) => {
 
 const getWinnerName = (t, rank) => {
   if (!t) return '...';
+  
+  // Method 1: Try joined objects (Local logic)
   const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
-  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
-  return team?.name || team?.full_name || 'Chưa xác định';
+  const joinedTeam = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  if (joinedTeam?.name || joinedTeam?.full_name) {
+    return joinedTeam.name || joinedTeam.full_name;
+  }
+
+  // Method 2: Lookup by ID (Remote logic)
+  const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
+             rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
+             (t.thirdPlaceId || t.third_place_id);
+             
+  if (!id) return 'Chưa xác định';
+  
+  const regs = t.registrations || [];
+  const reg = regs.find(r => (
+    r.club_id === id || r.user_id === id || 
+    r.clubId === id || r.userId === id ||
+    r.user?.id === id || r.profile?.id === id
+  ));
+  
+  if (reg) {
+    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+    const team = isInd ? (reg.user || reg.profile) : reg.club;
+    return team?.name || team?.full_name || team?.fullName || 'Chưa xác định';
+  }
+  return 'Chưa xác định';
 };
 
 const getWinnerLogo = (t, rank) => {
   if (!t) return null;
+
+  // Method 1: Try joined objects (Local logic)
   const prefix = rank === 'champion' ? 'champion' : rank === 'runner_up' ? 'runner_up' : 'third_place';
-  const team = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
-  return team?.logo_url || team?.avatar_url || null;
+  const joinedTeam = t.participantType === 'individual' ? t[`${prefix}_user`] : t[`${prefix}_club`];
+  if (joinedTeam?.logo_url || joinedTeam?.avatar_url) {
+    return joinedTeam.logo_url || joinedTeam.avatar_url;
+  }
+
+  // Method 2: Lookup by ID (Remote logic)
+  const id = rank === 'champion' ? (t.championClubId || t.champion_club_id) : 
+             rank === 'runner_up' ? (t.runnerUpId || t.runner_up_id) : 
+             (t.thirdPlaceId || t.third_place_id);
+             
+  if (!id) return null;
+  
+  const regs = t.registrations || [];
+  const reg = regs.find(r => (
+    r.club_id === id || r.user_id === id || 
+    r.clubId === id || r.userId === id ||
+    r.user?.id === id || r.profile?.id === id
+  ));
+  
+  if (reg) {
+    const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
+    const team = isInd ? (reg.user || reg.profile) : reg.club;
+    return team?.logo_url || team?.logoUrl || team?.avatar_url || team?.avatarUrl || null;
+  }
+  return null;
 };
 
 const formatFormat = (format) => {

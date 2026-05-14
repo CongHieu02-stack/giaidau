@@ -12,7 +12,7 @@
             <thead>
               <tr>
                 <th class="rank">#</th>
-                <th class="team">Đội bóng</th>
+                <th class="team">{{ tournament.participantType === 'individual' ? 'Vận động viên' : 'Đội bóng' }}</th>
                 <th class="stat">Trận</th>
                 <th class="stat">T</th>
                 <th class="stat">H</th>
@@ -53,7 +53,7 @@
         <thead>
           <tr>
             <th class="rank">#</th>
-            <th class="team">Đội bóng</th>
+            <th class="team">{{ tournament.participantType === 'individual' ? 'Vận động viên' : 'Đội bóng' }}</th>
             <th class="stat">Trận</th>
             <th class="stat">T</th>
             <th class="stat">H</th>
@@ -68,6 +68,7 @@
             <td class="team">
               <div class="team-info">
                 <img v-if="team.logoUrl" :src="team.logoUrl" class="team-logo" />
+                <div v-else class="team-logo-placeholder">{{ team.name ? team.name[0] : '?' }}</div>
                 <span class="team-name">{{ team.name }}</span>
               </div>
             </td>

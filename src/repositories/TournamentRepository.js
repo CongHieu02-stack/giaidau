@@ -132,8 +132,9 @@ export class TournamentRepository extends BaseRepository {
         registrations:tournament_registrations(
           id,
           club_id,
+          user_id,
           club:clubs(id, name, logo_url),
-          user:profiles!user_id(id, full_name, avatar_url),
+          user:profiles!tournament_registrations_user_id_fkey(id, full_name, avatar_url),
           players:tournament_registration_players(
             player:profiles!player_id(id, full_name, avatar_url)
           ),

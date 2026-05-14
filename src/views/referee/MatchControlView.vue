@@ -474,10 +474,10 @@ onUnmounted(stopTimer);
 .sb-logo { width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.2)); border:2px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-weight:700; color:white; overflow:hidden; font-size:1rem; }
 .sb-logo img { width:100%; height:100%; object-fit:cover; }
 .sb-name { font-size:0.9rem; font-weight:600; color:white; text-align:center; }
-.sb-score { display:flex; flex-direction:column; align-items:center; gap:0.25rem; }
+.sb-score { display:flex; align-items:center; flex-wrap:wrap; justify-content:center; gap:0.5rem; }
 .sc-num { font-size:3rem; font-weight:900; color:white; line-height:1; }
 .sc-sep { font-size:2rem; color:rgba(255,255,255,0.3); }
-.sc-label { font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; }
+.sc-label { width:100%; text-align:center; font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:0.25rem; }
 
 .sb-events {
   display: flex;
@@ -581,14 +581,11 @@ onUnmounted(stopTimer);
 .btn-cancel { padding:0.5rem 1rem; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.1); border-radius:0.5rem; color:rgba(255,255,255,0.7); cursor:pointer; font-weight:600; font-size:0.85rem; }
 .btn-submit { display:flex; align-items:center; gap:0.4rem; padding:0.5rem 1.25rem; background:linear-gradient(135deg,#2563eb,#7c3aed); border:none; border-radius:0.5rem; color:white; font-weight:600; cursor:pointer; font-size:0.85rem; }
 
-.sb-score { display:flex; align-items:center; gap:0.5rem; flex-direction:row; flex-wrap:wrap; justify-content:center; }
-.sc-label { width:100%; }
-
 @media(max-width:600px) {
   .scoreboard { flex-direction:column; gap:1rem; }
-  .sb-score { flex-direction:row; }
   .event-actions { grid-template-columns:1fr; }
 }
+
 .text-red-500 { color: #ef4444; }
 
 .card-icon {
