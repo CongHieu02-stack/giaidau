@@ -153,10 +153,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth.js';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { supabase } from '../../config/supabase.js';
 
+const toast = useToast();
 const authStore = useAuthStore();
 const clubs = ref([]);
 const searchQuery = ref('');
@@ -178,7 +180,7 @@ const hasJoinedAnyClub = computed(() => {
 
 const openCreateModal = () => {
   if (hasJoinedAnyClub.value) {
-    alert('Bạn đã tham gia hoặc đang chờ duyệt ở một câu lạc bộ khác. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.');
+    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Bạn đã tham gia hoặc đang chờ duyệt ở một câu lạc bộ khác. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.', life: 5000 });
     return;
   }
   showCreateModal.value = true;
@@ -221,6 +223,7 @@ const handleCreate = async () => {
     if (error) throw new Error(error.message);
     if (!data) throw new Error('Không nhận được dữ liệu. Có thể do RLS policy.');
     clubs.value.unshift(data);
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã tạo câu lạc bộ mới. Vui lòng chờ quản trị viên duyệt.', life: 5000 });
     showCreateModal.value = false;
     resetForm();
   } catch (err) {
@@ -275,9 +278,10 @@ const handleJoin = async (club) => {
     });
     if (error) throw error;
     userMemberships.value[club.id] = 'pending';
+    toast.add({ severity: 'success', summary: 'Đã gửi yêu cầu', detail: 'Vui lòng chờ ban quản trị CLB phê duyệt.', life: 3000 });
   } catch (err) {
     console.error(err);
-    alert('Lỗi khi tham gia câu lạc bộ: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi tham gia câu lạc bộ: ' + err.message, life: 5000 });
   } finally {
     joiningClubId.value = null;
   }

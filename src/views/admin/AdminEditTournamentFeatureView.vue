@@ -680,20 +680,20 @@ async function handleReject(regId) {
   const reason = prompt('Nhập lý do từ chối đăng ký:');
   if (reason === null) return;
   if (!reason.trim()) {
-    alert('Vui lòng nhập lý do từ chối.');
+    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Vui lòng nhập lý do từ chối.', life: 3000 });
     return;
   }
   
   try {
     const result = await rejectTournamentRegistration(regId, reason);
     if (result.success) {
-      successMessage.value = 'Đã từ chối đăng ký.';
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã từ chối đăng ký.', life: 3000 });
       await loadTournament();
     } else {
-      errorMessage.value = result.error;
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 5000 });
     }
   } catch (error) {
-    errorMessage.value = error.message || 'Lỗi khi từ chối đăng ký.';
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Lỗi khi từ chối đăng ký.', life: 5000 });
   }
 }
 

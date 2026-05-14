@@ -64,11 +64,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth.js';
 import { tournamentService } from '../../services/TournamentService.js';
 import { supabase } from '../../config/supabase.js';
 
 const router = useRouter();
+const toast = useToast();
 const authStore = useAuthStore();
 const sports = ref([]);
 const loading = ref(false);
@@ -88,9 +90,10 @@ const handleSubmit = async () => {
   loading.value = true;
   const result = await tournamentService.createTournament(form.value, authStore.user?.id);
   if (result.isOk()) {
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã tạo giải đấu mới.', life: 3000 });
     router.push('/admin/tournaments');
   } else {
-    alert(result.getError());
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError(), life: 5000 });
   }
   loading.value = false;
 };

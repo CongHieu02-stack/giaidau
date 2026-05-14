@@ -299,7 +299,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import { userRepository } from '../../repositories/UserRepository.js';
+
+const toast = useToast();
 
 const users = ref([]);
 const loading = ref(true);
@@ -398,26 +401,44 @@ const updateRole = async (id, role) => {
     }
     // Reload users list to reflect changes
     await loadUsers();
-    // Show success feedback on button (optional)
-    console.log(`[UsersView] Role updated successfully: ${id} → ${role}`);
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã cập nhật vai trò', life: 3000 });
   } else {
     const errMsg = result.getError();
     console.error('[UsersView] updateRole failed:', errMsg);
-    alert('Cập nhật vai trò thất bại!\n\n' + errMsg + '\n\nKiểm tra Console (F12) để biết thêm chi tiết.');
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Cập nhật vai trò thất bại: ' + errMsg, life: 5000 });
   }
 };
 
 const suspendUser = async (id) => {
   const reason = prompt('Lý do khóa:');
-  if (reason) {
-    await userRepository.updateStatus(id, 'suspended', reason);
+  if (reason === null) return;
+  if (!reason.trim()) {
+    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Vui lòng nhập lý do khóa.', life: 3000 });
+    return;
+  }
+  const result = await userRepository.updateStatus(id, 'suspended', reason);
+  if (result.isOk()) {
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã khóa tài khoản.', life: 3000 });
     loadUsers();
+    if (selectedUser.value && selectedUser.value.id === id) {
+       selectedUser.value.status = 'suspended';
+    }
+  } else {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Khóa tài khoản thất bại.', life: 3000 });
   }
 };
 
 const unlockUser = async (id) => {
-  await userRepository.updateStatus(id, 'active');
-  loadUsers();
+  const result = await userRepository.updateStatus(id, 'active');
+  if (result.isOk()) {
+    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã mở khóa tài khoản.', life: 3000 });
+    loadUsers();
+    if (selectedUser.value && selectedUser.value.id === id) {
+       selectedUser.value.status = 'active';
+    }
+  } else {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Mở khóa tài khoản thất bại.', life: 3000 });
+  }
 };
 
 const loadUsers = async () => {

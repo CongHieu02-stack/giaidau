@@ -159,12 +159,16 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import { useAuthStore } from '../../stores/auth.js';
 import { matchRepository } from '../../repositories/MatchRepository.js';
 import { supabase } from '../../config/supabase.js';
 import { advanceKnockoutWinner, checkAndFinalizeTournament } from '../../features/tournaments/adminTournamentManagement.js';
 
 const route = useRoute();
+const toast = useToast();
+const confirm = useConfirm();
 const authStore = useAuthStore();
 const match = ref(null);
 const events = ref([]);
@@ -231,18 +235,20 @@ const isPresent = (pid) => attendance.value.some(a => a.player_id === pid && a.i
 
 const homeSummary = computed(() => {
   const homeId = match.value?.home_club_id || match.value?.home_user_id;
-  return events.value.filter(e => 
-    e.club_id === homeId && 
-    ['goal', 'yellow_card', 'red_card'].includes(e.type)
-  );
+  const isIndividual = match.value?.tournament?.participant_type === 'individual';
+  return events.value.filter(e => {
+    const belongsToHome = isIndividual ? e.player_id === homeId : e.club_id === homeId;
+    return belongsToHome && ['goal', 'yellow_card', 'red_card'].includes(e.type);
+  });
 });
 
 const awaySummary = computed(() => {
   const awayId = match.value?.away_club_id || match.value?.away_user_id;
-  return events.value.filter(e => 
-    e.club_id === awayId && 
-    ['goal', 'yellow_card', 'red_card'].includes(e.type)
-  );
+  const isIndividual = match.value?.tournament?.participant_type === 'individual';
+  return events.value.filter(e => {
+    const belongsToAway = isIndividual ? e.player_id === awayId : e.club_id === awayId;
+    return belongsToAway && ['goal', 'yellow_card', 'red_card'].includes(e.type);
+  });
 });
 
 function startTimer() {
@@ -311,7 +317,7 @@ async function updateMatchStatus(status, extra = {}) {
 
 async function doStart() { 
   if (!match.value.referee_id) {
-    alert('Trận đấu này chưa được phân công trọng tài. Vui lòng phân công trọng tài trước khi bắt đầu.');
+    toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Trận đấu này chưa được phân công trọng tài. Vui lòng phân công trọng tài trước khi bắt đầu.', life: 5000 });
     return;
   }
   startTimer(); 
@@ -321,25 +327,32 @@ async function doPause() { stopTimer(); await updateMatchStatus('paused'); }
 async function doResume() { startTimer(); await updateMatchStatus('in_progress'); }
 
 async function doEnd() {
-  if (!confirm('Bạn có chắc muốn kết thúc trận đấu?')) return;
-
   // Knockout format check: must have a winner
   if (match.value.tournament?.format === 'knockout') {
     if (match.value.home_score === match.value.away_score) {
-      alert('Trận đấu loại trực tiếp không được phép có kết quả hòa. Vui lòng cập nhật tỉ số (Penalty/Hiệp phụ) để xác định đội thắng.');
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Trận đấu loại trực tiếp không được phép có kết quả hòa. Vui lòng cập nhật tỉ số (Penalty/Hiệp phụ) để xác định đội thắng.', life: 5000 });
       return;
     }
   }
 
-  stopTimer();
-  await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
+  confirm.require({
+    message: 'Bạn có chắc muốn kết thúc trận đấu?',
+    header: 'Xác nhận kết thúc',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      stopTimer();
+      await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
 
-  // Post-match tournament logic
-  if (match.value.tournament?.format === 'knockout') {
-    await advanceKnockoutWinner(match.value.id);
-  } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
-    await checkAndFinalizeTournament(match.value.tournament_id);
-  }
+      // Post-match tournament logic
+      if (match.value.tournament?.format === 'knockout') {
+        await advanceKnockoutWinner(match.value.id);
+      } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
+        await checkAndFinalizeTournament(match.value.tournament_id);
+      }
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Trận đấu đã kết thúc.', life: 3000 });
+    }
+  });
 }
 
 function openEventModal(type, side) {
@@ -356,26 +369,27 @@ function openEventModal(type, side) {
 
 async function submitEvent() {
   if (!modalPlayerId.value) {
-    alert('Vui lòng chọn cầu thủ thực hiện.');
+    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Vui lòng chọn cầu thủ thực hiện.', life: 3000 });
     return;
   }
   if (modalMinute.value === null || modalMinute.value === undefined || modalMinute.value < 0) {
-    alert('Vui lòng nhập phút xảy ra sự kiện.');
+    toast.add({ severity: 'warn', summary: 'Lưu ý', detail: 'Vui lòng nhập phút xảy ra sự kiện.', life: 3000 });
     return;
   }
 
   // Chặn ghi nhận sự kiện ở tương lai
   const currentMinute = Math.floor(timerSeconds.value / 60);
   if (modalMinute.value > currentMinute) {
-    alert(`Không thể ghi nhận sự kiện ở phút ${modalMinute.value}. Thời gian hiện tại của trận đấu mới là phút ${currentMinute}.`);
+    toast.add({ severity: 'error', summary: 'Thời gian không hợp lệ', detail: `Không thể ghi nhận sự kiện ở phút ${modalMinute.value}. Thời gian hiện tại của trận đấu mới là phút ${currentMinute}.`, life: 5000 });
     return;
   }
   
   saving.value = true;
+  const isIndividual = match.value.tournament?.participant_type === 'individual';
   const evData = {
     match_id: match.value.id,
     type: modalType.value,
-    club_id: modalClubId.value || null,
+    club_id: isIndividual ? null : (modalClubId.value || null),
     player_id: modalPlayerId.value || null,
     minute: modalMinute.value,
     second: modalMinute.value === 0 ? (timerSeconds.value % 60) : 0,
@@ -395,29 +409,38 @@ async function submitEvent() {
       if (scoreR.isOk()) {
         match.value = { ...match.value, home_score: newHome, away_score: newAway };
       } else {
-        alert('Lỗi cập nhật tỉ số: ' + scoreR.getError());
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi cập nhật tỉ số: ' + scoreR.getError(), life: 5000 });
       }
     }
   } else {
-    alert('Lỗi ghi nhận sự kiện: ' + r.getError());
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi ghi nhận sự kiện: ' + r.getError(), life: 5000 });
   }
   showModal.value = false;
   saving.value = false;
 }
 
 async function removeEvent(evId) {
-  if (!confirm('Xóa sự kiện này?')) return;
-  const ev = events.value.find(e => e.id === evId);
-  await matchRepository.deleteMatchEvent(evId);
-  events.value = events.value.filter(e => e.id !== evId);
-  if (ev?.type === 'goal') {
-    const homeId = match.value.home_club_id || match.value.home_user_id;
-    const isHome = ev.club_id === homeId;
-    const newHome = Math.max(0, (match.value.home_score ?? 0) - (isHome ? 1 : 0));
-    const newAway = Math.max(0, (match.value.away_score ?? 0) - (isHome ? 0 : 1));
-    await matchRepository.updateScore(match.value.id, newHome, newAway);
-    match.value = { ...match.value, home_score: newHome, away_score: newAway };
-  }
+  confirm.require({
+    message: 'Bạn có chắc chắn muốn xóa sự kiện này?',
+    header: 'Xác nhận xóa',
+    icon: 'pi pi-trash',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      const ev = events.value.find(e => e.id === evId);
+      await matchRepository.deleteMatchEvent(evId);
+      events.value = events.value.filter(e => e.id !== evId);
+      if (ev?.type === 'goal') {
+        const homeId = match.value.home_club_id || match.value.home_user_id;
+        const isIndividual = match.value.tournament?.participant_type === 'individual';
+        const isHome = isIndividual ? ev.player_id === homeId : ev.club_id === homeId;
+        const newHome = Math.max(0, (match.value.home_score ?? 0) - (isHome ? 1 : 0));
+        const newAway = Math.max(0, (match.value.away_score ?? 0) - (isHome ? 0 : 1));
+        await matchRepository.updateScore(match.value.id, newHome, newAway);
+        match.value = { ...match.value, home_score: newHome, away_score: newAway };
+      }
+      toast.add({ severity: 'info', summary: 'Đã xóa', detail: 'Sự kiện đã được gỡ bỏ.', life: 3000 });
+    }
+  });
 }
 
 async function toggleAttendance(playerId, clubId, e) {

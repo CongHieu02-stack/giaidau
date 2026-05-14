@@ -136,8 +136,13 @@
 
 <script setup>
 import { ref, onMounted, reactive, computed } from 'vue';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import { supabase } from '../../config/supabase.js';
 import { venueRepository } from '../../repositories/VenueRepository.js';
+
+const toast = useToast();
+const confirm = useConfirm();
 
 const venues = ref([]);
 const sports = ref([]);
@@ -271,65 +276,83 @@ const saveVenue = async () => {
     if (result.isOk()) {
       await loadVenues();
       closeModal();
-      // Optional: Add toast notification
+      toast.add({ severity: 'success', summary: 'Thành công', detail: editingVenue.value ? 'Đã cập nhật sân đấu' : 'Đã thêm sân đấu mới', life: 3000 });
     } else {
       console.error('Failed to save venue:', result.getError());
       formError.value = 'Có lỗi xảy ra: ' + result.getError();
     }
   } catch (error) {
     console.error('Error saving venue:', error);
-    alert('Có lỗi xảy ra khi lưu sân đấu');
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi lưu sân đấu', life: 5000 });
   } finally {
     saving.value = false;
   }
 };
 
 const hideVenue = async (venue) => {
-  if (confirm(`Bạn có chắc chắn muốn ẩn sân đấu "${venue.name}"?`)) {
-    try {
-      const result = await venueRepository.softDelete(venue.id);
-      if (result.isOk()) {
-        await loadVenues();
-      } else {
-        console.error('Failed to hide venue:', result.getError());
-        alert('Có lỗi xảy ra khi ẩn sân đấu: ' + result.getError());
+  confirm.require({
+    message: `Bạn có chắc chắn muốn ẩn sân đấu "${venue.name}"?`,
+    header: 'Xác nhận ẩn',
+    icon: 'pi pi-eye-slash',
+    acceptClass: 'p-button-warning',
+    accept: async () => {
+      try {
+        const result = await venueRepository.softDelete(venue.id);
+        if (result.isOk()) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã ẩn sân đấu', life: 3000 });
+          await loadVenues();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi ẩn sân đấu: ' + result.getError(), life: 5000 });
+        }
+      } catch (error) {
+        console.error('Error hiding venue:', error);
       }
-    } catch (error) {
-      console.error('Error hiding venue:', error);
     }
-  }
+  });
 };
 
 const restoreVenue = async (venue) => {
-  if (confirm(`Bạn có chắc chắn muốn khôi phục sân đấu "${venue.name}"?`)) {
-    try {
-      const result = await venueRepository.restore(venue.id);
-      if (result.isOk()) {
-        await loadVenues();
-      } else {
-        console.error('Failed to restore venue:', result.getError());
-        alert('Có lỗi xảy ra khi khôi phục sân đấu: ' + result.getError());
+  confirm.require({
+    message: `Bạn có chắc chắn muốn khôi phục sân đấu "${venue.name}"?`,
+    header: 'Xác nhận khôi phục',
+    icon: 'pi pi-eye',
+    acceptClass: 'p-button-success',
+    accept: async () => {
+      try {
+        const result = await venueRepository.restore(venue.id);
+        if (result.isOk()) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã khôi phục sân đấu', life: 3000 });
+          await loadVenues();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi khôi phục sân đấu: ' + result.getError(), life: 5000 });
+        }
+      } catch (error) {
+        console.error('Error restoring venue:', error);
       }
-    } catch (error) {
-      console.error('Error restoring venue:', error);
     }
-  }
+  });
 };
 
 const deleteVenue = async (venue) => {
-  if (confirm(`Bạn có chắc chắn muốn xóa sân đấu "${venue.name}"? Hành động này không thể hoàn tác.`)) {
-    try {
-      const result = await venueRepository.delete(venue.id);
-      if (result.isOk()) {
-        await loadVenues();
-      } else {
-        console.error('Failed to delete venue:', result.getError());
-        alert('Có lỗi xảy ra khi xóa sân đấu: ' + result.getError());
+  confirm.require({
+    message: `Bạn có chắc chắn muốn xóa sân đấu "${venue.name}"? Hành động này không thể hoàn tác.`,
+    header: 'Xác nhận xóa',
+    icon: 'pi pi-trash',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const result = await venueRepository.delete(venue.id);
+        if (result.isOk()) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã xóa sân đấu', life: 3000 });
+          await loadVenues();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi xóa sân đấu: ' + result.getError(), life: 5000 });
+        }
+      } catch (error) {
+        console.error('Error deleting venue:', error);
       }
-    } catch (error) {
-      console.error('Error deleting venue:', error);
     }
-  }
+  });
 };
 
 onMounted(() => {
