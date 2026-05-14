@@ -1,7 +1,5 @@
 <template>
 <div class="ref-page">
-  <Toast />
-  <ConfirmDialog />
   <div class="shell">
   <div v-if="loading" class="center-msg"><i class="pi pi-spinner pi-spin"></i> Đang tải...</div>
   <template v-else-if="match">
@@ -227,8 +225,6 @@ import { supabase } from '../../config/supabase.js';
 import { advanceKnockoutWinner, checkAndFinalizeTournament } from '../../features/tournaments/adminTournamentManagement.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-import Toast from 'primevue/toast';
-import ConfirmDialog from 'primevue/confirmdialog';
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -572,7 +568,7 @@ onUnmounted(stopTimer);
 </script>
 
 <style scoped>
-.ref-page { min-height:100vh; padding:6rem 1rem 3rem; }
+.ref-page { min-height:100vh; padding:1.5rem 1rem 3rem; }
 .shell { max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:1.25rem; }
 .center-msg { text-align:center; padding:4rem; color:rgba(255,255,255,0.4); }
 

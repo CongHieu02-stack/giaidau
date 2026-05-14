@@ -327,7 +327,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-wrapper { min-height:100vh; padding:6rem 1.5rem 3rem; }
+.page-wrapper { min-height:100vh; padding:1.5rem 1.5rem 3rem; }
 
 .back-link {
   display:inline-flex; align-items:center; gap:.5rem;

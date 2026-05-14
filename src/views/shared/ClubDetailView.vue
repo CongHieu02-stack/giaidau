@@ -492,7 +492,7 @@ const approvedMembers = computed(() => {
 
 const pendingMembers = computed(() => members.value.filter(m => m.status === 'pending'));
 
-const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && memberStatus.value === 'none');
+const canJoin  = computed(() => authStore.isAuthenticated && !isLeader.value && (memberStatus.value === 'none' || memberStatus.value === 'rejected' || memberStatus.value === 'removed'));
 const isPending = computed(() => memberStatus.value === 'pending');
 const isMember  = computed(() => memberStatus.value === 'member' || memberStatus.value === 'approved');
 
@@ -517,14 +517,39 @@ const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN') : '—';
 const handleJoin = async () => {
   joining.value = true;
   try {
-    const { error } = await supabase.from('club_members').insert({
-      club_id: club.value.id,
-      user_id: authStore.user.id,
-      role: 'member',
-      status: 'pending',
-      joined_at: new Date().toISOString()
-    });
-    if (error) throw error;
+    // Check if membership record already exists (could be 'rejected' or 'removed')
+    const { data: existing, error: fetchError } = await supabase
+      .from('club_members')
+      .select('id')
+      .eq('club_id', club.value.id)
+      .eq('user_id', authStore.user.id)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    if (existing) {
+      // Update existing record to pending
+      const { error: updateError } = await supabase
+        .from('club_members')
+        .update({
+          status: 'pending',
+          role: 'member',
+          joined_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+      if (updateError) throw updateError;
+    } else {
+      // Create new record
+      const { error: insertError } = await supabase.from('club_members').insert({
+        club_id: club.value.id,
+        user_id: authStore.user.id,
+        role: 'member',
+        status: 'pending',
+        joined_at: new Date().toISOString()
+      });
+      if (insertError) throw insertError;
+    }
+
     memberStatus.value = 'pending';
     toast.add({ severity: 'success', summary: 'Đã gửi yêu cầu', detail: 'Vui lòng chờ ban quản trị phê duyệt', life: 3000 });
   } catch (err) {
@@ -814,7 +839,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page-wrapper { min-height: 100vh; padding: 6rem 1.5rem 3rem; }
+.page-wrapper { min-height: 100vh; padding: 1.5rem 1.5rem 3rem; }
 
 /* ── Hero card ── */
 .hero-card {

@@ -136,7 +136,7 @@ onMounted(async () => {
 <style scoped>
 .page-wrapper {
   min-height: 100vh;
-  padding: 6rem 1.5rem 3rem;
+  padding: 1.5rem 1.5rem 3rem;
 }
 
 /* ── Hero ── */

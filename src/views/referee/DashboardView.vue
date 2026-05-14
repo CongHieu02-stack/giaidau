@@ -159,7 +159,7 @@ onMounted(async () => {
 <style scoped>
 .referee-page {
   min-height: 100vh;
-  padding: 6rem 1.5rem 3rem;
+  padding: 1.5rem 1.5rem 3rem;
 }
 .page-shell {
   max-width: 1200px;
