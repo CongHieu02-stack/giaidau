@@ -110,6 +110,13 @@ const MatchCard = defineComponent({
       return side === 'home' ? m.home_score > m.away_score : m.away_score > m.home_score;
     };
 
+    const router = import('vue-router').then(m => m.useRouter());
+
+    const handleCardClick = async () => {
+      const r = await router;
+      r.push(`/matches/${props.match.id}`);
+    };
+
     return () => {
       const m = props.match;
       const bi = badgeInfo.value;
@@ -151,7 +158,10 @@ const MatchCard = defineComponent({
         ]);
       };
 
-      return h('div', { class: ['match-card', m.match_type + '-card'] }, [
+      return h('div', { 
+        class: ['match-card', m.match_type + '-card', { 'is-clickable': true }],
+        onClick: handleCardClick 
+      }, [
         h('div', { class: 'card-top' }, [
           h('span', { class: ['match-badge', bi.cls] }, bi.label),
           h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
@@ -225,6 +235,14 @@ const finalAndThirdPlace = computed(() => {
   background: rgba(30,31,45,0.95); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px; padding: 12px; transition: all 0.2s;
 }
+.bracket-container .match-card.is-clickable { cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+.bracket-container .match-card.is-clickable:hover { 
+  border-color: rgba(255,255,255,0.25); 
+  transform: translateY(-4px) scale(1.02); 
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  background: rgba(255,255,255,0.08);
+}
+
 .bracket-container .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .bracket-container .match-badge { font-size: 0.6rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
 .bracket-container .badge-pre { background: rgba(245,158,11,0.2); color: #fbbf24; }

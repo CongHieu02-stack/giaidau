@@ -103,17 +103,22 @@
           </div>
 
           <!-- Action -->
-          <router-link :to="`/referee/matches/${m.id}`" class="card-action">
-            <template v-if="m.status === 'scheduled'">
-              <i class="pi pi-play"></i> Vào điều khiển
-            </template>
-            <template v-else-if="m.status === 'in_progress' || m.status === 'paused'">
-              <i class="pi pi-bolt"></i> Tiếp tục điều khiển
-            </template>
-            <template v-else>
-              <i class="pi pi-eye"></i> Xem chi tiết
-            </template>
-          </router-link>
+          <div class="card-actions">
+            <router-link :to="`/matches/${m.id}`" class="action-btn secondary" title="Xem chi tiết">
+              <i class="pi pi-eye"></i>
+            </router-link>
+            <router-link :to="`/referee/matches/${m.id}`" class="action-btn primary">
+              <template v-if="m.status === 'scheduled'">
+                <i class="pi pi-play"></i> Vào điều khiển
+              </template>
+              <template v-else-if="m.status === 'in_progress' || m.status === 'paused'">
+                <i class="pi pi-bolt"></i> Tiếp tục
+              </template>
+              <template v-else>
+                <i class="pi pi-eye"></i> Tổng kết
+              </template>
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -359,16 +364,28 @@ onMounted(async () => {
 .info-item i { font-size: 0.65rem; }
 
 /* Card Action */
-.card-action {
+.card-actions { display: flex; gap: 0.5rem; }
+.action-btn {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   padding: 0.6rem;
-  background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.2);
   border-radius: 0.75rem;
-  color: #60a5fa; font-size: 0.8rem; font-weight: 600;
+  font-size: 0.8rem; font-weight: 600;
   text-decoration: none; transition: all 0.2s;
 }
-.card-action:hover { background: rgba(59,130,246,0.2); transform: translateY(-1px); }
+.action-btn.primary {
+  flex: 1;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: #60a5fa;
+}
+.action-btn.primary:hover { background: rgba(59,130,246,0.2); transform: translateY(-1px); }
+.action-btn.secondary {
+  width: 42px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.6);
+}
+.action-btn.secondary:hover { background: rgba(255,255,255,0.1); color: white; }
 
 /* States */
 .loading-state, .empty-state {
