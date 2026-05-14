@@ -33,9 +33,24 @@
 
             <label class="field">
               <span>Hình thức thi đấu</span>
-              <select v-model="form.format">
-                <option value="knockout">Loại trực tiếp</option>
+              <select v-model="form.tournamentMode">
+                <option value="knockout">Loại trực tiếp (Knockout)</option>
+                <option value="single_heat">Thi đấu một lượt (Single Heat / Leaderboard)</option>
               </select>
+            </label>
+
+            <label class="field">
+              <span>Phương thức tính điểm</span>
+              <select v-model="form.scoringType">
+                <option value="count">Tỉ số (Số lượng)</option>
+                <option value="time">Thời gian (Càng ít càng tốt)</option>
+                <option value="distance">Khoảng cách (Càng nhiều càng tốt)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Đơn vị tính</span>
+              <input v-model.trim="form.unit" type="text" placeholder="VD: bàn thắng, giây, mét, set...">
             </label>
             
             <label class="field">
@@ -176,7 +191,10 @@ const form = reactive({
   matchDays: [6, 0],
   matchTimes: '17:00, 19:00',
   scheduleNote: '',
-  venueId: ''
+  venueId: '',
+  tournamentMode: 'knockout',
+  scoringType: 'count',
+  unit: 'bàn thắng'
 });
 
 const filteredVenues = computed(() => {

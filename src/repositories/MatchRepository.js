@@ -44,7 +44,7 @@ export class MatchRepository extends BaseRepository {
         home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
         away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
         venue:venues(id, name),
-        tournament:tournaments(id, name, format, participant_type, sport_category:sports_categories(id, name)),
+        tournament:tournaments(id, name, format, participant_type, tournament_mode, scoring_type, unit, sport_category:sports_categories(id, name)),
         referee:profiles!referee_id(id, full_name, avatar_url)
       `)
       .eq('id', id)
@@ -144,8 +144,8 @@ export class MatchRepository extends BaseRepository {
       .from('match_attendance')
       .select(`
         *,
-        player:profiles(id, full_name, avatar_url),
-        club:clubs(id, name)
+        player:player_id(id, full_name, avatar_url),
+        club:club_id(id, name)
       `)
       .eq('match_id', matchId);
 
@@ -153,16 +153,31 @@ export class MatchRepository extends BaseRepository {
     return Result.ok(data || []);
   }
 
-  async upsertAttendance(matchId, playerId, clubId, isPresent) {
+  async upsertAttendance(matchId, playerId, clubId, isPresent, resultValue = null) {
+    const payload = {
+      match_id: matchId,
+      player_id: playerId,
+      club_id: clubId,
+      is_present: isPresent,
+      checked_at: isPresent ? new Date().toISOString() : null
+    };
+    if (resultValue !== null) payload.result_value = resultValue;
+
     const { data, error } = await this.client
       .from('match_attendance')
-      .upsert({
-        match_id: matchId,
-        player_id: playerId,
-        club_id: clubId,
-        is_present: isPresent,
-        checked_at: isPresent ? new Date().toISOString() : null
-      }, { onConflict: 'match_id,player_id' })
+      .upsert(payload, { onConflict: 'match_id,player_id' })
+      .select()
+      .single();
+
+    if (error) return Result.err(error.message);
+    return Result.ok(data);
+  }
+
+  async updateResultValue(matchId, playerId, value) {
+    const { data, error } = await this.client
+      .from('match_attendance')
+      .update({ result_value: value })
+      .match({ match_id: matchId, player_id: playerId })
       .select()
       .single();
 

@@ -30,6 +30,9 @@ export class Tournament {
     this.createdBy = data.createdBy || data.created_by || null;
     this.venueId = data.venueId || data.venue_id || null;
     this.maxPlayersPerMatch = data.maxPlayersPerMatch || data.max_players_per_match || 0;
+    this.tournamentMode = data.tournamentMode || data.tournament_mode || 'knockout';
+    this.scoringType = data.scoringType || data.scoring_type || 'count';
+    this.unit = data.unit || data.unit || 'bàn thắng';
     this.createdAt = data.createdAt || data.created_at || new Date();
     this.updatedAt = data.updatedAt || data.updated_at || new Date();
 
@@ -374,6 +377,53 @@ export class Tournament {
   }
 
   calculateStandings(groupId = null) {
+    if (this.tournamentMode === 'single_heat') {
+      const results = [];
+      const seen = new Set();
+      
+      this.matches.forEach(match => {
+        const atts = match.attendance || match.match_attendance || [];
+        atts.forEach(att => {
+          const id = att.player_id || att.club_id || att.userId || att.clubId;
+          if (!id || seen.has(id)) return;
+          seen.add(id);
+
+          results.push({
+            id,
+            name: att.player?.full_name || att.club?.name || 'VĐV',
+            logoUrl: att.player?.avatar_url || att.club?.logo_url,
+            value: att.result_value ?? att.resultValue ?? null,
+            isPresent: att.is_present ?? att.isPresent ?? false
+          });
+        });
+      });
+
+      // Sort results
+      const sorted = results.sort((a, b) => {
+        if (!a.isPresent) return 1;
+        if (!b.isPresent) return -1;
+        if (a.value === null) return 1;
+        if (b.value === null) return -1;
+        
+        if (this.scoringType === 'time') {
+          return a.value - b.value; // Thấp hơn là thắng
+        }
+        return b.value - a.value; // Cao hơn là thắng (điểm, mét)
+      });
+
+      // Apply ranking
+      let rank = 1;
+      return sorted.map((item, idx) => {
+        if (idx > 0) {
+          const prev = sorted[idx - 1];
+          if (item.value !== prev.value || item.isPresent !== prev.isPresent) {
+            rank = idx + 1;
+          }
+        }
+        return { ...item, rank };
+      });
+    }
+
     const standings = new Map();
     const approvedClubs = this.getApprovedClubs();
 
@@ -497,6 +547,9 @@ export class Tournament {
       created_by: this.createdBy,
       venue_id: this.venueId,
       max_players_per_match: this.maxPlayersPerMatch,
+      tournament_mode: this.tournamentMode,
+      scoring_type: this.scoringType,
+      unit: this.unit,
       created_at: this.createdAt,
       updated_at: this.updatedAt
     };
@@ -505,6 +558,9 @@ export class Tournament {
   static fromDB(data) {
     const tournament = new Tournament(data);
     tournament.maxPlayersPerMatch = data.max_players_per_match || 0;
+    tournament.tournamentMode = data.tournament_mode || 'knockout';
+    tournament.scoringType = data.scoring_type || 'count';
+    tournament.unit = data.unit || 'bàn thắng';
     return tournament;
   }
 }
