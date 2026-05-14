@@ -751,15 +751,37 @@ export async function checkAndFinalizeTournament(tournamentId) {
     if (tournament.status === 'completed') return { success: true };
 
     if (tournament.tournament_mode === 'single_heat') {
-      // Special logic for Heat: Get all attendances from the match
-      const { data: matchData } = await supabase.from('matches').select('id').eq('tournament_id', tournamentId).limit(1);
-      if (!matchData?.length) return { success: false, error: 'Không tìm thấy trận đấu của giải Heat' };
+      console.log('[HeatFinalize] Starting for tournament:', tournamentId);
       
-      const { data: atts } = await supabase.from('match_attendance')
-        .select('*, player:profiles!player_id(id, full_name), club:clubs!club_id(id, name)')
-        .eq('match_id', matchData[0].id);
+      // Special logic for Heat: Get all attendances from the match
+      const { data: matchData, error: matchError } = await supabase.from('matches').select('id').eq('tournament_id', tournamentId).limit(1);
+      
+      if (matchError) {
+        console.error('[HeatFinalize] Match query error:', matchError);
+        return { success: false, error: matchError.message };
+      }
+      
+      if (!matchData?.length) {
+        console.warn('[HeatFinalize] No matches found for tournament:', tournamentId);
+        return { success: false, error: 'Không tìm thấy trận đấu của giải Heat' };
+      }
+      
+      const mid = matchData[0].id;
+      console.log('[HeatFinalize] Found match:', mid);
 
-      if (!atts) return { success: false, error: 'Không tìm thấy dữ liệu thi đấu' };
+      const { data: atts, error: attError } = await supabase.from('match_attendance')
+        .select('*, player:profiles!player_id(id, full_name), club:clubs!club_id(id, name)')
+        .eq('match_id', mid);
+
+      if (attError) {
+        console.error('[HeatFinalize] Attendance query error:', attError);
+        return { success: false, error: attError.message };
+      }
+
+      if (!atts || atts.length === 0) {
+        console.warn('[HeatFinalize] No attendance records found for match:', mid);
+        return { success: false, error: 'Không tìm thấy dữ liệu thi đấu' };
+      }
 
       // Sort based on scoring type
       const sorted = atts.filter(a => a.is_present).sort((a, b) => {
@@ -769,25 +791,30 @@ export async function checkAndFinalizeTournament(tournamentId) {
         return valB - valA;
       });
 
+      console.log('[HeatFinalize] Sorted results:', sorted.length);
+
       const winnerId = sorted[0]?.player_id || sorted[0]?.club_id;
       const runnerUpId = sorted[1]?.player_id || sorted[1]?.club_id;
       const thirdPlaceId = sorted[2]?.player_id || sorted[2]?.club_id;
 
-      // Prepare update data - use generic columns if possible or the ones we have
       const updateData = {
         status: 'completed',
+        champion_club_id: winnerId,
+        runner_up_id: runnerUpId,
+        third_place_id: thirdPlaceId,
         updated_at: new Date().toISOString()
       };
 
-      // If it's a team tournament, use club_id columns. 
-      // If individual, we might need to store user_id in these columns (assuming the DB allows it or we've relaxed constraints)
-      updateData.champion_club_id = winnerId;
-      updateData.runner_up_id = runnerUpId;
-      updateData.third_place_id = thirdPlaceId;
+      console.log('[HeatFinalize] Updating tournament with:', updateData);
 
       const { error: updateError } = await supabase.from('tournaments').update(updateData).eq('id', tournamentId);
 
-      if (updateError) throw new Error(`Lỗi cập nhật giải đấu: ${updateError.message}`);
+      if (updateError) {
+        console.error('[HeatFinalize] Tournament update error:', updateError);
+        throw new Error(`Lỗi cập nhật giải đấu: ${updateError.message}`);
+      }
+      
+      console.log('[HeatFinalize] Successfully finalized tournament:', tournamentId);
       return { success: true };
     }
 
