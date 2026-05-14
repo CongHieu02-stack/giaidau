@@ -265,7 +265,7 @@ onMounted(loadAll);
 </script>
 
 <style scoped>
-.match-detail-page { min-height: 100vh; padding: 6rem 1.5rem 3rem; background: #0f172a; color: white; }
+.match-detail-page { min-height: 100vh; padding: 1.5rem 1.5rem 3rem; background: #0f172a; color: white; }
 .shell { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.5rem; }
 .center-msg { text-align: center; padding: 5rem; color: rgba(255,255,255,0.4); }
 

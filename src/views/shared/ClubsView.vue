@@ -24,6 +24,18 @@
         </div>
       </div>
 
+      <!-- Success Banner -->
+      <transition name="banner-fade">
+        <div v-if="createSuccess" class="success-banner">
+          <i class="pi pi-check-circle"></i>
+          <div>
+            <strong>Câu lạc bộ đã được tạo!</strong>
+            <span>CLB của bạn đang chờ quản trị viên duyệt. Bạn sẽ thấy CLB hiện ở trạng thái "Chờ duyệt".</span>
+          </div>
+          <button @click="createSuccess = false" class="banner-close"><i class="pi pi-times"></i></button>
+        </div>
+      </transition>
+
       <!-- Stats -->
       <div class="stats-bar">
         <div class="stat-pill" v-for="s in statsPills" :key="s.label">
@@ -165,6 +177,7 @@ const showCreateModal = ref(false);
 const creating = ref(false);
 const createError = ref('');
 const createForm = ref({ name: '', short_name: '', description: '', logo_url: '' });
+const createSuccess = ref(false);
 
 const userMemberships = ref({});
 const joiningClubId = ref(null);
@@ -220,8 +233,19 @@ const handleCreate = async () => {
     }).select().single();
     if (error) throw new Error(error.message);
     if (!data) throw new Error('Không nhận được dữ liệu. Có thể do RLS policy.');
-    clubs.value.unshift(data);
+    // Thêm các trường cần thiết để hiển thị đúng trên card
+    const newClub = {
+      ...data,
+      leaderId: authStore.user?.id,
+      leader_id: authStore.user?.id,
+      leader: { id: authStore.user?.id, full_name: authStore.user?.user_metadata?.full_name || '' },
+      member_count: 1,
+      tournament_count: 0,
+    };
+    clubs.value.unshift(newClub);
     showCreateModal.value = false;
+    createSuccess.value = true;
+    setTimeout(() => { createSuccess.value = false; }, 5000);
     resetForm();
   } catch (err) {
     createError.value = err.message || 'Tạo câu lạc bộ thất bại';
@@ -233,10 +257,14 @@ const handleCreate = async () => {
 onMounted(async () => {
   loading.value = true;
   try {
-    // Parallelize club fetching and membership status check to reduce total loading time
+    // Fetch approved clubs + pending clubs where user is leader + membership status
     const promises = [clubRepository.findWithMemberCount({ filters: { status: 'approved' } })];
     
     if (authStore.isAuthenticated && authStore.user) {
+      // Fetch pending clubs where current user is leader (clubs they created but not yet approved)
+      promises.push(
+        clubRepository.findWithMemberCount({ filters: { status: 'pending', leader_id: authStore.user.id } })
+      );
       promises.push(supabase
         .from('club_members')
         .select('club_id, status')
@@ -244,11 +272,18 @@ onMounted(async () => {
       );
     }
     
-    const [clubsResult, membershipResult] = await Promise.all(promises);
+    const results = await Promise.all(promises);
+    const [approvedResult, pendingResult, membershipResult] = authStore.isAuthenticated && authStore.user
+      ? results
+      : [results[0], null, null];
     
-    if (clubsResult.isOk()) {
-      clubs.value = clubsResult.getValue();
-    }
+    const approvedClubs = approvedResult.isOk() ? approvedResult.getValue() : [];
+    const pendingClubs  = pendingResult?.isOk() ? pendingResult.getValue() : [];
+    
+    // Merge: pending clubs of current user first, then approved clubs
+    const approvedIds = new Set(approvedClubs.map(c => c.id));
+    const myPendingClubs = pendingClubs.filter(c => !approvedIds.has(c.id));
+    clubs.value = [...myPendingClubs, ...approvedClubs];
     
     if (membershipResult && !membershipResult.error) {
       const memberships = {};
@@ -266,14 +301,39 @@ const handleJoin = async (club) => {
   if (!authStore.isAuthenticated) return;
   joiningClubId.value = club.id;
   try {
-    const { error } = await supabase.from('club_members').insert({
-      club_id: club.id,
-      user_id: authStore.user.id,
-      role: 'member',
-      status: 'pending',
-      joined_at: new Date().toISOString()
-    });
-    if (error) throw error;
+    // Check if membership record already exists (could be 'rejected' or 'removed')
+    const { data: existing, error: fetchError } = await supabase
+      .from('club_members')
+      .select('id')
+      .eq('club_id', club.id)
+      .eq('user_id', authStore.user.id)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+
+    if (existing) {
+      // Update existing record to pending
+      const { error: updateError } = await supabase
+        .from('club_members')
+        .update({
+          status: 'pending',
+          role: 'member',
+          joined_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+      if (updateError) throw updateError;
+    } else {
+      // Create new record
+      const { error: insertError } = await supabase.from('club_members').insert({
+        club_id: club.id,
+        user_id: authStore.user.id,
+        role: 'member',
+        status: 'pending',
+        joined_at: new Date().toISOString()
+      });
+      if (insertError) throw insertError;
+    }
+    
     userMemberships.value[club.id] = 'pending';
   } catch (err) {
     console.error(err);
@@ -285,7 +345,7 @@ const handleJoin = async (club) => {
 </script>
 
 <style scoped>
-.page-wrapper { min-height: 100vh; padding: 6rem 1.5rem 3rem; }
+.page-wrapper { min-height: 100vh; padding: 1.5rem 1.5rem 3rem; }
 
 /* Hero */
 .page-hero {
@@ -532,4 +592,27 @@ const handleJoin = async (club) => {
 .btn-cancel:disabled, .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 @media (max-width: 520px) { .form-grid { grid-template-columns: 1fr; } }
+
+/* Success Banner */
+.success-banner {
+  display: flex; align-items: flex-start; gap: 1rem;
+  padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 1rem;
+  color: #86efac;
+}
+.success-banner > .pi { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; color: #4ade80; }
+.success-banner > div { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
+.success-banner strong { font-size: 0.95rem; font-weight: 700; color: #4ade80; }
+.success-banner span { font-size: 0.82rem; color: rgba(134,239,172,0.8); }
+.banner-close {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 6px;
+  background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25);
+  color: #86efac; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 0.75rem; transition: all 0.2s;
+}
+.banner-close:hover { background: rgba(34,197,94,0.3); }
+.banner-fade-enter-active, .banner-fade-leave-active { transition: all 0.35s ease; }
+.banner-fade-enter-from, .banner-fade-leave-to { opacity: 0; transform: translateY(-8px); }
 </style>

@@ -80,13 +80,13 @@
             </div>
           </router-link>
           
-          <router-link to="/admin/system" class="action-card">
+          <!-- <router-link to="/admin/system" class="action-card">
             <div class="action-icon">⚙️</div>
             <div class="action-text">
               <div class="action-title">Cài đặt hệ thống</div>
               <div class="action-desc">Cấu hình hệ thống</div>
             </div>
-          </router-link>
+          </router-link> -->
         </div>
       </div>
 
