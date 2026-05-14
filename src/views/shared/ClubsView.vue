@@ -164,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useAuthStore } from '../../stores/auth.js';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { supabase } from '../../config/supabase.js';
@@ -254,7 +254,7 @@ const handleCreate = async () => {
   }
 };
 
-onMounted(async () => {
+const loadClubsAndMemberships = async () => {
   loading.value = true;
   try {
     // Fetch approved clubs + pending clubs where user is leader + membership status
@@ -295,7 +295,34 @@ onMounted(async () => {
   } finally { 
     loading.value = false; 
   }
+};
+
+// Re-fetch membership status when user auth state changes (e.g. after page refresh)
+const fetchMemberships = async () => {
+  if (!authStore.isAuthenticated || !authStore.user) return;
+  try {
+    const { data, error } = await supabase
+      .from('club_members')
+      .select('club_id, status')
+      .eq('user_id', authStore.user.id);
+    if (!error && data) {
+      const memberships = {};
+      data.forEach(m => memberships[m.club_id] = m.status);
+      userMemberships.value = memberships;
+    }
+  } catch (e) {
+    console.error('Error fetching memberships:', e);
+  }
+};
+
+// Watch for auth state changes to re-fetch memberships after page reload
+watch(() => authStore.user, async (newUser, oldUser) => {
+  if (newUser && !oldUser && Object.keys(userMemberships.value).length === 0) {
+    await fetchMemberships();
+  }
 });
+
+onMounted(loadClubsAndMemberships);
 
 const handleJoin = async (club) => {
   if (!authStore.isAuthenticated) return;

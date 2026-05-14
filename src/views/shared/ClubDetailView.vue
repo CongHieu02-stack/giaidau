@@ -66,33 +66,35 @@
                     {{ deleting ? 'Đang xóa...' : 'Xóa CLB' }}
                   </button>
                 </div>
-                <!-- Nút xóa cho admin QL CLB và admin hệ thống (không phải trưởng CLB) -->
-                <div v-else-if="canDeleteClub" class="flex gap-3">
-                  <button @click="handleDeleteClub" :disabled="deleting" class="btn-delete-club">
-                    <i :class="deleting ? 'pi pi-spinner pi-spin' : 'pi pi-trash'"></i>
-                    {{ deleting ? 'Đang xóa...' : 'Xóa CLB' }}
-                  </button>
-                </div>
+                <!-- Cho tất cả user không phải trưởng CLB: hiển thị trạng thái thành viên -->
                 <template v-else>
-                  <button v-if="canJoin" @click="handleJoin" :disabled="joining || hasJoinedAnotherClub" class="btn-join" :title="hasJoinedAnotherClub ? 'Bạn đã tham gia một câu lạc bộ khác' : ''" :class="{ 'btn-disabled': hasJoinedAnotherClub }">
-                    <i v-if="joining" class="pi pi-spinner pi-spin"></i>
-                    <i v-else class="pi pi-user-plus"></i>
-                    {{ joining ? 'Đang gửi...' : hasJoinedAnotherClub ? 'Đã tham gia CLB khác' : 'Tham gia câu lạc bộ' }}
-                  </button>
-                  <div v-else-if="isPending" class="flex items-center gap-2">
-                    <div class="tag-pending">
-                      <i class="pi pi-clock"></i> Đang chờ phê duyệt
-                    </div>
-                    <button @click="handleLeave" class="btn-leave" title="Hủy yêu cầu">
-                      <i class="pi pi-times"></i> Hủy
+                  <div class="flex gap-3 flex-wrap items-center">
+                    <!-- Trạng thái thành viên -->
+                    <button v-if="canJoin" @click="handleJoin" :disabled="joining || hasJoinedAnotherClub" class="btn-join" :title="hasJoinedAnotherClub ? 'Bạn đã tham gia một câu lạc bộ khác' : ''" :class="{ 'btn-disabled': hasJoinedAnotherClub }">
+                      <i v-if="joining" class="pi pi-spinner pi-spin"></i>
+                      <i v-else class="pi pi-user-plus"></i>
+                      {{ joining ? 'Đang gửi...' : hasJoinedAnotherClub ? 'Đã tham gia CLB khác' : 'Tham gia câu lạc bộ' }}
                     </button>
-                  </div>
-                  <div v-else-if="isMember" class="flex items-center gap-2">
-                    <div class="tag-member">
-                      <i class="pi pi-check-circle"></i> Đã tham gia
-                    </div>
-                    <button @click="handleLeave" class="btn-leave" title="Rời câu lạc bộ">
-                      <i class="pi pi-sign-out"></i> Rời CLB
+                    <template v-else-if="isPending">
+                      <div class="tag-pending">
+                        <i class="pi pi-clock"></i> Đang chờ phê duyệt
+                      </div>
+                      <button @click="handleLeave" class="btn-leave" title="Hủy yêu cầu">
+                        <i class="pi pi-times"></i> Hủy
+                      </button>
+                    </template>
+                    <template v-else-if="isMember">
+                      <div class="tag-member">
+                        <i class="pi pi-check-circle"></i> Đã tham gia
+                      </div>
+                      <button @click="handleLeave" class="btn-leave" title="Rời câu lạc bộ">
+                        <i class="pi pi-sign-out"></i> Rời CLB
+                      </button>
+                    </template>
+                    <!-- Nút xóa CLB cho admin QL CLB và admin hệ thống (không phải trưởng CLB) -->
+                    <button v-if="canDeleteClub && !isLeader" @click="handleDeleteClub" :disabled="deleting" class="btn-delete-club">
+                      <i :class="deleting ? 'pi pi-spinner pi-spin' : 'pi pi-trash'"></i>
+                      {{ deleting ? 'Đang xóa...' : 'Xóa CLB' }}
                     </button>
                   </div>
                 </template>

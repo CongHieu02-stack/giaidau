@@ -124,17 +124,27 @@
                     <i v-else class="pi pi-refresh"></i>
                   </button>
 
-                  <button 
-                    v-else-if="club.status === 'pending'" 
-                    @click="approveClub(club)"
-                    class="action-btn-icon approve" 
-                    title="Phê duyệt"
-                    :disabled="processingId === club.id"
-                  >
-                    <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
-                    <i v-else class="pi pi-check"></i>
-                  </button>
-                </div>
+                    <button 
+                      v-else-if="club.status === 'pending'" 
+                      @click="approveClub(club)"
+                      class="action-btn-icon approve" 
+                      title="Phê duyệt"
+                      :disabled="processingId === club.id"
+                    >
+                      <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
+                      <i v-else class="pi pi-check"></i>
+                    </button>
+
+                    <button 
+                      @click="openDeleteModal(club)"
+                      class="action-btn-icon delete" 
+                      title="Xóa câu lạc bộ"
+                      :disabled="processingId === club.id"
+                    >
+                      <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
+                      <i v-else class="pi pi-trash"></i>
+                    </button>
+                  </div>
               </td>
             </tr>
           </tbody>
@@ -181,6 +191,32 @@
           </button>
         </div>
       </div>
+    <!-- Delete Confirmation Modal -->
+    <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
+      <div class="modal-card">
+        <div class="modal-header delete-header">
+          <h3>Xóa câu lạc bộ</h3>
+          <button @click="deleteModal.show = false" class="modal-close"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2 text-white/70">Bạn đang thực hiện xóa vĩnh viễn CLB: <strong>{{ deleteModal.club?.name }}</strong></p>
+          <div class="delete-warning-box">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>Hành động này không thể hoàn tác. Tất cả dữ liệu thành viên liên quan sẽ bị xóa.</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="deleteModal.show = false" class="btn-secondary">Hủy bỏ</button>
+          <button 
+            @click="confirmDelete" 
+            class="btn-danger"
+            :disabled="processingId === deleteModal.club?.id"
+          >
+            <i v-if="processingId === deleteModal.club?.id" class="pi pi-spinner pi-spin mr-2"></i>
+            Xác nhận xóa
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Toast -->
@@ -197,6 +233,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { clubRepository } from '../../repositories/ClubRepository.js';
+import { supabase } from '../../config/supabase.js';
 import { formatDate } from '../../utils/helpers.js';
 
 const clubs = ref([]);
@@ -207,6 +244,7 @@ const processingId = ref(null);
 const toast = ref({ show: false, type: 'success', message: '', icon: '' });
 
 const suspendModal = ref({ show: false, club: null, reason: '' });
+const deleteModal = ref({ show: false, club: null });
 
 const statusFilters = [
   { key: 'all', label: 'Tất cả' },
@@ -333,6 +371,35 @@ const approveClub = async (club) => {
     }
   } catch (err) {
     showToast('Có lỗi xảy ra', 'error');
+  } finally {
+    processingId.value = null;
+  }
+};
+
+const openDeleteModal = (club) => {
+  deleteModal.value = { show: true, club };
+};
+
+const confirmDelete = async () => {
+  const club = deleteModal.value.club;
+  if (!club) return;
+  
+  processingId.value = club.id;
+  try {
+    // Delete club members
+    const { error: mErr } = await supabase.from('club_members').delete().eq('club_id', club.id);
+    if (mErr) throw mErr;
+    
+    // Delete club
+    const { error: cErr } = await supabase.from('clubs').delete().eq('id', club.id);
+    if (cErr) throw cErr;
+    
+    showToast(`Đã xóa CLB ${club.name}`);
+    deleteModal.value.show = false;
+    await loadClubs();
+  } catch (err) {
+    console.error('Delete error:', err);
+    showToast('Không thể xóa câu lạc bộ', 'error');
   } finally {
     processingId.value = null;
   }
@@ -647,6 +714,7 @@ onMounted(loadClubs);
 
 .action-btn-icon.view:hover { background: rgba(99, 102, 241, 0.1); color: #818cf8; border-color: rgba(99, 102, 241, 0.2); }
 .action-btn-icon.suspend:hover { background: rgba(239, 68, 68, 0.1); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+.action-btn-icon.delete:hover { background: rgba(239, 68, 68, 0.15); color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
 .action-btn-icon.restore:hover { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
 .action-btn-icon.approve:hover { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
 
@@ -747,6 +815,27 @@ onMounted(loadClubs);
 .form-textarea:focus {
   border-color: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.delete-header {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+.delete-warning-box {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.75rem;
+  color: #fca5a5;
+  font-size: 0.875rem;
+}
+
+.delete-warning-box i {
+  color: #ef4444;
+  font-size: 1.25rem;
+  flex-shrink: 0;
 }
 
 .modal-footer {

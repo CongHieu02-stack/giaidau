@@ -121,6 +121,17 @@
               <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
               <i v-else class="pi pi-refresh"></i> Khôi phục
             </button>
+
+            <!-- Delete button -->
+            <button
+              @click="openDeleteModal(club)"
+              :disabled="processingId === club.id"
+              class="btn-delete"
+              title="Xóa câu lạc bộ"
+            >
+              <i v-if="processingId === club.id" class="pi pi-spinner pi-spin"></i>
+              <i v-else class="pi pi-trash"></i> Xóa
+            </button>
           </div>
         </div>
       </div>
@@ -184,6 +195,33 @@
       </div>
     </div>
 
+    <!-- Delete Modal -->
+    <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-icon delete-icon"><i class="pi pi-trash"></i></div>
+            <h2 class="modal-title">Xóa câu lạc bộ</h2>
+          </div>
+          <button @click="deleteModal.show = false" class="modal-close"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-sub">CLB: <strong>{{ deleteModal.club?.name }}</strong></p>
+          <div class="delete-warning">
+            <i class="pi pi-exclamation-triangle"></i>
+            <span>Hành động này sẽ xóa vĩnh viễn câu lạc bộ và tất cả thành viên. Không thể hoàn tác!</span>
+          </div>
+          <div class="modal-actions">
+            <button @click="deleteModal.show = false" class="btn-cancel">Hủy</button>
+            <button @click="confirmDelete" :disabled="processingId === deleteModal.club?.id" class="btn-confirm-delete">
+              <i v-if="processingId === deleteModal.club?.id" class="pi pi-spinner pi-spin"></i>
+              <i v-else class="pi pi-trash"></i> Xác nhận xóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast -->
     <Transition name="toast">
       <div v-if="toast.show" class="toast" :class="toast.type">
@@ -202,6 +240,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { clubRepository } from '../../repositories/ClubRepository.js';
+import { supabase } from '../../config/supabase.js';
 
 const clubs    = ref([]);
 const loading  = ref(true);
@@ -211,6 +250,7 @@ const route = useRoute();
 const toast = ref({ show: false, type: 'success', title: '', message: '' });
 const suspendModal = ref({ show: false, club: null, reason: '' });
 const rejectModal = ref({ show: false, club: null, reason: '' });
+const deleteModal = ref({ show: false, club: null });
 
 const tabs = [
   { key: 'pending',   label: 'Chờ duyệt',  icon: 'pi pi-clock',        color: '#a5b4fc' },
@@ -324,6 +364,39 @@ onMounted(async () => {
   await loadClubs();
   loading.value = false;
 });
+
+const openDeleteModal = (club) => {
+  deleteModal.value = { show: true, club };
+};
+
+const confirmDelete = async () => {
+  const club = deleteModal.value.club;
+  if (!club) return;
+  processingId.value = club.id;
+  try {
+    // Delete all club members first
+    const { error: membersError } = await supabase
+      .from('club_members')
+      .delete()
+      .eq('club_id', club.id);
+    if (membersError) throw new Error(membersError.message);
+
+    // Delete the club
+    const { error: clubError } = await supabase
+      .from('clubs')
+      .delete()
+      .eq('id', club.id);
+    if (clubError) throw new Error(clubError.message);
+
+    deleteModal.value.show = false;
+    showToast('success', 'Đã xóa', `CLB "${club.name}" đã được xóa thành công.`);
+    await loadClubs();
+  } catch (err) {
+    showToast('error', 'Lỗi', err.message);
+  } finally {
+    processingId.value = null;
+  }
+};
 </script>
 
 <style scoped>
@@ -537,6 +610,34 @@ onMounted(async () => {
 }
 .btn-confirm-suspend:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(245,158,11,0.4); }
 .btn-confirm-suspend:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+/* Delete Button */
+.btn-delete {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.6rem 0.5rem; border-radius: 0.75rem;
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.16);
+  color: #fca5a5; font-size: 0.825rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.btn-delete:hover { background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.28); color: white; }
+.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Delete Modal */
+.delete-icon { background: linear-gradient(135deg,#ef4444,#dc2626); box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
+.delete-warning {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+  padding: 0.875rem 1rem; background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.2); border-radius: 0.625rem;
+  color: #fca5a5; font-size: 0.85rem; margin-top: 0.75rem;
+}
+.delete-warning .pi { color: #f87171; font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+.btn-confirm-delete {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.25rem;
+  background: linear-gradient(135deg,#ef4444,#dc2626); color: white; border-radius: 0.625rem;
+  font-weight: 600; cursor: pointer; transition: all 0.25s; font-size: 0.875rem;
+  box-shadow: 0 4px 16px rgba(239,68,68,0.25);
+}
+.btn-confirm-delete:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(239,68,68,0.4); }
+.btn-confirm-delete:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
 
 /* Toast */
 .toast {

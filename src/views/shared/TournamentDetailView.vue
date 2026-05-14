@@ -838,16 +838,38 @@ const handleClubSelect = async (clubId) => {
   if (tournament.value?.maxPlayersPerMatch > 0) {
     clubMembersLoading.value = true;
     try {
-      const { data, error } = await supabase
+      // 1. Fetch club leader
+      const { data: clubData, error: clubErr } = await supabase
+        .from('clubs')
+        .select('leader_id, leader:profiles!clubs_leader_id_fkey(id, full_name, email, avatar_url)')
+        .eq('id', clubId)
+        .single();
+
+      // 2. Fetch approved members
+      const { data: memberData, error: memberErr } = await supabase
         .from('club_members')
         .select('user_id, profile:profiles(id, full_name, email, avatar_url)')
         .eq('club_id', clubId)
         .eq('status', 'approved');
       
-      if (error) throw error;
-      availableMembers.value = data || [];
+      if (memberErr) throw memberErr;
+      
+      let allParticipants = memberData || [];
+      
+      // 3. Add leader if not already in members
+      if (clubData?.leader) {
+        const isLeaderAlreadyIn = allParticipants.some(m => m.user_id === clubData.leader_id);
+        if (!isLeaderAlreadyIn) {
+          allParticipants.unshift({
+            user_id: clubData.leader_id,
+            profile: clubData.leader
+          });
+        }
+      }
+
+      availableMembers.value = allParticipants;
     } catch (err) {
-      console.error('Error fetching club members:', err);
+      console.error('Error fetching club members/leader:', err);
       toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Không thể tải danh sách thành viên', life: 3000 });
     } finally {
       clubMembersLoading.value = false;
