@@ -33,7 +33,7 @@
                   <img v-if="leader.avatar_url" :src="leader.avatar_url" :alt="leader.full_name" />
                   <span v-else>{{ getInitials(leader.full_name || '?') }}</span>
                 </div>
-                <div>
+                <div class="cursor-pointer" @click="openLeaderModal">
                   <div class="leader-label">Trưởng câu lạc bộ</div>
                   <div class="leader-name">{{ leader.full_name || leader.email || 'Không rõ' }}</div>
                 </div>
@@ -144,7 +144,11 @@
                           <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
                           <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
                         </div>
-                        <div>
+                        <div 
+                          class="user-info-trigger" 
+                          @click="isLeader || authStore.isAdmin || authStore.user?.id === m.user?.id ? openMemberModal(m) : null"
+                          :class="{ 'cursor-pointer': isLeader || authStore.isAdmin || authStore.user?.id === m.user?.id }"
+                        >
                           <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
                           <div class="user-email">{{ m.user?.email || '' }}</div>
                         </div>
@@ -213,7 +217,11 @@
                           <img v-if="m.user?.avatar_url" :src="m.user.avatar_url" :alt="m.user?.full_name" />
                           <span v-else>{{ getInitials(m.user?.full_name || '?') }}</span>
                         </div>
-                        <div>
+                        <div 
+                          class="user-info-trigger" 
+                          @click="isLeader || authStore.isAdmin ? openMemberModal(m) : null"
+                          :class="{ 'cursor-pointer': isLeader || authStore.isAdmin }"
+                        >
                           <div class="user-name">{{ m.user?.full_name || 'Không rõ' }}</div>
                           <div class="user-email">{{ m.user?.email || '' }}</div>
                         </div>
@@ -285,6 +293,63 @@
         </form>
       </div>
     </div>
+
+    <!-- ── Member Modal ── -->
+    <div v-if="showMemberModal" class="modal-overlay" @click.self="showMemberModal = false">
+      <div class="modal-panel member-details-panel">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <div class="modal-icon"><i class="pi pi-user"></i></div>
+            <h2 class="modal-title">Thông tin thành viên</h2>
+          </div>
+          <button @click="showMemberModal = false" class="modal-close"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="modal-body" v-if="selectedMember">
+          <div class="member-profile-header">
+            <div class="profile-avatar">
+              <img v-if="selectedMember.user?.avatar_url" :src="selectedMember.user.avatar_url" />
+              <span v-else>{{ getInitials(selectedMember.user?.full_name || '?') }}</span>
+            </div>
+            <div class="profile-main">
+              <h3 class="profile-name">{{ selectedMember.user?.full_name }}</h3>
+              <span class="role-badge" :class="getRoleClass(selectedMember.role)">{{ getRoleText(selectedMember.role) }}</span>
+            </div>
+          </div>
+          
+          <div class="profile-details-grid">
+            <div class="detail-item">
+              <span class="detail-label">Email</span>
+              <span class="detail-value">{{ selectedMember.user?.email || '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Số điện thoại</span>
+              <span class="detail-value">{{ selectedMember.user?.phone || '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Giới tính</span>
+              <span class="detail-value text-capitalize">{{ selectedMember.user?.gender || '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Ngày sinh</span>
+              <span class="detail-value">{{ formatDate(selectedMember.user?.birth_date) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Ngày tham gia CLB</span>
+              <span class="detail-value">{{ formatDate(selectedMember.joined_at) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Trạng thái</span>
+              <span class="detail-value">
+                <span class="status-chip" :class="getMemberStatusClass(selectedMember.status)">{{ getMemberStatusText(selectedMember.status) }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button @click="showMemberModal = false" class="btn-submit">Đóng</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -316,6 +381,26 @@ const rejectingId = ref(null);
 const removingId = ref(null);
 const appointingId = ref(null);
 const activeMemberTab = ref('approved');
+
+// Member Info Modal
+const showMemberModal = ref(false);
+const selectedMember = ref(null);
+
+const openMemberModal = (m) => {
+  selectedMember.value = m;
+  showMemberModal.value = true;
+};
+
+const openLeaderModal = () => {
+  if (!leader.value) return;
+  const leaderObj = {
+    user: leader.value,
+    role: 'leader',
+    status: 'approved',
+    joined_at: club.value?.createdAt
+  };
+  openMemberModal(leaderObj);
+};
 
 // Edit Club
 const showEditModal = ref(false);
@@ -974,4 +1059,19 @@ onMounted(async () => {
 .ms-pending  { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
 .ms-rejected { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
 .ms-removed  { background: rgba(107,114,128,0.2); color: #d1d5db; border: 1px solid rgba(107,114,128,0.3); }
+
+/* Member Details Modal Extra */
+.member-details-panel { width: min(480px, 100%) !important; }
+.member-profile-header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.profile-avatar { width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; font-size: 1.75rem; font-weight: 800; color: white; border: 2px solid rgba(255,255,255,0.1); }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.profile-name { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 0.35rem; }
+.profile-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.detail-item { display: flex; flex-direction: column; gap: 0.25rem; }
+.detail-label { font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.detail-value { font-size: 0.95rem; color: white; font-weight: 500; }
+.cursor-pointer { cursor: pointer; }
+.user-info-trigger:hover .user-name { color: #a5b4fc; text-decoration: underline; }
+.leader-row .cursor-pointer:hover .leader-name { color: #a5b4fc; text-decoration: underline; }
+.text-capitalize { text-transform: capitalize; }
 </style>
