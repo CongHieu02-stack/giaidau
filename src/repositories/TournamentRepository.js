@@ -165,6 +165,11 @@ export class TournamentRepository extends BaseRepository {
           next_match_id,
           loser_next_match_id,
           group_id,
+          match_attendance(
+            id, is_present, result_value,
+            player:player_id(id, full_name, avatar_url),
+            club:club_id(id, name, logo_url)
+          ),
           events:match_events(*)
         ).order('match_date', { ascending: true }).order('match_time', { ascending: true }),
         groups:tournament_groups(*)

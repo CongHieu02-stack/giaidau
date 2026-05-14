@@ -96,6 +96,9 @@ export function buildTournamentPayload(form, createdBy) {
     venue_id: form.venueId || null,
     status: 'registration_open',
     created_by: createdBy || null,
+    tournament_mode: form.tournamentMode || 'knockout',
+    scoring_type: form.scoringType || 'count',
+    unit: form.unit || 'bàn thắng',
     updated_at: new Date().toISOString()
   };
 }

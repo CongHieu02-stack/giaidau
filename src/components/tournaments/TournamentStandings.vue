@@ -9,7 +9,15 @@
         <h3 class="group-name">{{ group.name }}</h3>
         <div class="table-container glass">
           <table class="standings-table">
-            <thead>
+            <thead v-if="tournament.tournamentMode === 'single_heat'">
+              <tr>
+                <th class="rank">#</th>
+                <th class="team">VĐV / Đội</th>
+                <th class="stat">Trạng thái</th>
+                <th class="stat points">Kết quả ({{ tournament.unit }})</th>
+              </tr>
+            </thead>
+            <thead v-else>
               <tr>
                 <th class="rank">#</th>
                 <th class="team">Đội bóng</th>
@@ -23,7 +31,25 @@
                 <th class="stat points">Điểm</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody v-if="tournament.tournamentMode === 'single_heat'">
+              <tr v-for="team in getGroupStandings(group.id)" :key="team.id" class="team-row">
+                <td class="rank">{{ team.rank }}</td>
+                <td class="team">
+                  <div class="team-info">
+                    <img v-if="team.logoUrl" :src="team.logoUrl" class="team-logo" />
+                    <div v-else class="team-logo-placeholder">{{ team.name[0] }}</div>
+                    <span class="team-name">{{ team.name }}</span>
+                  </div>
+                </td>
+                <td class="stat">
+                  <span :class="['status-pill', team.isPresent ? 'present' : 'absent']">
+                    {{ team.isPresent ? 'Hiện diện' : 'Vắng' }}
+                  </span>
+                </td>
+                <td class="stat points">{{ team.value !== null ? team.value : '-' }}</td>
+              </tr>
+            </tbody>
+            <tbody v-else>
               <tr v-for="team in getGroupStandings(group.id)" :key="team.clubId" class="team-row">
                 <td class="rank">{{ team.rank }}</td>
                 <td class="team">
@@ -50,7 +76,15 @@
 
     <div v-else class="table-container glass">
       <table class="standings-table">
-        <thead>
+        <thead v-if="tournament.tournamentMode === 'single_heat'">
+          <tr>
+            <th class="rank">#</th>
+            <th class="team">VĐV / Đội</th>
+            <th class="stat">Trạng thái</th>
+            <th class="stat points">Kết quả ({{ tournament.unit }})</th>
+          </tr>
+        </thead>
+        <thead v-else>
           <tr>
             <th class="rank">#</th>
             <th class="team">Đội bóng</th>
@@ -62,7 +96,25 @@
             <th class="stat points">Điểm</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody v-if="tournament.tournamentMode === 'single_heat'">
+          <tr v-for="team in standings" :key="team.id" class="team-row">
+            <td class="rank">{{ team.rank }}</td>
+            <td class="team">
+              <div class="team-info">
+                <img v-if="team.logoUrl" :src="team.logoUrl" class="team-logo" />
+                <div v-else class="team-logo-placeholder">{{ (team.name || '?')[0] }}</div>
+                <span class="team-name">{{ team.name }}</span>
+              </div>
+            </td>
+            <td class="stat">
+              <span :class="['status-pill', team.isPresent ? 'present' : 'absent']">
+                {{ team.isPresent ? 'Hiện diện' : 'Vắng' }}
+              </span>
+            </td>
+            <td class="stat points">{{ team.value !== null ? team.value : '-' }}</td>
+          </tr>
+        </tbody>
+        <tbody v-else>
           <tr v-for="team in standings" :key="team.clubId" class="team-row">
             <td class="rank">{{ team.rank }}</td>
             <td class="team">
@@ -222,6 +274,15 @@ td {
 
 .positive { color: #4ade80; }
 .negative { color: #f87171; }
+
+.status-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.status-pill.present { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+.status-pill.absent { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
 
 @media (max-width: 768px) {
   .hide-mobile {

@@ -134,18 +134,23 @@
             <div class="section-card">
               <h2 class="section-title">
                 <i class="pi pi-calendar section-icon orange"></i>
-                {{ tournament.format === 'knockout' ? 'Sơ đồ thi đấu' : 'Lịch thi đấu' }}
+                {{ tournament.tournamentMode === 'single_heat' ? 'Thông tin vòng đấu' : (tournament.format === 'knockout' ? 'Sơ đồ thi đấu' : 'Lịch thi đấu') }}
                 <span class="match-count" v-if="tournament.matches && tournament.matches.length > 0">{{ tournament.matches.length }} trận</span>
               </h2>
               
               <!-- Google Style Bracket (New) -->
-              <div v-if="tournament.matches && tournament.matches.length > 0" class="mt-4">
+              <div v-if="tournament.matches && tournament.matches.length > 0 && tournament.tournamentMode !== 'single_heat'" class="mt-4">
                 <GoogleKnockoutBracket 
                   :matches="tournament.matches" 
                   :participant-type="tournament.participantType"
                   :admin-mode="canManage"
                   @assign-referee="openRefereeModal"
                 />
+              </div>
+              <div v-else-if="tournament.tournamentMode === 'single_heat' && tournament.matches && tournament.matches.length > 0" class="mt-4">
+                <div class="heat-info-card">
+                  <p class="text-sm text-white/60"><i class="pi pi-info-circle mr-2"></i>Giải đấu đang diễn ra theo hình thức thi đấu một lượt (Single Heat). Kết quả được cập nhật trực tiếp tại Bảng xếp hạng bên dưới.</p>
+                </div>
               </div>
               <div v-else class="empty-schedule-simple">
                 <i class="pi pi-calendar"></i>
@@ -2489,5 +2494,14 @@ onMounted(async () => {
   .podium-container { flex-direction: column; align-items: center; gap: 3rem; }
   .podium-item { order: 2; }
   .podium-item.first { order: 1; margin-bottom: 2rem; }
+}
+
+.heat-info-card {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
 }
 </style>

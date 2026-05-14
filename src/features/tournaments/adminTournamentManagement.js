@@ -217,6 +217,44 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
     await supabase.from('matches').delete().eq('tournament_id', tournamentId);
     await supabase.from('tournament_groups').delete().eq('tournament_id', tournamentId);
 
+    // === SINGLE HEAT FORMAT ===
+    if (tournament.tournament_mode === 'single_heat') {
+      const { data: regs } = await supabase.from('tournament_registrations')
+        .select('*, club:clubs(id, name, logo_url), user:profiles!tournament_registrations_user_id_fkey(id, full_name, avatar_url)')
+        .eq('tournament_id', tournamentId).eq('status', 'approved');
+      
+      if (!regs?.length) throw new Error('Không có vận động viên/đội nào được duyệt để bắt đầu.');
+
+      const heatMatch = {
+        tournament_id: tournamentId,
+        match_date: tournament.start_date,
+        match_time: tournament.match_times?.[0] || '17:00',
+        status: 'scheduled',
+        round: 1,
+        venue_id: venueIds[0] || tournament.venue_id || null
+      };
+      
+      const { data: insertedMatch, error: mErr } = await supabase.from('matches').insert(heatMatch).select('id').single();
+      if (mErr) throw new Error(mErr.message);
+
+      const attendanceData = regs.map(r => ({
+        match_id: insertedMatch.id,
+        club_id: r.club_id || null,
+        player_id: r.user_id || null,
+        is_present: true
+      }));
+      
+      if (attendanceData.length > 0) {
+        const { error: attErr } = await supabase.from('match_attendance').insert(attendanceData);
+        if (attErr) throw new Error(`Lỗi khởi tạo danh sách VĐV: ${attErr.message}`);
+      }
+
+      await supabase.from('tournaments')
+        .update({ status: 'ongoing', current_round: 1, updated_at: new Date().toISOString() })
+        .eq('id', tournamentId);
+      return { success: true };
+    }
+
     // === KNOCKOUT FORMAT ===
     if (tournament.format === 'knockout') {
       let allTeams = draftGroups.flatMap(g => g.teams || []).filter(t => t && t.id);

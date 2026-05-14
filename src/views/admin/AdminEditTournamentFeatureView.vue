@@ -38,6 +38,18 @@
               <input :value="tournament?.sport_category?.name || 'Chưa chọn'" disabled>
             </label>
             <label class="field">
+              <span>Hình thức thi đấu</span>
+              <input :value="tournament?.tournament_mode === 'single_heat' ? 'Thi đấu một lượt (Heat)' : 'Loại trực tiếp (Knockout)'" disabled>
+            </label>
+            <label class="field">
+              <span>Phương thức tính điểm</span>
+              <input :value="tournament?.scoring_type === 'time' ? 'Thời gian (Ít là thắng)' : (tournament?.scoring_type === 'distance' ? 'Khoảng cách (Nhiều là thắng)' : 'Tỉ số')" disabled>
+            </label>
+            <label class="field">
+              <span>Đơn vị tính</span>
+              <input :value="tournament?.unit || 'bàn thắng'" disabled>
+            </label>
+            <label class="field">
               <span>Trạng thái</span>
               <input :value="statusLabels[tournament?.status] || tournament?.status" disabled>
             </label>
@@ -132,7 +144,7 @@
             <template v-if="tournament.status !== 'ongoing' || localMatches.length > 0 || (matches && matches.length === 0)">
               <!-- Knockout Seeding Button -->
               <button 
-                v-if="!showSeeding && !localMatches.length"
+                v-if="tournament.tournament_mode !== 'single_heat' && !showSeeding && !localMatches.length"
                 type="button" 
                 class="secondary-button" 
                 :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly"
@@ -144,7 +156,7 @@
 
               <!-- Knockout Preview Button -->
               <button 
-                v-if="!localMatches.length"
+                v-if="tournament.tournament_mode !== 'single_heat' && !localMatches.length"
                 type="button" 
                 class="primary-button knockout-start" 
                 :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly || generatingMatches"
@@ -152,6 +164,18 @@
               >
                 <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-sitemap'"></i>
                 {{ generatingMatches ? 'Đang tạo...' : 'Tạo sơ đồ thi đấu' }}
+              </button>
+
+              <!-- Single Heat Start Button (Direct) -->
+              <button 
+                v-if="tournament.tournament_mode === 'single_heat' && matches.length === 0"
+                type="button" 
+                class="primary-button" 
+                :disabled="tournament.approved_count < 1 || readOnly || saving"
+                @click="handleStartSingleHeat"
+              >
+                <i class="pi pi-play mr-1"></i>
+                Bắt đầu giải (Một lượt)
               </button>
               
               <template v-else>
@@ -199,7 +223,21 @@
           </draggable>
         </div>
 
-        <div v-if="filteredMatches.length > 0" class="matches-list">
+        <div v-if="tournament.tournament_mode === 'single_heat' && matches.length > 0" class="heat-participants-panel">
+          <div class="panel-header">
+            <h3><i class="pi pi-list mr-2"></i>Danh sách vận động viên tham gia lượt đấu</h3>
+            <span class="count-badge">{{ matches[0].match_attendance?.length || matches[0].attendance?.length || 0 }} VĐV</span>
+          </div>
+          <div class="participants-grid">
+            <div v-for="att in (matches[0].match_attendance || matches[0].attendance || [])" :key="att.id" class="p-card">
+              <img v-if="att.player?.avatar_url || att.club?.logo_url" :src="att.player?.avatar_url || att.club?.logo_url" class="p-avatar" />
+              <div v-else class="p-avatar-placeholder">{{ (att.player?.full_name || att.club?.name || '?')[0] }}</div>
+              <span class="p-name">{{ att.player?.full_name || att.club?.name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="filteredMatches.length > 0" class="matches-list">
           <div class="matches-grid">
             <div v-for="match in filteredMatches" :key="match.id || match.originalIdx" class="match-item">
               <div class="match-header">
@@ -590,7 +628,10 @@ const form = reactive({
   matchDays: [],
   matchTimes: '',
   scheduleNote: '',
-  venueId: ''
+  venueId: '',
+  tournamentMode: 'knockout',
+  scoringType: 'count',
+  unit: 'bàn thắng'
 });
 
 const readOnly = computed(() => ['completed', 'cancelled'].includes(tournament.value?.status));
@@ -613,7 +654,12 @@ async function loadTournament() {
         away_club:clubs!matches_away_club_id_fkey(id, name, logo_url),
         home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
         away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
-        venue:venues(id, name)
+        venue:venues(id, name),
+        match_attendance(
+          id, is_present, result_value,
+          player:player_id(id, full_name, avatar_url),
+          club:club_id(id, name, logo_url)
+        )
       `)
       .eq('tournament_id', route.params.id)
       .order('match_date', { ascending: true })
@@ -639,6 +685,9 @@ async function loadTournament() {
     form.endTime = times.length > 1 ? String(times[1]).slice(0, 5) : '17:00';
     form.scheduleNote = tournament.value.venue_requirements || '';
     form.venueId = tournament.value.venue_id || '';
+    form.tournamentMode = tournament.value.tournament_mode || 'knockout';
+    form.scoringType = tournament.value.scoring_type || 'count';
+    form.unit = tournament.value.unit || 'bàn thắng';
     venues.value = await fetchVenues();
   } catch (error) {
     errorMessage.value = error.message || 'Không tải được thông tin giải đấu.';
@@ -786,6 +835,32 @@ function handleSwap(evt, toIdx, toSide) {
       matchTo.away_user_id = null;
     }
   }
+}
+
+async function handleStartSingleHeat() {
+  if (!tournament.value) return;
+  
+  confirmService.require({
+    message: 'Bạn có chắc chắn muốn bắt đầu giải đấu theo hình thức thi đấu một lượt? Hệ thống sẽ tạo một Heat thi đấu cho tất cả vận động viên đã duyệt.',
+    header: 'Xác nhận bắt đầu',
+    icon: 'pi pi-play',
+    accept: async () => {
+      saving.value = true;
+      try {
+        const result = await startTournament(tournament.value.id, [], [], tournament.value);
+        if (result.success) {
+          toast.add({ severity: 'success', summary: 'Thành công', detail: 'Giải đấu đã bắt đầu.', life: 3000 });
+          await loadTournament();
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 3000 });
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message, life: 3000 });
+      } finally {
+        saving.value = false;
+      }
+    }
+  });
 }
 
 async function handleSaveBracket() {
@@ -1743,4 +1818,43 @@ option {
   color: #60a5fa;
   font-size: 1.2rem;
 }
+.heat-participants-panel {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+.panel-header h3 { margin: 0; font-size: 1.1rem; }
+.count-badge {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.participants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+.p-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 0.75rem;
+}
+.p-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.p-avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.p-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 </style>

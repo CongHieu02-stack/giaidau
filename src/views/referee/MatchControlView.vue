@@ -101,19 +101,67 @@
     </div>
 
     <!-- Tab: Attendance -->
-    <div v-if="activeTab==='attendance'" class="panel">
-      <h3 class="panel-title">Danh sách cầu thủ</h3>
-      <div v-for="side in ['home','away']" :key="side" class="att-section">
-        <h4 class="att-club">{{ side==='home' ? (match.home_club?.name || match.home_user?.full_name) : (match.away_club?.name || match.away_user?.full_name) }}</h4>
-        <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
-        <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
-          <span class="att-name">{{ p.user?.full_name }}</span>
-          <label class="att-check">
-            <input type="checkbox" :checked="isPresent(p.user?.id)" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
-            <span class="checkmark"></span>
-          </label>
+    <div v-if="activeTab==='attendance' || (isSingleHeat && activeTab==='results')" class="panel">
+      <h3 class="panel-title">{{ isSingleHeat ? 'Danh sách vận động viên & Kết quả' : 'Kiểm diện' }}</h3>
+      
+      <!-- Standard Mode -->
+      <template v-if="!isSingleHeat">
+        <div v-for="side in ['home','away']" :key="side" class="att-section">
+          <h4 class="att-club">{{ side==='home' ? (match.home_club?.name || match.home_user?.full_name) : (match.away_club?.name || match.away_user?.full_name) }}</h4>
+          <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
+          <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
+            <span class="att-name">{{ p.user?.full_name }}</span>
+            <label class="att-check">
+              <input type="checkbox" :checked="isPresent(p.user?.id)" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
+              <span class="checkmark"></span>
+            </label>
+          </div>
         </div>
-      </div>
+      </template>
+
+      <!-- Single Heat Mode -->
+      <template v-else>
+        <div class="heat-table-wrapper">
+          <table class="heat-table">
+            <thead>
+              <tr>
+                <th>VĐV / Đội</th>
+                <th style="width: 120px;">Kiểm diện</th>
+                <th style="width: 180px;">Kết quả ({{ match.tournament?.unit }})</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="att in attendance" :key="att.player_id">
+                <td>
+                  <div class="p-info">
+                    <img v-if="att.player?.avatar_url" :src="att.player?.avatar_url" class="p-av"/>
+                    <span class="p-name">{{ att.player?.full_name || att.club?.name }}</span>
+                  </div>
+                </td>
+                <td class="text-center">
+                  <label class="att-check">
+                    <input type="checkbox" :checked="att.is_present" @change="toggleAttendance(att.player_id, att.club_id, $event)"/>
+                    <span class="checkmark"></span>
+                  </label>
+                </td>
+                <td>
+                  <div class="result-input-group">
+                    <input 
+                      type="number" 
+                      step="any"
+                      :value="att.result_value" 
+                      @change="updateHeatResult(att.player_id, $event.target.value)"
+                      class="res-input"
+                      placeholder="Nhập..."
+                      :disabled="!att.is_present"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
     </div>
 
     <!-- Event Modal -->
@@ -194,11 +242,19 @@ const modalPlayerId = ref('');
 const modalMinute = ref(0);
 const modalDesc = ref('');
 
-const tabs = [
-  { id: 'events', label: 'Diễn biến', icon: 'pi pi-list' },
-  { id: 'attendance', label: 'Kiểm diện', icon: 'pi pi-users' }
-];
+const isSingleHeat = computed(() => match.value?.tournament?.tournament_mode === 'single_heat');
 
+const tabs = computed(() => {
+  if (isSingleHeat.value) {
+    return [
+      { id: 'results', label: 'Nhập kết quả', icon: 'pi pi-check-square' }
+    ];
+  }
+  return [
+    { id: 'events', label: 'Diễn biến', icon: 'pi pi-list' },
+    { id: 'attendance', label: 'Kiểm diện', icon: 'pi pi-users' }
+  ];
+});
 const statusText = computed(() => ({
   'scheduled':'Chờ thi đấu','in_progress':'Đang thi đấu','paused':'Tạm dừng','completed':'Đã kết thúc','cancelled':'Đã hủy'
 }[match.value?.status] || ''));
@@ -430,9 +486,30 @@ async function removeEvent(evId) {
 }
 
 async function toggleAttendance(playerId, clubId, e) {
-  await matchRepository.upsertAttendance(match.value.id, playerId, clubId, e.target.checked);
-  const attR = await matchRepository.getMatchAttendance(match.value.id);
-  if (attR.isOk()) attendance.value = attR.getValue();
+  const present = e.target.checked;
+  const r = await matchRepository.upsertAttendance(match.value.id, playerId, clubId, present);
+  if (r.isOk()) {
+    const idx = attendance.value.findIndex(a => a.player_id === playerId);
+    if (idx >= 0) {
+      attendance.value[idx].is_present = present;
+    } else {
+      // Re-fetch to get complete object
+      const attR = await matchRepository.getMatchAttendance(match.value.id);
+      if (attR.isOk()) attendance.value = attR.getValue();
+    }
+  }
+}
+
+async function updateHeatResult(playerId, value) {
+  const numVal = value === '' ? null : parseFloat(value);
+  const r = await matchRepository.updateResultValue(match.value.id, playerId, numVal);
+  if (r.isOk()) {
+    const idx = attendance.value.findIndex(a => a.player_id === playerId);
+    if (idx >= 0) attendance.value[idx].result_value = numVal;
+    toast.add({ severity: 'success', summary: 'Đã lưu', detail: 'Kết quả đã được cập nhật', life: 1500 });
+  } else {
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: r.getError(), life: 3000 });
+  }
 }
 
 onMounted(loadAll);
@@ -564,4 +641,16 @@ onUnmounted(stopTimer);
   height: 20px;
   margin-right: 8px;
 }
+
+/* Heat Table Styles */
+.heat-table-wrapper { overflow-x: auto; margin-top: 1rem; border-radius: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); }
+.heat-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.heat-table th { text-align: left; padding: 1rem; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1px; }
+.heat-table td { padding: 0.75rem 1rem; border-top: 1px solid rgba(255,255,255,0.05); color: white; vertical-align: middle; }
+.p-info { display: flex; align-items: center; gap: 0.75rem; }
+.p-av { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.1); }
+.p-name { font-weight: 600; }
+.res-input { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-weight: 700; text-align: right; }
+.res-input:focus { outline: none; border-color: #60a5fa; background: rgba(255,255,255,0.08); }
+.text-center { text-align: center; }
 </style>

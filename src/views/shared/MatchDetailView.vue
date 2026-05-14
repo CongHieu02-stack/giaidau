@@ -14,8 +14,8 @@
           </div>
         </div>
 
-        <!-- Scoreboard -->
-        <div class="scoreboard">
+        <!-- Scoreboard (Standard) -->
+        <div v-if="!isSingleHeat" class="scoreboard">
           <div class="sb-team">
             <div class="sb-logo">
               <img v-if="getTeamLogo('home')" :src="getTeamLogo('home')"/>
@@ -56,8 +56,17 @@
           </div>
         </div>
 
+        <!-- Heat Header (Single Heat) -->
+        <div v-else class="heat-header-card">
+           <div class="heat-title">
+             <i class="pi pi-bolt text-yellow-400 mr-2"></i>
+             Thi đấu một lượt (Single Heat)
+           </div>
+           <p class="heat-desc">Đây là vòng thi đấu tính bảng xếp hạng tổng. Kết quả của tất cả vận động viên được liệt kê chi tiết bên dưới.</p>
+        </div>
+
         <!-- Main Content -->
-        <div class="details-grid">
+        <div v-if="!isSingleHeat" class="details-grid">
           <!-- Timeline -->
           <div class="panel">
             <h3 class="panel-title"><i class="pi pi-list mr-2"></i>Diễn biến trận đấu</h3>
@@ -93,6 +102,45 @@
           </div>
         </div>
 
+        <!-- Leaderboard View (Single Heat) -->
+        <div v-else class="panel">
+          <h3 class="panel-title"><i class="pi pi-chart-bar mr-2 text-blue-400"></i>Kết quả thi đấu</h3>
+          <div class="heat-results-table-wrapper">
+             <table class="heat-results-table">
+               <thead>
+                 <tr>
+                   <th>Hạng</th>
+                   <th>Vận động viên / Đội</th>
+                   <th>Trạng thái</th>
+                   <th class="text-right">Kết quả ({{ match.tournament?.unit }})</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 <tr v-for="item in sortedHeatResults" :key="item.id" :class="{'top-rank': item.rank <= 3}">
+                   <td class="rank-col">
+                     <span v-if="item.rank === 1" class="medal gold">🥇</span>
+                     <span v-else-if="item.rank === 2" class="medal silver">🥈</span>
+                     <span v-else-if="item.rank === 3" class="medal bronze">🥉</span>
+                     <span v-else class="rank-num">{{ item.rank }}</span>
+                   </td>
+                   <td>
+                     <div class="p-info">
+                       <img v-if="item.logoUrl" :src="item.logoUrl" class="p-av"/>
+                       <span class="p-name">{{ item.name }}</span>
+                     </div>
+                   </td>
+                   <td>
+                     <span :class="['status-pill', item.isPresent ? 'present' : 'absent']">
+                       {{ item.isPresent ? 'Hiện diện' : 'Vắng' }}
+                     </span>
+                   </td>
+                   <td class="result-val">{{ item.value !== null ? item.value : '-' }}</td>
+                 </tr>
+               </tbody>
+             </table>
+          </div>
+        </div>
+
         <!-- Referee -->
         <div class="ref-footer" v-if="match.referee">
           <i class="pi pi-user-edit"></i>
@@ -115,6 +163,41 @@ const match = ref(null);
 const events = ref([]);
 const attendance = ref([]);
 const loading = ref(true);
+
+const isSingleHeat = computed(() => match.value?.tournament?.tournament_mode === 'single_heat');
+
+const sortedHeatResults = computed(() => {
+  if (!isSingleHeat.value || !attendance.value.length) return [];
+  
+  const results = attendance.value.map(att => ({
+    id: att.player_id || att.club_id,
+    name: att.player?.full_name || att.club?.name || 'VĐV',
+    logoUrl: att.player?.avatar_url || att.club?.logo_url,
+    value: att.result_value ?? null,
+    isPresent: att.is_present ?? false
+  }));
+
+  const scoringType = match.value.tournament?.scoring_type || 'count';
+  
+  const sorted = results.sort((a, b) => {
+    if (!a.isPresent) return 1;
+    if (!b.isPresent) return -1;
+    if (a.value === null) return 1;
+    if (b.value === null) return -1;
+    
+    if (scoringType === 'time') return a.value - b.value;
+    return b.value - a.value;
+  });
+
+  let rank = 1;
+  return sorted.map((item, idx) => {
+    if (idx > 0) {
+      const prev = sorted[idx - 1];
+      if (item.value !== prev.value || item.isPresent !== prev.isPresent) rank = idx + 1;
+    }
+    return { ...item, rank };
+  });
+});
 
 const statusText = computed(() => ({
   'scheduled':'Chờ thi đấu','in_progress':'Đang thi đấu','paused':'Tạm dừng','completed':'Đã kết thúc','cancelled':'Đã hủy'
@@ -237,6 +320,28 @@ onMounted(loadAll);
 .card-icon { display: inline-block; width: 10px; height: 14px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
 .card-icon.yellow { background-color: #fbbf24; }
 .card-icon.red { background-color: #ef4444; }
+
+/* Heat Styles */
+.heat-header-card { padding: 2.5rem; background: rgba(30,41,59,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 2rem; text-align: center; }
+.heat-title { font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: center; }
+.heat-desc { color: rgba(255,255,255,0.5); font-size: 0.95rem; max-width: 600px; margin: 0 auto; line-height: 1.6; }
+
+.heat-results-table-wrapper { overflow-x: auto; margin-top: 0.5rem; }
+.heat-results-table { width: 100%; border-collapse: collapse; }
+.heat-results-table th { text-align: left; padding: 1rem; color: rgba(255,255,255,0.4); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.heat-results-table td { padding: 1.25rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+.rank-col { width: 60px; text-align: center; }
+.rank-num { font-weight: 800; color: rgba(255,255,255,0.3); }
+.medal { font-size: 1.25rem; }
+.p-info { display: flex; align-items: center; gap: 1rem; }
+.p-av { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,0.1); }
+.p-name { font-weight: 700; color: white; }
+.result-val { text-align: right; font-size: 1.1rem; font-weight: 800; color: #60a5fa; font-variant-numeric: tabular-nums; }
+.top-rank { background: rgba(96, 165, 250, 0.03); }
+.status-pill { padding: 4px 10px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; }
+.status-pill.present { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+.status-pill.absent { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+.text-right { text-align: right !important; }
 
 @media (max-width: 800px) {
   .details-grid { grid-template-columns: 1fr; }
