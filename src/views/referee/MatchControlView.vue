@@ -121,7 +121,7 @@
           <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
             <span class="att-name">{{ p.user?.full_name }}</span>
             <label class="att-check">
-              <input type="checkbox" :checked="isPresent(p.user?.id)" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
+              <input type="checkbox" :checked="isPresent(p.user?.id)" :disabled="match.status === 'completed'" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
               <span class="checkmark"></span>
             </label>
           </div>
@@ -149,7 +149,7 @@
                 </td>
                 <td class="text-center">
                   <label class="att-check">
-                    <input type="checkbox" :checked="att.is_present" @change="toggleAttendance(att.player_id, att.club_id, $event)"/>
+                    <input type="checkbox" :checked="att.is_present" :disabled="match.status === 'completed'" @change="toggleAttendance(att.player_id, att.club_id, $event)"/>
                     <span class="checkmark"></span>
                   </label>
                 </td>
@@ -162,7 +162,7 @@
                       @change="(e) => updateHeatResult(att, e.target.value)"
                       class="res-input"
                       placeholder="Nhập..."
-                      :disabled="!att.is_present"
+                      :disabled="!att.is_present || match.status === 'completed'"
                       inputmode="decimal"
                     />
                   </div>
