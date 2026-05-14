@@ -206,16 +206,17 @@ import { clubRepository } from '../../repositories/ClubRepository.js';
 const clubs    = ref([]);
 const loading  = ref(true);
 const processingId = ref(null);
-const activeTab = ref('approved');
+const activeTab = ref('pending');
 const route = useRoute();
 const toast = ref({ show: false, type: 'success', title: '', message: '' });
 const suspendModal = ref({ show: false, club: null, reason: '' });
 const rejectModal = ref({ show: false, club: null, reason: '' });
 
 const tabs = [
-  { key: 'approved',  label: 'Đã duyệt',  icon: 'pi pi-check-circle', color: '#86efac' },
-  { key: 'suspended', label: 'Vô hiệu',   icon: 'pi pi-ban',          color: '#fde68a' },
-  { key: 'rejected',  label: 'Từ chối',   icon: 'pi pi-times-circle', color: '#fca5a5' },
+  { key: 'pending',   label: 'Chờ duyệt',  icon: 'pi pi-clock',        color: '#a5b4fc' },
+  { key: 'approved',  label: 'Đã duyệt',   icon: 'pi pi-check-circle', color: '#86efac' },
+  { key: 'suspended', label: 'Vô hiệu',    icon: 'pi pi-ban',          color: '#fde68a' },
+  { key: 'rejected',  label: 'Từ chối',    icon: 'pi pi-times-circle', color: '#fca5a5' },
 ];
 
 const filteredClubs = computed(() => clubs.value.filter(c => c.status === activeTab.value));
