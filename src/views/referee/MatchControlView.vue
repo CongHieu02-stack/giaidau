@@ -13,8 +13,11 @@
     <!-- Scoreboard -->
     <div class="scoreboard">
       <div class="sb-team">
-        <div class="sb-logo"><img v-if="match.home_club?.logo_url" :src="match.home_club.logo_url"/><span v-else>{{ initials(match.home_club?.name) }}</span></div>
-        <div class="sb-name">{{ match.home_club?.name || 'TBD' }}</div>
+        <div class="sb-logo">
+          <img v-if="match.home_club?.logo_url || match.home_user?.avatar_url" :src="match.home_club?.logo_url || match.home_user?.avatar_url"/>
+          <span v-else>{{ initials(match.home_club?.name || match.home_user?.full_name) }}</span>
+        </div>
+        <div class="sb-name">{{ match.home_club?.name || match.home_user?.full_name || 'TBD' }}</div>
         <!-- Home Events -->
         <div class="sb-events">
           <div v-for="ev in homeSummary" :key="ev.id" class="sb-ev-item">
@@ -32,8 +35,11 @@
         <div class="sc-label">{{ statusText }}</div>
       </div>
       <div class="sb-team">
-        <div class="sb-logo"><img v-if="match.away_club?.logo_url" :src="match.away_club.logo_url"/><span v-else>{{ initials(match.away_club?.name) }}</span></div>
-        <div class="sb-name">{{ match.away_club?.name || 'TBD' }}</div>
+        <div class="sb-logo">
+          <img v-if="match.away_club?.logo_url || match.away_user?.avatar_url" :src="match.away_club?.logo_url || match.away_user?.avatar_url"/>
+          <span v-else>{{ initials(match.away_club?.name || match.away_user?.full_name) }}</span>
+        </div>
+        <div class="sb-name">{{ match.away_club?.name || match.away_user?.full_name || 'TBD' }}</div>
         <!-- Away Events -->
         <div class="sb-events">
           <div v-for="ev in awaySummary" :key="ev.id" class="sb-ev-item">
@@ -65,8 +71,8 @@
     <div v-if="activeTab==='events' && match.status!=='scheduled'" class="panel">
       <h3 class="panel-title">Ghi nhận sự kiện</h3>
       <div class="event-actions">
-        <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.home_club?.name }})</button>
-        <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name }})</button>
+        <button @click="openEventModal('goal','home')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.home_club?.name || match.home_user?.full_name }})</button>
+        <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name || match.away_user?.full_name }})</button>
         <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="card-icon yellow large"></span>Thẻ vàng</button>
         <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="card-icon red large"></span>Thẻ đỏ</button>
         <button @click="openEventModal('substitution_in',null)" class="ev-btn"><span class="ev-icon sub">🔄</span>Thay người</button>
@@ -96,7 +102,7 @@
     <div v-if="activeTab==='attendance'" class="panel">
       <h3 class="panel-title">Danh sách cầu thủ</h3>
       <div v-for="side in ['home','away']" :key="side" class="att-section">
-        <h4 class="att-club">{{ side==='home' ? match.home_club?.name : match.away_club?.name }}</h4>
+        <h4 class="att-club">{{ side==='home' ? (match.home_club?.name || match.home_user?.full_name) : (match.away_club?.name || match.away_user?.full_name) }}</h4>
         <div v-if="getPlayers(side).length===0" class="empty-sm">Chưa có thành viên</div>
         <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
           <span class="att-name">{{ p.user?.full_name }}</span>
@@ -116,8 +122,8 @@
           <label v-if="modalType!=='goal'">
             <span>Đội</span>
             <select v-model="modalClubId">
-              <option :value="match.home_club_id">{{ match.home_club?.name }}</option>
-              <option :value="match.away_club_id">{{ match.away_club?.name }}</option>
+              <option :value="match.home_club_id || match.home_user_id">{{ match.home_club?.name || match.home_user?.full_name }}</option>
+              <option :value="match.away_club_id || match.away_user_id">{{ match.away_club?.name || match.away_user?.full_name }}</option>
             </select>
           </label>
           <label>
@@ -201,8 +207,8 @@ const modalTitle = computed(() => ({
 
 const modalPlayers = computed(() => {
   const cid = modalClubId.value;
-  if (cid === match.value?.home_club_id) return homePlayers.value;
-  if (cid === match.value?.away_club_id) return awayPlayers.value;
+  if (cid === match.value?.home_club_id || cid === match.value?.home_user_id) return homePlayers.value;
+  if (cid === match.value?.away_club_id || cid === match.value?.away_user_id) return awayPlayers.value;
   return [];
 });
 
@@ -257,10 +263,15 @@ async function loadAll() {
     if (match.value.home_club_id) {
       const hp = await matchRepository.getClubMembers(match.value.home_club_id);
       if (hp.isOk()) homePlayers.value = hp.getValue();
+    } else if (match.value.home_user) {
+      homePlayers.value = [{ user: match.value.home_user }];
     }
+    
     if (match.value.away_club_id) {
       const ap = await matchRepository.getClubMembers(match.value.away_club_id);
       if (ap.isOk()) awayPlayers.value = ap.getValue();
+    } else if (match.value.away_user) {
+      awayPlayers.value = [{ user: match.value.away_user }];
     }
   }
   loading.value = false;
@@ -320,7 +331,9 @@ async function doEnd() {
 function openEventModal(type, side) {
   modalType.value = type;
   modalSide.value = side;
-  modalClubId.value = side === 'home' ? match.value.home_club_id : side === 'away' ? match.value.away_club_id : match.value.home_club_id;
+  const homeId = match.value.home_club_id || match.value.home_user_id;
+  const awayId = match.value.away_club_id || match.value.away_user_id;
+  modalClubId.value = side === 'home' ? homeId : side === 'away' ? awayId : homeId;
   modalPlayerId.value = '';
   modalMinute.value = Math.floor(timerSeconds.value / 60);
   modalDesc.value = '';
