@@ -97,14 +97,19 @@ const canRegister = computed(() => {
 const myRegistration = computed(() => {
   if (!authStore.isAuthenticated || !authStore.user || !props.tournament.registrations) return null;
   
+  const participantType = props.tournament.participantType || props.tournament.participant_type || 'club';
+  
   // Individual tournament
-  if (props.tournament.participant_type === 'individual') {
-    return props.tournament.registrations.find(r => r.user_id === authStore.user.id);
+  if (participantType === 'individual') {
+    return props.tournament.registrations.find(r => (r.user_id === authStore.user.id || r.userId === authStore.user.id));
   }
   
   // Team tournament
   const managedClubIds = userClubs.value.map(c => c.id);
-  return props.tournament.registrations.find(r => r.club_id && managedClubIds.includes(r.club_id));
+  return props.tournament.registrations.find(r => {
+    const cid = r.club_id || r.clubId;
+    return cid && managedClubIds.includes(cid);
+  });
 });
 
 onMounted(async () => {

@@ -780,12 +780,17 @@ const canRegister = computed(() => {
 const myRegistration = computed(() => {
   if (!authStore.isAuthenticated || !authStore.user || !tournament.value?.registrations) return null;
   
-  if (tournament.value.participantType === 'individual') {
-    return tournament.value.registrations.find(r => r.user_id === authStore.user.id);
+  const pType = tournament.value.participantType || tournament.value.participant_type || 'club';
+  
+  if (pType === 'individual') {
+    return tournament.value.registrations.find(r => (r.user_id === authStore.user.id || r.userId === authStore.user.id));
   }
   
   const managedClubIds = userClubs.value.map(c => c.id);
-  return tournament.value.registrations.find(r => r.club_id && managedClubIds.includes(r.club_id));
+  return tournament.value.registrations.find(r => {
+    const cid = r.club_id || r.clubId;
+    return cid && managedClubIds.includes(cid);
+  });
 });
 
 const canStartTournament = computed(() => {
