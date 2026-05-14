@@ -578,7 +578,7 @@ const getRoundLabel = (roundNum) => {
   const rounds = Object.keys(groupedMatches.value)
     .map(k => parseInt(k))
     .filter(k => k !== 999);
-  const maxR = Math.max(...rounds);
+  const maxR = Math.max(...rounds, 0);
   
   if (tournament.value?.format !== 'knockout') return `Vòng ${r}`;
   

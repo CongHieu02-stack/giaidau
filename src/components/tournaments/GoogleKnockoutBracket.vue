@@ -121,11 +121,32 @@ const MatchCard = defineComponent({
         const won = isWinner(side);
         const score = m[side + '_score'];
 
+        // Card counts
+        const events = m.events || [];
+        const sideId = side === 'home' 
+          ? (m.home_club_id || m.home_user_id) 
+          : (m.away_club_id || m.away_user_id);
+          
+        const yellowCount = events.filter(e => 
+          (e.club_id === sideId || e.player_id === sideId) && e.type === 'yellow_card'
+        ).length;
+        
+        const redCount = events.filter(e => 
+          (e.club_id === sideId || e.player_id === sideId) && e.type === 'red_card'
+        ).length;
+
         return h('div', { class: ['team-row', { winner: won }] }, [
           h('div', { class: 'team-logo' }, [
             logo ? h('img', { src: logo }) : h('i', { class: iconCls })
           ]),
           h('span', { class: ['team-name', { placeholder: !getTeamName(side) }] }, name),
+          
+          // Cards container
+          h('div', { class: 'team-cards' }, [
+            yellowCount > 0 ? h('span', { class: 'card-icon yellow', title: 'Thẻ vàng' }, yellowCount) : null,
+            redCount > 0 ? h('span', { class: 'card-icon red', title: 'Thẻ đỏ' }, redCount) : null
+          ]),
+
           h('span', { class: 'team-score' }, score ?? '-')
         ]);
       };
@@ -164,14 +185,19 @@ const allRounds = computed(() => {
   const g = {};
   winnerMatches.forEach(m => { const r = m.round || 1; (g[r] = g[r] || []).push(m); });
   
+  const winnerRounds = Object.keys(g).map(k => parseInt(k));
+  const maxR = Math.max(...winnerRounds, 0);
+  
   return Object.keys(g).sort((a,b) => a - b).map(r => {
     const ms = g[r].sort((a,b) => (a.bracket_position || 0) - (b.bracket_position || 0));
     let name = `VÒNG ${r}`;
     const mt = ms[0]?.match_type;
+    const fromEnd = maxR - r + 1;
+    
     if (mt === 'preliminary') name = 'VÒNG SƠ LOẠI';
-    else if (mt === 'round_of_16') name = 'VÒNG 1/8';
-    else if (mt === 'quarterfinal') name = 'TỨ KẾT';
-    else if (mt === 'semifinal') name = 'BÁN KẾT';
+    else if (fromEnd === 1) name = 'BÁN KẾT';
+    else if (fromEnd === 2) name = 'TỨ KẾT';
+    else if (fromEnd === 3) name = 'VÒNG 1/8';
     
     return { num: r, name, matches: ms };
   });
@@ -206,11 +232,11 @@ const finalAndThirdPlace = computed(() => {
 }
 .bracket-container .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .bracket-container .match-badge { font-size: 0.6rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; }
-.bracket-container .badge-pre { background: rgba(245,158,11,0.2); color: #fbbf24; }
-.bracket-container .badge-regular { background: rgba(139,92,246,0.2); color: #a78bfa; }
-.bracket-container .badge-semi { background: rgba(16,185,129,0.2); color: #34d399; }
-.bracket-container .badge-final { background: rgba(239,68,68,0.2); color: #f87171; }
-.bracket-container .badge-third { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.bracket-container .badge-pre { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.bracket-container .badge-regular { background: rgba(168, 85, 247, 0.2); color: #a855f7; }
+.bracket-container .badge-semi { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.bracket-container .badge-final { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.bracket-container .badge-third { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .bracket-container .card-meta { font-size: 0.65rem; color: rgba(255,255,255,0.4); font-weight: 600; }
 
 .bracket-container .card-teams { display: flex; flex-direction: column; gap: 4px; }
@@ -220,7 +246,17 @@ const finalAndThirdPlace = computed(() => {
 .bracket-container .team-logo img { width: 100% !important; height: 100% !important; object-fit: cover; }
 .bracket-container .team-name { flex: 1; font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bracket-container .team-name.placeholder { color: rgba(255,255,255,0.3); font-style: italic; }
-.bracket-container .team-score { font-size: 0.9rem; font-weight: 800; color: white; }
+
+.bracket-container .team-cards { display: flex; gap: 4px; margin-right: 8px; }
+.bracket-container .card-icon {
+  width: 12px; height: 16px; border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: rgba(0,0,0,0.8);
+}
+.bracket-container .card-icon.yellow { background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.4); }
+.bracket-container .card-icon.red { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+
+.bracket-container .team-score { font-size: 0.9rem; font-weight: 800; color: white; min-width: 20px; text-align: right; }
 
 /* Card Footer & Referee */
 .bracket-container .card-footer {

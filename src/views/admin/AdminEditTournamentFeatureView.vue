@@ -796,8 +796,10 @@ async function handleSaveBracket() {
 const getMatchLabel = (match) => {
   if (match.match_type === 'third_place' || match.matchType === 'third_place') return 'Tranh hạng 3';
   
-  // Calculate labels based on total rounds for consistency
-  const allMatchRounds = (localMatches.value.length ? localMatches.value : matches.value).map(m => m.round || 1);
+  // Calculate labels based on total rounds for consistency (exclude 3rd place round)
+  const allMatchRounds = (localMatches.value.length ? localMatches.value : matches.value)
+    .filter(m => m.match_type !== 'third_place' && m.matchType !== 'third_place')
+    .map(m => m.round || 1);
   const maxR = Math.max(...allMatchRounds, 0);
   const currentR = match.round || 1;
   const fromEnd = maxR - currentR + 1;
@@ -813,6 +815,7 @@ const getRoundClass = (match) => {
   if (type === 'final') return 'round-final';
   if (type === 'semifinal') return 'round-semi';
   if (type === 'quarterfinal') return 'round-quarter';
+  if (type === 'third_place') return 'round-third';
   return 'round-prelim';
 };
 
@@ -1172,9 +1175,9 @@ h2 {
 }
 
 .round-badge.round-final {
-  background: rgba(244, 63, 94, 0.2);
-  color: #f43f5e;
-  border: 1px solid rgba(244, 63, 94, 0.3);
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .round-badge.round-semi {
@@ -1184,15 +1187,21 @@ h2 {
 }
 
 .round-badge.round-quarter {
-  background: rgba(139, 92, 246, 0.2);
-  color: #a78bfa;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .round-badge.round-prelim {
   background: rgba(96, 165, 250, 0.2);
   color: #60a5fa;
   border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.round-badge.round-third {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .seeding-container {

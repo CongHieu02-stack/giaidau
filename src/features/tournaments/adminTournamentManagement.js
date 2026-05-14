@@ -539,9 +539,10 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
     const totalInRound = roundMatches.length;
     
     if (m.round === 1 && numR1Matches > 0) m.match_type = 'preliminary';
-    else if (totalInRound === 1) m.match_type = 'semifinal'; // Wait, if it's not final it's semi
-    else if (totalInRound === 2) m.match_type = 'quarterfinal';
-    else if (totalInRound === 4) m.match_type = 'round_of_16';
+    else if (totalInRound === 2) m.match_type = 'semifinal';
+    else if (totalInRound === 4) m.match_type = 'quarterfinal';
+    else if (totalInRound === 8) m.match_type = 'round_of_16';
+    else if (totalInRound === 16) m.match_type = 'round_of_32';
     else m.match_type = 'regular';
   });
 

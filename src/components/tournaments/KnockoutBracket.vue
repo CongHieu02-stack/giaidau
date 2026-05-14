@@ -20,6 +20,13 @@
                     <div v-else class="placeholder-logo"><i class="pi pi-shield"></i></div>
                     <span class="name-text">{{ getTeamName(match, 'home') }}</span>
                   </div>
+                  
+                  <!-- Cards container -->
+                  <div class="team-cards" v-if="match.events">
+                    <span v-if="getCardCount(match, 'home', 'yellow_card') > 0" class="card-icon yellow">{{ getCardCount(match, 'home', 'yellow_card') }}</span>
+                    <span v-if="getCardCount(match, 'home', 'red_card') > 0" class="card-icon red">{{ getCardCount(match, 'home', 'red_card') }}</span>
+                  </div>
+
                   <span class="score-text">{{ match.home_score ?? '-' }}</span>
                 </div>
                 
@@ -31,6 +38,13 @@
                     <div v-else class="placeholder-logo"><i class="pi pi-shield"></i></div>
                     <span class="name-text">{{ getTeamName(match, 'away') }}</span>
                   </div>
+
+                  <!-- Cards container -->
+                  <div class="team-cards" v-if="match.events">
+                    <span v-if="getCardCount(match, 'away', 'yellow_card') > 0" class="card-icon yellow">{{ getCardCount(match, 'away', 'yellow_card') }}</span>
+                    <span v-if="getCardCount(match, 'away', 'red_card') > 0" class="card-icon red">{{ getCardCount(match, 'away', 'red_card') }}</span>
+                  </div>
+
                   <span class="score-text">{{ match.away_score ?? '-' }}</span>
                 </div>
 
@@ -144,6 +158,17 @@ const isWinner = (m, side) => {
   if (m.status !== 'completed' || !m.winner_id) return false;
   const id = side === 'home' ? (m.home_club_id || m.home_user_id) : (m.away_club_id || m.away_user_id);
   return m.winner_id === id;
+};
+
+const getCardCount = (m, side, type) => {
+  if (!m.events) return 0;
+  const sideId = side === 'home' 
+    ? (m.home_club_id || m.home_user_id) 
+    : (m.away_club_id || m.away_user_id);
+  
+  return m.events.filter(e => 
+    (e.club_id === sideId || e.player_id === sideId) && e.type === type
+  ).length;
 };
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '';
@@ -292,7 +317,30 @@ const getMatchStyle = (rIdx, mIdx) => {
   color: white;
   margin-left: 12px;
   font-size: 1.1rem;
+  min-width: 24px;
+  text-align: right;
 }
+
+.team-cards {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.card-icon {
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: rgba(0,0,0,0.8);
+}
+.card-icon.yellow { background: #fbbf24; }
+.card-icon.red { background: #ef4444; }
 
 .match-divider {
   height: 1px;
