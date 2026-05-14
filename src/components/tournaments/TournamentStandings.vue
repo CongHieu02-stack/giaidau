@@ -29,8 +29,8 @@
                 <td class="team">
                   <div class="team-info">
                     <img v-if="team.logoUrl" :src="team.logoUrl" class="team-logo" />
-                    <div v-else class="team-logo-placeholder">{{ team.name[0] }}</div>
-                    <span class="team-name">{{ team.name }}</span>
+                    <div v-else class="team-logo-placeholder">{{ (team.name && team.name.length > 0) ? team.name[0] : '?' }}</div>
+                    <span class="team-name">{{ team.name || 'Vận động viên' }}</span>
                   </div>
                 </td>
                 <td class="stat">{{ team.played }}</td>
@@ -68,8 +68,8 @@
             <td class="team">
               <div class="team-info">
                 <img v-if="team.logoUrl" :src="team.logoUrl" class="team-logo" />
-                <div v-else class="team-logo-placeholder">{{ team.name ? team.name[0] : '?' }}</div>
-                <span class="team-name">{{ team.name }}</span>
+                <div v-else class="team-logo-placeholder">{{ (team.name && team.name.length > 0) ? team.name[0] : '?' }}</div>
+                <span class="team-name">{{ team.name || 'Vận động viên' }}</span>
               </div>
             </td>
             <td class="stat">{{ team.played }}</td>
