@@ -240,7 +240,7 @@ const features = computed(() => {
 
 /* Hero Section */
 .hero-section {
-  padding-top: 6rem;
+  padding-top: 1.5rem;
   padding-bottom: 3rem;
   text-align: center;
 }
