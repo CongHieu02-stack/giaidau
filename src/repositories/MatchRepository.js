@@ -22,8 +22,6 @@ export class MatchRepository extends BaseRepository {
         *,
         home_club:clubs!home_club_id(id, name, logo_url),
         away_club:clubs!away_club_id(id, name, logo_url),
-        home_user:profiles!home_user_id(id, full_name, avatar_url),
-        away_user:profiles!away_user_id(id, full_name, avatar_url),
         venue:venues(id, name),
         tournament:tournaments(id, name, sport_category:sports_categories(id, name))
       `)
@@ -41,8 +39,6 @@ export class MatchRepository extends BaseRepository {
         *,
         home_club:clubs!home_club_id(id, name, logo_url),
         away_club:clubs!away_club_id(id, name, logo_url),
-        home_user:profiles!home_user_id(id, full_name, avatar_url),
-        away_user:profiles!away_user_id(id, full_name, avatar_url),
         venue:venues(id, name),
         tournament:tournaments(id, name, format, participant_type, sport_category:sports_categories(id, name)),
         referee:profiles!referee_id(id, full_name, avatar_url)

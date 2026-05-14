@@ -516,18 +516,33 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
   }
 
   // --- FINAL & THIRD PLACE ---
-  const finalMatch = allMatches[allMatches.length - 1];
-  finalMatch.match_type = 'final';
+  // Create Third Place match first so it gets a lower index (earlier time slot)
+  const lastMatchInArray = allMatches[allMatches.length - 1];
+  const semifinals = allMatches.filter(m => m.nextIdx === lastMatchInArray.tempIdx);
   
-  // Find Semi-final matches to link to Third Place
-  const semifinals = allMatches.filter(m => m.nextIdx === finalMatch.tempIdx);
   if (semifinals.length === 2) {
-    const thirdPlace = make(currRoundNum, currRoundNum - 1, 1);
+    const thirdPlace = make(currRoundNum, currRoundNum - 1, 0); // pos 0 for top?
     thirdPlace.match_type = 'third_place';
     thirdPlace.bracket_type = 'third_place';
     semifinals[0].loserNextIdx = thirdPlace.tempIdx;
     semifinals[1].loserNextIdx = thirdPlace.tempIdx;
+    
+    // Create the real Final match last
+    const finalMatch = make(currRoundNum, currRoundNum - 1, 1); // pos 1 for bottom?
+    finalMatch.match_type = 'final';
+    finalMatch.bracket_type = 'winner';
+    
+    // Update semifinals to point to this new finalMatch
+    semifinals[0].nextIdx = finalMatch.tempIdx;
+    semifinals[1].nextIdx = finalMatch.tempIdx;
+    
+    // Remove the placeholder lastMatchInArray and add our new ones
+    allMatches.pop();
     allMatches.push(thirdPlace);
+    allMatches.push(finalMatch);
+  } else {
+    // No third place needed, just label the last one as final
+    lastMatchInArray.match_type = 'final';
   }
 
   // --- LABELING BADGES ---

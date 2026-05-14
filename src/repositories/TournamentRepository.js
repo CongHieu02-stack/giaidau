@@ -16,7 +16,7 @@ export class TournamentRepository extends BaseRepository {
    */
   async findAll(options = {}) {
     const { filters = {}, orderBy = 'created_at', order = 'desc', limit = null } = options;
-    
+
     let query = this.client
       .from(this.tableName)
       .select(`
@@ -44,7 +44,7 @@ export class TournamentRepository extends BaseRepository {
 
     const { data, error } = await query;
     if (error) return Result.err(error.message);
-    
+
     return Result.ok((data || []).map(item => this.domainClass.fromDB(item)));
   }
 
@@ -66,10 +66,10 @@ export class TournamentRepository extends BaseRepository {
    * Find active tournaments (ongoing or registration open)
    */
   async findActive() {
-    return this.findAll({ 
-      filters: { 
-        status: ['ongoing', 'registration_open', 'registration_closed'] 
-      } 
+    return this.findAll({
+      filters: {
+        status: ['ongoing', 'registration_open', 'registration_closed']
+      }
     });
   }
 
@@ -77,7 +77,7 @@ export class TournamentRepository extends BaseRepository {
    * Find upcoming tournaments
    */
   async findUpcoming() {
-    return this.findAll({ 
+    return this.findAll({
       filters: { status: 'upcoming' },
       orderBy: 'start_date',
       order: 'asc'
@@ -132,9 +132,8 @@ export class TournamentRepository extends BaseRepository {
         registrations:tournament_registrations(
           id,
           club_id,
-          user_id,
           club:clubs(id, name, logo_url),
-          user:profiles!tournament_registrations_user_id_fkey(id, full_name, avatar_url),
+          user:profiles!user_id(id, full_name, avatar_url),
           players:tournament_registration_players(
             player:profiles!player_id(id, full_name, avatar_url)
           ),
@@ -222,9 +221,9 @@ export class TournamentRepository extends BaseRepository {
   async approveRegistration(tournamentId, registrationId) {
     const { data, error } = await this.client
       .from('tournament_registrations')
-      .update({ 
-        status: 'approved', 
-        approved_at: new Date().toISOString() 
+      .update({
+        status: 'approved',
+        approved_at: new Date().toISOString()
       })
       .eq('id', registrationId)
       .eq('tournament_id', tournamentId)
@@ -244,9 +243,9 @@ export class TournamentRepository extends BaseRepository {
   async rejectRegistration(tournamentId, registrationId, reason) {
     const { data, error } = await this.client
       .from('tournament_registrations')
-      .update({ 
+      .update({
         status: 'rejected',
-        rejection_reason: reason 
+        rejection_reason: reason
       })
       .eq('id', registrationId)
       .eq('tournament_id', tournamentId)
@@ -266,7 +265,7 @@ export class TournamentRepository extends BaseRepository {
   async cancel(id, reason) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .update({ 
+      .update({
         status: 'cancelled',
         cancellation_reason: reason,
         updated_at: new Date()
@@ -288,7 +287,7 @@ export class TournamentRepository extends BaseRepository {
   async updateStatus(id, status) {
     const { data, error } = await this.client
       .from(this.tableName)
-      .update({ 
+      .update({
         status,
         updated_at: new Date()
       })
@@ -308,7 +307,7 @@ export class TournamentRepository extends BaseRepository {
    */
   async search(query, options = {}) {
     const { status, sportCategoryId, limit = 20 } = options;
-    
+
     let supabaseQuery = this.client
       .from(this.tableName)
       .select('*')

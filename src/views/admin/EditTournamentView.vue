@@ -50,14 +50,12 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth.js';
 import { tournamentService } from '../../services/TournamentService.js';
 import { tournamentRepository } from '../../repositories/TournamentRepository.js';
 
 const route = useRoute();
 const router = useRouter();
-const toast = useToast();
 const authStore = useAuthStore();
 const loading = ref(true);
 const saving = ref(false);
@@ -82,10 +80,9 @@ const handleSubmit = async () => {
   saving.value = true;
   const result = await tournamentService.updateTournament(route.params.id, form.value, authStore.user?.id);
   if (result.isOk()) {
-    toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã cập nhật thông tin giải đấu.', life: 3000 });
     router.push('/admin/tournaments');
   } else {
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: result.getError(), life: 5000 });
+    alert(result.getError());
   }
   saving.value = false;
 };

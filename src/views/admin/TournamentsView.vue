@@ -48,12 +48,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useConfirm } from 'primevue/useconfirm';
-import { useToast } from 'primevue/usetoast';
 import { tournamentRepository } from '../../repositories/TournamentRepository.js';
-
-const confirm = useConfirm();
-const toast = useToast();
 
 const tournaments = ref([]);
 
@@ -74,17 +69,10 @@ const getStatusText = (s) => ({
 }[s] || s);
 
 const cancelTournament = async (id) => {
-  confirm.require({
-    message: 'Bạn có chắc muốn hủy giải đấu này? Thao tác này không thể hoàn tác.',
-    header: 'Xác nhận hủy',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      await tournamentRepository.cancel(id, 'Hủy bởi admin');
-      toast.add({ severity: 'success', summary: 'Đã hủy', detail: 'Giải đấu đã được hủy thành công.', life: 3000 });
-      loadTournaments();
-    }
-  });
+  if (confirm('Bạn có chắc muốn hủy giải đấu này?')) {
+    await tournamentRepository.cancel(id, 'Hủy bởi admin');
+    loadTournaments();
+  }
 };
 
 const loadTournaments = async () => {

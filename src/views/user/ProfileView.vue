@@ -198,12 +198,10 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth.js';
 import { supabase } from '../../config/supabase.js';
 import { storageService } from '../../services/StorageService.js';
 
-const toast = useToast();
 const authStore = useAuthStore();
 
 // ---- Stats ----
@@ -274,11 +272,11 @@ async function onAvatarChange(event) {
         authStore.profile.avatarUrl = publicUrl;
       }
     } else {
-      toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi tải ảnh: ' + uploadResult.getError(), life: 5000 });
+      alert('Lỗi tải ảnh: ' + uploadResult.getError());
     }
   } catch (err) {
     console.error('Avatar upload error:', err);
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi tải ảnh lên.', life: 5000 });
+    alert('Có lỗi xảy ra khi tải ảnh lên.');
   } finally {
     isUploadingAvatar.value = false;
     if (avatarInput.value) {

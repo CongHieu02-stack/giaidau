@@ -131,12 +131,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useToast } from 'primevue/usetoast';
-import { useConfirm } from 'primevue/useconfirm';
 import { supabase } from '../../config/supabase.js';
-
-const toast = useToast();
-const confirm = useConfirm();
 
 const sports = ref([]);
 const showModal = ref(false);
@@ -188,10 +183,10 @@ const saveSport = async () => {
       await supabase.from('sports_categories').insert([payload]);
     }
 
+    closeModal();
     loadSports();
-    toast.add({ severity: 'success', summary: 'Thành công', detail: isEditing.value ? 'Đã cập nhật bộ môn' : 'Đã thêm bộ môn mới', life: 3000 });
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi lưu bộ môn!', life: 5000 });
+    alert('Lỗi khi lưu bộ môn!');
     console.error(error);
   } finally {
     saving.value = false;
@@ -206,17 +201,10 @@ const loadSports = async () => {
 };
 
 const deleteSport = async (id) => {
-  confirm.require({
-    message: 'Bạn có chắc chắn muốn xóa bộ môn này?',
-    header: 'Xác nhận xóa',
-    icon: 'pi pi-exclamation-triangle',
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      await supabase.from('sports_categories').delete().eq('id', id);
-      loadSports();
-      toast.add({ severity: 'info', summary: 'Đã xóa', detail: 'Bộ môn đã được gỡ bỏ.', life: 3000 });
-    }
-  });
+  if (confirm('Bạn có chắc muốn xóa bộ môn này?')) {
+    await supabase.from('sports_categories').delete().eq('id', id);
+    loadSports();
+  }
 };
 
 const editSport = (sport) => {

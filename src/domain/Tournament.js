@@ -164,12 +164,11 @@ export class Tournament {
       .filter(r => r.status === RegistrationStatus.APPROVED)
       .map(r => {
         if (this.participantType === 'individual') {
-          const user = r.user || r.profile;
-          return user ? {
-            id: user.id,
-            name: user.full_name || user.fullName,
-            logoUrl: user.avatar_url || user.avatarUrl,
-            logo_url: user.avatar_url || user.avatarUrl
+          return r.user ? {
+            id: r.user.id,
+            name: r.user.full_name,
+            logoUrl: r.user.avatar_url,
+            logo_url: r.user.avatar_url
           } : null;
         }
         return r.club;
@@ -338,7 +337,7 @@ export class Tournament {
     // Assign continuous ranking (Dense Rank)
     let currentRank = 0;
     let lastPoints = null;
-    
+
     return sortedStandings.map((team) => {
       if (team.points !== lastPoints) {
         currentRank++;
@@ -376,15 +375,12 @@ export class Tournament {
   calculateStandings(groupId = null) {
     const standings = new Map();
     const approvedClubs = this.getApprovedClubs();
-    
+
     // Initialize standings for all approved clubs
     approvedClubs.forEach(club => {
       // If groupId is provided, only include clubs in that group
       // This requires registration data to have group_id
-      const reg = this.registrations.find(r => 
-        r.club_id === club.id || r.clubId === club.id || 
-        r.user_id === club.id || r.userId === club.id
-      );
+      const reg = this.registrations.find(r => r.clubId === club.id || r.club_id === club.id);
       if (groupId && reg && reg.group_id !== groupId) return;
 
       standings.set(club.id, {
@@ -458,9 +454,9 @@ export class Tournament {
     return result.map((team, index) => {
       if (index > 0) {
         const prevTeam = result[index - 1];
-        const isTied = team.points === prevTeam.points && 
-                       team.gd === prevTeam.gd && 
-                       team.gf === prevTeam.gf;
+        const isTied = team.points === prevTeam.points &&
+          team.gd === prevTeam.gd &&
+          team.gf === prevTeam.gf;
         if (!isTied) {
           currentRank++;
         }
@@ -510,4 +506,5 @@ export class Tournament {
     tournament.maxPlayersPerMatch = data.max_players_per_match || 0;
     return tournament;
   }
+}
 }
