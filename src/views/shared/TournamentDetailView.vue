@@ -795,7 +795,11 @@ const getWinnerName = (t, rank) => {
   if (!id) return 'Chưa xác định';
   
   const regs = t.registrations || [];
-  const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
+  const reg = regs.find(r => (
+    r.club_id === id || r.user_id === id || 
+    r.clubId === id || r.userId === id ||
+    r.user?.id === id || r.profile?.id === id
+  ));
   
   if (reg) {
     const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
@@ -814,7 +818,11 @@ const getWinnerLogo = (t, rank) => {
   if (!id) return null;
   
   const regs = t.registrations || [];
-  const reg = regs.find(r => (r.club_id === id || r.user_id === id || r.clubId === id || r.userId === id));
+  const reg = regs.find(r => (
+    r.club_id === id || r.user_id === id || 
+    r.clubId === id || r.userId === id ||
+    r.user?.id === id || r.profile?.id === id
+  ));
   
   if (reg) {
     const isInd = t.participantType === 'individual' || t.participant_type === 'individual';
