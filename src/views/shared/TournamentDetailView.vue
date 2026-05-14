@@ -1126,11 +1126,28 @@ onMounted(async () => {
     toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Có lỗi xảy ra khi tải dữ liệu', life: 3000 });
   } finally {
     loading.value = false;
+
+    // Auto-finalize for Heat if match is done but tournament is still ongoing
+    if (tournament.value?.status === 'ongoing' && 
+       (tournament.value?.tournamentMode === 'single_heat' || tournament.value?.tournament_mode === 'single_heat')) {
+      const match = tournament.value.matches?.[0];
+      if (match && match.status === 'completed') {
+        console.log('[AutoFinalize] Heat match is completed, finalizing tournament...');
+        checkAndFinalizeTournament(tournament.value.id).then(res => {
+          if (res.success) {
+            console.log('[AutoFinalize] Success, reloading...');
+            loadTournament();
+          }
+        });
+      }
+    }
   }
 });
 </script>
 
 <style scoped>
+/* ... rest of existing styles ... */
+
 /* ========== HEADER ========== */
 .header-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
