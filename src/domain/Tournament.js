@@ -164,11 +164,12 @@ export class Tournament {
       .filter(r => r.status === RegistrationStatus.APPROVED)
       .map(r => {
         if (this.participantType === 'individual') {
-          return r.user ? {
-            id: r.user.id,
-            name: r.user.full_name,
-            logoUrl: r.user.avatar_url,
-            logo_url: r.user.avatar_url
+          const user = r.user || r.profile;
+          return user ? {
+            id: user.id,
+            name: user.full_name || user.fullName,
+            logoUrl: user.avatar_url || user.avatarUrl,
+            logo_url: user.avatar_url || user.avatarUrl
           } : null;
         }
         return r.club;
