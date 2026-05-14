@@ -12,8 +12,8 @@
       <span class="timer" v-if="match.status==='in_progress'">⏱ {{ timerDisplay }}</span>
     </div>
 
-    <!-- Scoreboard -->
-    <div class="scoreboard">
+    <!-- Scoreboard (Standard) -->
+    <div v-if="!isSingleHeat" class="scoreboard">
       <div class="sb-team">
         <div class="sb-logo">
           <img v-if="match.home_club?.logo_url || match.home_user?.avatar_url" :src="match.home_club?.logo_url || match.home_user?.avatar_url"/>
@@ -54,12 +54,23 @@
       </div>
     </div>
 
+    <!-- Scoreboard (Single Heat Mode) -->
+    <div v-else class="scoreboard heat">
+       <div class="heat-header">
+         <div class="heat-icon">🏁</div>
+         <div class="heat-info">
+           <h2>{{ match.tournament?.name }}</h2>
+           <p>{{ match.match_type === 'final' ? 'Chung kết' : 'Vòng đấu Heat' }} • {{ match.tournament?.sportCategory?.name }}</p>
+         </div>
+       </div>
+    </div>
+
     <!-- Controls -->
     <div class="controls">
-      <button v-if="match.status==='scheduled'" @click="doStart" class="ctrl-btn green"><i class="pi pi-play"></i> Bắt đầu trận</button>
+      <button v-if="match.status==='scheduled'" @click="doStart" class="ctrl-btn green"><i class="pi pi-play"></i> Bắt đầu lượt</button>
       <button v-if="match.status==='in_progress'" @click="doPause" class="ctrl-btn yellow"><i class="pi pi-pause"></i> Tạm dừng</button>
       <button v-if="match.status==='paused'" @click="doResume" class="ctrl-btn blue"><i class="pi pi-play"></i> Tiếp tục</button>
-      <button v-if="match.status==='in_progress'||match.status==='paused'" @click="doEnd" class="ctrl-btn red"><i class="pi pi-stop"></i> Kết thúc</button>
+      <button v-if="match.status==='in_progress'||match.status==='paused'" @click="doEnd" class="ctrl-btn red"><i class="pi pi-stop"></i> Kết thúc & Chốt kết quả</button>
     </div>
 
     <!-- Tabs -->
@@ -244,6 +255,12 @@ const modalDesc = ref('');
 
 const isSingleHeat = computed(() => match.value?.tournament?.tournament_mode === 'single_heat');
 
+watch(match, (newVal) => {
+  if (newVal?.tournament?.tournament_mode === 'single_heat') {
+    activeTab.value = 'results';
+  }
+}, { immediate: true });
+
 const tabs = computed(() => {
   if (isSingleHeat.value) {
     return [
@@ -372,12 +389,12 @@ async function doResume() { startTimer(); await updateMatchStatus('in_progress')
 
 async function doEnd() {
   confirm.require({
-    message: 'Bạn có chắc muốn kết thúc trận đấu?',
+    message: 'Bạn có chắc muốn kết thúc lượt thi đấu và chốt kết quả?',
     header: 'Xác nhận',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
-      // Knockout format check: must have a winner
-      if (match.value.tournament?.format === 'knockout') {
+      // Knockout format check: must have a winner (skip for single heat)
+      if (match.value.tournament?.format === 'knockout' && !isSingleHeat.value) {
         if (match.value.home_score === match.value.away_score) {
           toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Trận đấu loại trực tiếp không được phép hòa.', life: 3000 });
           return;
@@ -388,7 +405,10 @@ async function doEnd() {
       await updateMatchStatus('completed', { end_time: new Date().toISOString(), duration_seconds: timerSeconds.value });
 
       // Post-match tournament logic
-      if (match.value.tournament?.format === 'knockout') {
+      if (isSingleHeat.value) {
+        // For single heat, we just finalize the tournament standings
+        await checkAndFinalizeTournament(match.value.tournament_id);
+      } else if (match.value.tournament?.format === 'knockout') {
         await advanceKnockoutWinner(match.value.id);
       } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
         await checkAndFinalizeTournament(match.value.tournament_id);

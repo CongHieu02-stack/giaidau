@@ -20,7 +20,7 @@
             <thead v-else>
               <tr>
                 <th class="rank">#</th>
-                <th class="team">Đội bóng</th>
+                <th class="team">{{ tournament.participantType === 'individual' || tournament.participant_type === 'individual' ? 'Vận động viên' : 'Đội bóng' }}</th>
                 <th class="stat">Trận</th>
                 <th class="stat">T</th>
                 <th class="stat">H</th>
@@ -87,7 +87,7 @@
         <thead v-else>
           <tr>
             <th class="rank">#</th>
-            <th class="team">Đội bóng</th>
+            <th class="team">{{ tournament.participantType === 'individual' || tournament.participant_type === 'individual' ? 'Vận động viên' : 'Đội bóng' }}</th>
             <th class="stat">Trận</th>
             <th class="stat">T</th>
             <th class="stat">H</th>
@@ -134,7 +134,7 @@
       </table>
     </div>
 
-    <div class="rules-note mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+    <div v-if="tournament.tournamentMode !== 'single_heat'" class="rules-note mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
       <p class="text-xs text-white/60">
         <i class="pi pi-info-circle mr-1"></i>
         Quy tắc tính điểm: Thắng +2, Hòa +1, Thua -1. Xếp hạng đồng hạng liên tục (Dense Ranking).

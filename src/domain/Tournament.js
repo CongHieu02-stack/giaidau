@@ -382,17 +382,33 @@ export class Tournament {
       const seen = new Set();
       
       this.matches.forEach(match => {
-        const atts = match.attendance || match.match_attendance || [];
+        // Handle both camelCase and snake_case for match attendance
+        const atts = match.match_attendance || match.matchAttendance || match.attendance || [];
         atts.forEach(att => {
-          const id = att.player_id || att.club_id || att.userId || att.clubId;
+          // Robust ID detection for individual/club
+          const id = att.player_id || att.player?.id || att.userId || att.user?.id || att.club_id || att.club?.id || att.id;
           if (!id || seen.has(id)) return;
           seen.add(id);
 
+          // Robust name detection with fallback to registrations
+          let name = att.player?.full_name || att.user?.full_name || att.club?.name || att.name;
+          let logoUrl = att.player?.avatar_url || att.user?.avatar_url || att.club?.logo_url || att.logo_url;
+
+          if (!name || name === 'VĐV') {
+            const reg = this.registrations.find(r => 
+              r.userId === id || r.user_id === id || r.clubId === id || r.club_id === id || r.id === id
+            );
+            if (reg) {
+              name = reg.user?.full_name || reg.club?.name || reg.userName || reg.clubName;
+              logoUrl = reg.user?.avatar_url || reg.club?.logo_url || reg.userAvatar || reg.clubLogo;
+            }
+          }
+
           results.push({
             id,
-            name: att.player?.full_name || att.club?.name || 'VĐV',
-            logoUrl: att.player?.avatar_url || att.club?.logo_url,
-            value: att.result_value ?? att.resultValue ?? null,
+            name: name || 'VĐV',
+            logoUrl,
+            value: att.result_value ?? att.resultValue ?? 0,
             isPresent: att.is_present ?? att.isPresent ?? false
           });
         });
@@ -400,15 +416,21 @@ export class Tournament {
 
       // Sort results
       const sorted = results.sort((a, b) => {
-        if (!a.isPresent) return 1;
-        if (!b.isPresent) return -1;
-        if (a.value === null) return 1;
-        if (b.value === null) return -1;
+        // Absent players at the very bottom
+        if (!a.isPresent && b.isPresent) return 1;
+        if (a.isPresent && !b.isPresent) return -1;
         
+        // Scoring logic
         if (this.scoringType === 'time') {
-          return a.value - b.value; // Thấp hơn là thắng
+          // For time, 0 usually means "no result", put at bottom if other has result > 0
+          const aVal = parseFloat(a.value) || 0;
+          const bVal = parseFloat(b.value) || 0;
+          if (aVal === 0 && bVal > 0) return 1;
+          if (aVal > 0 && bVal === 0) return -1;
+          return aVal - bVal; 
         }
-        return b.value - a.value; // Cao hơn là thắng (điểm, mét)
+        // For distance/points, higher is better
+        return (parseFloat(b.value) || 0) - (parseFloat(a.value) || 0);
       });
 
       // Apply ranking

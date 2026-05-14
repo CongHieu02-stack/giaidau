@@ -25,7 +25,7 @@ export class MatchRepository extends BaseRepository {
         home_user:profiles!matches_home_user_id_fkey(id, full_name, avatar_url),
         away_user:profiles!matches_away_user_id_fkey(id, full_name, avatar_url),
         venue:venues(id, name),
-        tournament:tournaments(id, name, participant_type, sport_category:sports_categories(id, name))
+        tournament:tournaments(id, name, participant_type, tournament_mode, sport_category:sports_categories(id, name))
       `)
       .eq('referee_id', refereeId)
       .order('match_date', { ascending: true });
