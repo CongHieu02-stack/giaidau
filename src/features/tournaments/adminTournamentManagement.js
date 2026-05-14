@@ -586,21 +586,35 @@ export async function advanceKnockoutWinner(matchId) {
 
     // 1. Advance Winner
     if (match.next_match_id) {
-      const { data: next } = await supabase.from('matches').select('*').eq('id', match.next_match_id).single();
-      if (next) {
-        const u = {};
-        if (!next[hf]) u[hf] = winnerId; else if (!next[af]) u[af] = winnerId;
-        if (Object.keys(u).length > 0) await supabase.from('matches').update(u).eq('id', match.next_match_id);
+      const { data: next, error: nErr } = await supabase.from('matches').select('*').eq('id', match.next_match_id).single();
+      if (next && !nErr) {
+        // Prevent duplicate advancement
+        if (next[hf] !== winnerId && next[af] !== winnerId) {
+          const u = {};
+          if (!next[hf]) u[hf] = winnerId;
+          else if (!next[af]) u[af] = winnerId;
+          
+          if (Object.keys(u).length > 0) {
+            await supabase.from('matches').update(u).eq('id', match.next_match_id);
+          }
+        }
       }
     }
 
     // 2. Advance Loser (ONLY for Third Place match)
     if (match.loser_next_match_id) {
-      const { data: loserNext } = await supabase.from('matches').select('*').eq('id', match.loser_next_match_id).single();
-      if (loserNext) {
-        const u = {};
-        if (!loserNext[hf]) u[hf] = loserId; else if (!loserNext[af]) u[af] = loserId;
-        if (Object.keys(u).length > 0) await supabase.from('matches').update(u).eq('id', match.loser_next_match_id);
+      const { data: loserNext, error: lnErr } = await supabase.from('matches').select('*').eq('id', match.loser_next_match_id).single();
+      if (loserNext && !lnErr) {
+        // Prevent duplicate advancement
+        if (loserNext[hf] !== loserId && loserNext[af] !== loserId) {
+          const u = {};
+          if (!loserNext[hf]) u[hf] = loserId;
+          else if (!loserNext[af]) u[af] = loserId;
+          
+          if (Object.keys(u).length > 0) {
+            await supabase.from('matches').update(u).eq('id', match.loser_next_match_id);
+          }
+        }
       }
     }
 
