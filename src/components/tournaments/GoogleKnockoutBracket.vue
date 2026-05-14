@@ -41,8 +41,10 @@
 
 <script setup>
 import { computed, h, defineComponent } from 'vue';
+import { useRouter } from 'vue-router';
 
 const emit = defineEmits(['assign-referee']);
+const router = useRouter();
 
 const props = defineProps({
   matches: { type: Array, default: () => [] },
@@ -110,11 +112,8 @@ const MatchCard = defineComponent({
       return side === 'home' ? m.home_score > m.away_score : m.away_score > m.home_score;
     };
 
-    const router = import('vue-router').then(m => m.useRouter());
-
-    const handleCardClick = async () => {
-      const r = await router;
-      r.push(`/matches/${props.match.id}`);
+    const handleCardClick = () => {
+      router.push(`/matches/${props.match.id}`);
     };
 
     return () => {
