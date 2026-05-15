@@ -767,7 +767,8 @@ async function handlePreviewBracket() {
       if (sportVenues.length > 0) venueIds = [sportVenues[0].id];
     }
 
-    const bracket = buildKnockoutBracket(tournament.value.id, teams, venues.value, startDate, matchTimes, tournament.value.participant_type);
+    const selectedVenues = venues.value.filter(v => venueIds.includes(v.id));
+    const bracket = buildKnockoutBracket(tournament.value.id, teams, selectedVenues, startDate, matchTimes, tournament.value.participant_type);
     localMatches.value = bracket;
     showSeeding.value = false;
   } catch (error) {

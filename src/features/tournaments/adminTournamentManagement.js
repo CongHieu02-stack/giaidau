@@ -207,8 +207,13 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
       .from('tournaments').select('*').eq('id', tournamentId).single();
     if (tError) throw new Error(tError.message);
 
+    // Use provided venueIds or fallback to tournament default venue
+    const targetVenueIds = (venueIds && venueIds.length > 0) 
+      ? venueIds 
+      : (tournament.venue_id ? [tournament.venue_id] : []);
+
     const { data: venues, error: vError } = await supabase
-      .from('venues').select('*').in('id', venueIds);
+      .from('venues').select('*').in('id', targetVenueIds);
     if (vError) throw new Error(vError.message);
 
     const startDate = new Date(tournament.start_date);
