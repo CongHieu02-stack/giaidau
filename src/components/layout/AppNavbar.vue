@@ -219,7 +219,7 @@ const logout = async () => {
   left: 0;
   right: 0;
   z-index: 50;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(8, 11, 26, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }

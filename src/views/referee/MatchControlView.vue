@@ -121,7 +121,7 @@
           <div v-for="p in getPlayers(side)" :key="p.user?.id" class="att-row">
             <span class="att-name">{{ p.user?.full_name }}</span>
             <label class="att-check">
-              <input type="checkbox" :checked="isPresent(p.user?.id)" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
+              <input type="checkbox" :checked="isPresent(p.user?.id)" :disabled="match.status === 'completed'" @change="toggleAttendance(p.user?.id, side==='home'?match.home_club_id:match.away_club_id, $event)"/>
               <span class="checkmark"></span>
             </label>
           </div>
@@ -149,7 +149,7 @@
                 </td>
                 <td class="text-center">
                   <label class="att-check">
-                    <input type="checkbox" :checked="att.is_present" @change="toggleAttendance(att.player_id, att.club_id, $event)"/>
+                    <input type="checkbox" :checked="att.is_present" :disabled="match.status === 'completed'" @change="toggleAttendance(att.player_id, att.club_id, $event)"/>
                     <span class="checkmark"></span>
                   </label>
                 </td>
@@ -162,7 +162,7 @@
                       @change="(e) => updateHeatResult(att, e.target.value)"
                       class="res-input"
                       placeholder="Nhập..."
-                      :disabled="!att.is_present"
+                      :disabled="!att.is_present || match.status === 'completed'"
                       inputmode="decimal"
                     />
                   </div>
@@ -412,16 +412,20 @@ async function doEnd() {
       // Post-match tournament logic
       if (isSingleHeat.value) {
         // For single heat, we just finalize the tournament standings
-        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id || match.value.tournament?.id);
         if (fin.success) {
           toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Giải đấu đã kết thúc và chốt kết quả chung cuộc', life: 5000 });
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi chốt giải', detail: fin.error || 'Không thể cập nhật trạng thái giải đấu', life: 5000 });
         }
       } else if (match.value.tournament?.format === 'knockout') {
         await advanceKnockoutWinner(match.value.id);
       } else if (match.value.tournament?.format === 'round_robin' || match.value.tournament?.format === 'group_stage') {
-        const fin = await checkAndFinalizeTournament(match.value.tournament_id);
+        const fin = await checkAndFinalizeTournament(match.value.tournament_id || match.value.tournament?.id);
         if (fin.success) {
           toast.add({ severity: 'success', summary: 'Hoàn tất', detail: 'Vòng đấu đã được cập nhật', life: 3000 });
+        } else {
+          toast.add({ severity: 'error', summary: 'Lỗi cập nhật', detail: fin.error || 'Không thể cập nhật trạng thái vòng đấu', life: 5000 });
         }
       }
     }
