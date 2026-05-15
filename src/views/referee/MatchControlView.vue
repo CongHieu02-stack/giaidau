@@ -109,7 +109,7 @@
     </div>
 
     <!-- Tab: Attendance -->
-    <div v-if="activeTab==='attendance' || (isSingleHeat && activeTab==='results')" class="panel">
+    <div v-if="(activeTab==='attendance' || (isSingleHeat && activeTab==='results')) && match.status !== 'scheduled'" class="panel">
       <h3 class="panel-title">{{ isSingleHeat ? 'Danh sách vận động viên & Kết quả' : 'Kiểm diện' }}</h3>
       
       <!-- Standard Mode -->
