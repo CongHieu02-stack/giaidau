@@ -32,7 +32,7 @@
               </tr>
             </thead>
             <tbody v-if="tournament.tournamentMode === 'single_heat'">
-              <tr v-for="team in getGroupStandings(group.id)" :key="team.id" class="team-row">
+              <tr v-for="team in getGroupStandings(group.id)" :key="team.id" class="standings-row">
                 <td class="rank">{{ team.rank }}</td>
                 <td class="team">
                   <div class="team-info">
@@ -50,7 +50,7 @@
               </tr>
             </tbody>
             <tbody v-else>
-              <tr v-for="team in getGroupStandings(group.id)" :key="team.clubId" class="team-row">
+              <tr v-for="team in getGroupStandings(group.id)" :key="team.clubId" class="standings-row">
                 <td class="rank">{{ team.rank }}</td>
                 <td class="team">
                   <div class="team-info">
@@ -97,7 +97,7 @@
           </tr>
         </thead>
         <tbody v-if="tournament.tournamentMode === 'single_heat'">
-          <tr v-for="team in standings" :key="team.id" class="team-row">
+          <tr v-for="team in standings" :key="team.id" class="standings-row">
             <td class="rank">{{ team.rank }}</td>
             <td class="team">
               <div class="team-info">
@@ -115,7 +115,7 @@
           </tr>
         </tbody>
         <tbody v-else>
-          <tr v-for="team in standings" :key="team.clubId" class="team-row">
+          <tr v-for="team in standings" :key="team.clubId" class="standings-row">
             <td class="rank">{{ team.rank }}</td>
             <td class="team">
               <div class="team-info">
@@ -218,7 +218,7 @@ td {
   color: rgba(255, 255, 255, 0.8);
 }
 
-.team-row:hover {
+.standings-row:hover {
   background: rgba(255, 255, 255, 0.02);
 }
 

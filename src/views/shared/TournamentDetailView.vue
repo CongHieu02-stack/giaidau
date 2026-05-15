@@ -287,7 +287,7 @@
               </div>
               
               <div v-else-if="approvedRegistrations.length > 0" class="teams-list">
-                <div v-for="reg in approvedRegistrations" :key="reg.id" class="team-row">
+                <div v-for="reg in approvedRegistrations" :key="reg.id" class="registered-team-row">
                   <div class="team-avatar-small">
                     <img v-if="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
                          :src="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
@@ -312,7 +312,7 @@
                 <span class="team-count yellow">{{ pendingRegistrations.length }}</span>
               </h2>
               <div class="teams-list">
-                <div v-for="reg in pendingRegistrations" :key="reg.id" class="team-row pending">
+                <div v-for="reg in pendingRegistrations" :key="reg.id" class="registered-team-row pending">
                   <div class="team-avatar-small">
                     <img v-if="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
                          :src="tournament.participantType === 'individual' ? reg.user?.avatar_url : reg.club?.logo_url" 
@@ -1459,6 +1459,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
 }
 
 /* ========== CARDS ========== */
@@ -1743,7 +1744,7 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
-.team-row {
+.registered-team-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -2279,6 +2280,65 @@ onMounted(async () => {
 .custom-tournament-dialog .club-select-leader {
   color: rgba(255, 255, 255, 0.4) !important;
 }
+
+/* ========== TEAMS LIST ========== */
+.teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.teams-list::-webkit-scrollbar {
+  width: 4px;
+}
+.teams-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.teams-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.registered-team-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+}
+
+.registered-team-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.team-avatar-small {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: white;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.team-name {
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1;
+}
+
 /* ========== ADMIN SECTION ========== */
 .admin-section {
   border: 1px solid rgba(234, 179, 8, 0.3);
@@ -2290,7 +2350,7 @@ onMounted(async () => {
   color: #fbbf24;
 }
 
-.team-row.pending {
+.registered-team-row.pending {
   border-left: 3px solid #fbbf24;
 }
 
