@@ -58,6 +58,11 @@
                 <i class="pi pi-chevron-right link-arrow"></i>
               </router-link>
 
+              <button @click="openPasswordModal" class="dropdown-link">
+                <span class="link-icon password-icon"><i class="pi pi-key"></i></span>
+                <span class="link-text">Đổi mật khẩu</span>
+              </button>
+
               <!-- Role-specific dashboard links -->
               <router-link v-if="authStore.isSuperAdmin" to="/admin" class="dropdown-link" @click="showDropdown = false">
                 <span class="link-icon admin"><i class="pi pi-cog"></i></span>
@@ -131,10 +136,65 @@
       </template>
     </div>
   </nav>
+
+  <!-- ── CHANGE PASSWORD MODAL ────────────────── -->
+  <Teleport to="body">
+    <Transition name="modal">
+      <div v-if="showPasswordModal" class="modal-overlay" @click.self="closePasswordModal">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>Đổi mật khẩu</h3>
+            <button class="modal-close" @click="closePasswordModal">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <Transition name="fade">
+            <div v-if="passwordMessage" :class="['alert-msg', passwordSuccess ? 'success' : 'error']">
+              <i :class="['pi mr-2', passwordSuccess ? 'pi-check-circle' : 'pi-exclamation-circle']"></i>
+              {{ passwordMessage }}
+            </div>
+          </Transition>
+
+          <form @submit.prevent="handlePasswordChange" class="modal-body space-y-4">
+            <div class="form-group">
+              <label class="form-label">Mật khẩu hiện tại <span class="req">*</span></label>
+              <div class="password-input-wrap">
+                <input v-model="passwordForm.currentPassword" :type="showCurrentPass ? 'text' : 'password'" class="form-input" placeholder="Nhập mật khẩu hiện tại" required />
+                <i :class="['pi', showCurrentPass ? 'pi-eye-slash' : 'pi-eye']" @click="showCurrentPass = !showCurrentPass"></i>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mật khẩu mới <span class="req">*</span></label>
+              <div class="password-input-wrap">
+                <input v-model="passwordForm.newPassword" :type="showNewPass ? 'text' : 'password'" class="form-input" placeholder="Nhập mật khẩu mới" required />
+                <i :class="['pi', showNewPass ? 'pi-eye-slash' : 'pi-eye']" @click="showNewPass = !showNewPass"></i>
+              </div>
+              <p class="form-hint">Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường và số.</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Xác nhận mật khẩu mới <span class="req">*</span></label>
+              <div class="password-input-wrap">
+                <input v-model="passwordForm.confirmPassword" :type="showConfirmPass ? 'text' : 'password'" class="form-input" placeholder="Xác nhận mật khẩu mới" required />
+                <i :class="['pi', showConfirmPass ? 'pi-eye-slash' : 'pi-eye']" @click="showConfirmPass = !showConfirmPass"></i>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn-cancel" @click="closePasswordModal" :disabled="passwordSaving">Hủy</button>
+              <button type="submit" class="btn-save" :disabled="passwordSaving">
+                <i :class="['pi mr-2', passwordSaving ? 'pi-spin pi-spinner' : 'pi-check']"></i>
+                {{ passwordSaving ? 'Đang cập nhật...' : 'Cập nhật mật khẩu' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth.js';
 
@@ -210,6 +270,72 @@ const logout = async () => {
   showMobile.value = false;
   router.push('/');
 };
+
+// ---- Password Modal ----
+const showPasswordModal = ref(false);
+const passwordSaving = ref(false);
+const passwordMessage = ref('');
+const passwordSuccess = ref(false);
+const showCurrentPass = ref(false);
+const showNewPass = ref(false);
+const showConfirmPass = ref(false);
+const passwordForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+});
+
+function openPasswordModal() {
+  showDropdown.value = false;
+  passwordForm.currentPassword = '';
+  passwordForm.newPassword = '';
+  passwordForm.confirmPassword = '';
+  passwordMessage.value = '';
+  showPasswordModal.value = true;
+}
+
+function closePasswordModal() {
+  if (passwordSaving.value) return;
+  showPasswordModal.value = false;
+}
+
+async function handlePasswordChange() {
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    passwordSuccess.value = false;
+    passwordMessage.value = 'Mật khẩu xác nhận không khớp.';
+    return;
+  }
+
+  if (passwordForm.newPassword.length < 8) {
+    passwordSuccess.value = false;
+    passwordMessage.value = 'Mật khẩu mới phải có ít nhất 8 ký tự.';
+    return;
+  }
+
+  passwordSaving.value = true;
+  passwordMessage.value = '';
+
+  try {
+    const result = await authStore.changePassword(
+      passwordForm.currentPassword,
+      passwordForm.newPassword
+    );
+
+    if (result.success) {
+      passwordSuccess.value = true;
+      passwordMessage.value = 'Đổi mật khẩu thành công!';
+      setTimeout(() => closePasswordModal(), 1500);
+    } else {
+      passwordSuccess.value = false;
+      passwordMessage.value = result.error || 'Đổi mật khẩu thất bại.';
+    }
+  } catch (err) {
+    passwordSuccess.value = false;
+    passwordMessage.value = 'Có lỗi xảy ra, vui lòng thử lại.';
+  } finally {
+    passwordSaving.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -579,6 +705,7 @@ const logout = async () => {
 }
 
 .link-icon.profile  { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+.link-icon.password-icon { background: rgba(139, 92, 246, 0.2); color: #c4b5fd; }
 .link-icon.admin    { background: rgba(239, 68, 68, 0.2);  color: #fca5a5; }
 .link-icon.tournament { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
 .link-icon.club     { background: rgba(6, 182, 212, 0.2);  color: #67e8f9; }
@@ -706,4 +833,121 @@ const logout = async () => {
   background: rgba(255, 255, 255, 0.1);
   margin: 0.5rem 1rem;
 }
+
+/* ═══════════════════════════════════
+   MODAL
+════════════════════════════════════ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+.modal-box {
+  background: linear-gradient(135deg, rgba(15,23,42,0.97), rgba(30,27,75,0.97));
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 1.25rem;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 0;
+}
+.modal-header h3 { font-size: 1.15rem; font-weight: 700; color: #fff; }
+.modal-close {
+  width: 2rem; height: 2rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 0.5rem;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.6);
+  border: none; cursor: pointer; transition: all 0.2s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.16); color: #fff; }
+.modal-body  { padding: 1.5rem; }
+.modal-footer { display: flex; gap: 0.75rem; padding-top: 0.5rem; }
+
+.form-group  { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-label  { font-size: 0.875rem; font-weight: 500; color: rgba(255,255,255,0.7); }
+.req         { color: #f87171; }
+.form-input  {
+  width: 100%; padding: 0.625rem 0.875rem;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.625rem; color: #fff; font-size: 0.9375rem;
+  transition: border-color 0.2s, box-shadow 0.2s; outline: none;
+}
+.form-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.18); }
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-input-wrap .form-input {
+  padding-right: 2.5rem;
+}
+.password-input-wrap .pi {
+  position: absolute;
+  right: 0.875rem;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.password-input-wrap .pi:hover {
+  color: #fff;
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.btn-cancel {
+  flex: 1; padding: 0.7rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 0.625rem; color: rgba(255,255,255,0.75);
+  font-weight: 500; cursor: pointer; transition: all 0.2s;
+}
+.btn-cancel:hover:not(:disabled) { background: rgba(255,255,255,0.14); }
+
+.btn-save {
+  flex: 2; padding: 0.7rem;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border: none; border-radius: 0.625rem; color: #fff;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-save:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(59,130,246,0.35); }
+.btn-save:disabled, .btn-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.alert-msg {
+  margin: 1rem 1.5rem 0;
+  padding: 0.75rem 1rem; border-radius: 0.625rem;
+  font-size: 0.875rem; display: flex; align-items: center;
+}
+.alert-msg.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+.alert-msg.error   { background: rgba(239,68,68,0.15);   border: 1px solid rgba(239,68,68,0.4);   color: #fca5a5; }
+
+/* ═══════════════════════════════════
+   TRANSITIONS
+════════════════════════════════════ */
+.modal-enter-active, .modal-leave-active { transition: opacity 0.25s ease; }
+.modal-enter-active .modal-box, .modal-leave-active .modal-box { transition: transform 0.25s ease, opacity 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-from .modal-box, .modal-leave-to .modal-box { transform: scale(0.92) translateY(16px); opacity: 0; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
