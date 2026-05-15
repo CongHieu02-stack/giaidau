@@ -191,6 +191,7 @@
           </button>
         </div>
       </div>
+    </div>
     <!-- Delete Confirmation Modal -->
     <div v-if="deleteModal.show" class="modal-overlay" @click.self="deleteModal.show = false">
       <div class="modal-card">
