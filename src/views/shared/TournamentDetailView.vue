@@ -607,25 +607,6 @@
       </div>
 
 
-      <!-- Reject Reason Dialog -->
-      <Dialog v-model:visible="showRejectModal" header="Lý do từ chối" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
-        <div class="flex flex-column gap-3 py-2">
-          <p class="text-sm text-white/70">Vui lòng nhập lý do từ chối đăng ký này:</p>
-          <textarea 
-            v-model="rejectReason" 
-            placeholder="Nhập lý do..." 
-            rows="4" 
-            class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-red-500/50 transition-colors"
-          ></textarea>
-        </div>
-        <template #footer>
-          <button class="action-btn secondary" @click="showRejectModal = false">Hủy</button>
-          <button class="btn-join bg-red-600 hover:bg-red-700" @click="confirmReject" :disabled="!rejectReason.trim()">
-            Xác nhận từ chối
-          </button>
-        </template>
-      </Dialog>
-
       <!-- Not Found -->
       <div v-else class="not-found">
         <i class="pi pi-exclamation-circle not-found-icon"></i>
@@ -634,6 +615,25 @@
       </div>
     </div>
   </div>
+
+  <!-- Reject Reason Dialog -->
+  <Dialog v-model:visible="showRejectModal" header="Lý do từ chối" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
+    <div class="flex flex-column gap-3 py-2">
+      <p class="text-sm text-white/70">Vui lòng nhập lý do từ chối đăng ký này:</p>
+      <textarea 
+        v-model="rejectReason" 
+        placeholder="Nhập lý do..." 
+        rows="4" 
+        class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-red-500/50 transition-colors"
+      ></textarea>
+    </div>
+    <template #footer>
+      <button class="action-btn secondary" @click="showRejectModal = false">Hủy</button>
+      <button class="btn-join bg-red-600 hover:bg-red-700" @click="confirmReject" :disabled="!rejectReason.trim()">
+        Xác nhận từ chối
+      </button>
+    </template>
+  </Dialog>
 </div>
 </template>
 
