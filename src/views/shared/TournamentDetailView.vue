@@ -941,19 +941,10 @@ const handleClubSelect = async (clubId) => {
       
       if (memberErr) throw memberErr;
       
-      let allParticipants = memberData || [];
+      // Filter out leader from members if present
+      let allParticipants = (memberData || []).filter(m => m.user_id !== clubData.leader_id);
       
-      // 3. Add leader and deputy if not already in members
-      if (clubData?.leader) {
-        const isLeaderAlreadyIn = allParticipants.some(m => m.user_id === clubData.leader_id);
-        if (!isLeaderAlreadyIn) {
-          allParticipants.unshift({
-            user_id: clubData.leader_id,
-            profile: clubData.leader
-          });
-        }
-      }
-
+      // 3. Add deputy if not already in members
       if (clubData?.deputy) {
         const isDeputyAlreadyIn = allParticipants.some(m => m.user_id === clubData.deputy_id);
         if (!isDeputyAlreadyIn) {
