@@ -16,93 +16,113 @@
 
       <!-- Main content -->
       <template v-else>
-        <!-- Header -->
-        <div class="dashboard-header">
-          <div class="club-identity">
-            <div class="club-logo">
+        <!-- Hero Section -->
+        <div class="page-hero">
+          <div class="hero-glow"></div>
+          <div class="hero-content">
+            <div class="club-logo-large">
               <img v-if="club.logoUrl || club.logo_url" :src="club.logoUrl || club.logo_url" :alt="club.name" />
               <span v-else>{{ getInitials(club.name) }}</span>
             </div>
             <div>
               <div class="club-role-tag"><i class="pi pi-star-fill"></i> Trưởng câu lạc bộ</div>
-              <h1 class="club-name">{{ club.name }}</h1>
+              <h1 class="hero-title">{{ club.name }}</h1>
               <div class="club-status-row">
                 <span class="status-chip" :class="getStatusClass(club.status)">{{ getStatusText(club.status) }}</span>
                 <span class="club-created">Thành lập {{ formatDate(club.created_at) }}</span>
               </div>
             </div>
-          </div>
-          <div class="header-actions">
-            <router-link to="/club/edit" class="btn-edit-club">
-              <i class="pi pi-pencil"></i> Chỉnh sửa CLB
-            </router-link>
-          </div>
-        </div>
-
-        <!-- Stats grid -->
-        <div class="stats-grid">
-          <div class="stat-card" style="--accent:#6366f1">
-            <div class="stat-icon" style="background:rgba(99,102,241,0.15);color:#a5b4fc"><i class="pi pi-users"></i></div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.totalMembers }}</div>
-              <div class="stat-label">Thành viên</div>
-              <div class="stat-sub" v-if="stats.pendingMembers > 0">
-                <span class="pending-badge">{{ stats.pendingMembers }} chờ duyệt</span>
-              </div>
-            </div>
-          </div>
-          <div class="stat-card" style="--accent:#f59e0b">
-            <div class="stat-icon" style="background:rgba(245,158,11,0.15);color:#fcd34d"><i class="pi pi-clock"></i></div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.pendingMembers }}</div>
-              <div class="stat-label">Chờ duyệt</div>
-              <div class="stat-sub">
-                <router-link to="/club/members" class="link-sub">Xem ngay →</router-link>
-              </div>
-            </div>
-          </div>
-          
-          <div class="stat-card" style="--accent:#10b981">
-            <div class="stat-icon" style="background:rgba(16,185,129,0.15);color:#6ee7b7"><i class="pi pi-trophy"></i></div>
-            <div class="stat-content">
-              <div class="stat-number">{{ club.tournament_count || 0 }}</div>
-              <div class="stat-label">Giải đấu</div>
-            </div>
-          </div>
-          <div class="stat-card" style="--accent:#8b5cf6">
-            <div class="stat-icon" style="background:rgba(139,92,246,0.15);color:#c084fc"><i class="pi pi-chart-bar"></i></div>
-            <div class="stat-content">
-              <div class="stat-number">{{ stats.approvedMembers }}</div>
-              <div class="stat-label">Đã duyệt</div>
+            <div class="hero-actions-box">
+              <router-link to="/club/edit" class="btn-edit-club">
+                <i class="pi pi-pencil"></i> Chỉnh sửa
+              </router-link>
             </div>
           </div>
         </div>
 
-        <!-- Quick actions -->
-        <div class="section-card">
-          <div class="section-header">
-            <div class="section-icon"><i class="pi pi-bolt"></i></div>
-            <h2 class="section-title">Thao tác nhanh</h2>
+        <!-- Stats Grid -->
+        <div class="stats-overview">
+          <div class="stat-item" style="--accent:#6366f1">
+            <div class="stat-icon-mini" style="background:rgba(99,102,241,0.15);color:#a5b4fc"><i class="pi pi-users"></i></div>
+            <div class="stat-details">
+              <span class="stat-val">{{ stats.totalMembers }}</span>
+              <span class="stat-lab">Thành viên</span>
+              <span v-if="stats.pendingMembers > 0" class="stat-badge-mini">{{ stats.pendingMembers }} chờ duyệt</span>
+            </div>
           </div>
-          <div class="quick-actions">
-            <router-link to="/club/members" class="qa-btn">
-              <div class="qa-icon" style="background:rgba(99,102,241,0.15);color:#a5b4fc"><i class="pi pi-users"></i></div>
-              <span class="qa-label">Quản lý thành viên</span>
-              <span v-if="stats.pendingMembers > 0" class="qa-badge">{{ stats.pendingMembers }}</span>
-            </router-link>
-            <router-link to="/club/tournaments" class="qa-btn">
-              <div class="qa-icon" style="background:rgba(16,185,129,0.15);color:#6ee7b7"><i class="pi pi-trophy"></i></div>
-              <span class="qa-label">Giải đấu CLB</span>
-            </router-link>
-            <router-link to="/club/edit" class="qa-btn">
-              <div class="qa-icon" style="background:rgba(245,158,11,0.15);color:#fcd34d"><i class="pi pi-pencil"></i></div>
-              <span class="qa-label">Chỉnh sửa thông tin</span>
-            </router-link>
-            <router-link :to="`/clubs/${club.id}`" class="qa-btn">
-              <div class="qa-icon" style="background:rgba(139,92,246,0.15);color:#c084fc"><i class="pi pi-eye"></i></div>
-              <span class="qa-label">Xem trang công khai</span>
-            </router-link>
+          <div class="stat-item" style="--accent:#f59e0b">
+            <div class="stat-icon-mini" style="background:rgba(245,158,11,0.15);color:#fcd34d"><i class="pi pi-clock"></i></div>
+            <div class="stat-details">
+              <span class="stat-val">{{ stats.pendingMembers }}</span>
+              <span class="stat-lab">Chờ duyệt</span>
+            </div>
           </div>
+          <div class="stat-item" style="--accent:#10b981">
+            <div class="stat-icon-mini" style="background:rgba(16,185,129,0.15);color:#6ee7b7"><i class="pi pi-trophy"></i></div>
+            <div class="stat-details">
+              <span class="stat-val">{{ club.tournament_count || 0 }}</span>
+              <span class="stat-lab">Giải đấu</span>
+            </div>
+          </div>
+          <div class="stat-item" style="--accent:#8b5cf6">
+            <div class="stat-icon-mini" style="background:rgba(139,92,246,0.15);color:#c084fc"><i class="pi pi-chart-bar"></i></div>
+            <div class="stat-details">
+              <span class="stat-val">{{ stats.approvedMembers }}</span>
+              <span class="stat-lab">Đã duyệt</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="action-grid">
+          <router-link to="/club/members" class="action-card">
+            <div class="card-glow"></div>
+            <div class="action-icon-box blue">
+              <i class="pi pi-users"></i>
+            </div>
+            <div class="action-info">
+              <h3 class="action-name">Thành viên</h3>
+              <p class="action-desc">Quản lý đội ngũ và duyệt yêu cầu tham gia</p>
+            </div>
+            <div v-if="stats.pendingMembers > 0" class="qa-badge-new">{{ stats.pendingMembers }}</div>
+            <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+          </router-link>
+
+          <router-link to="/club/tournaments" class="action-card">
+            <div class="card-glow"></div>
+            <div class="action-icon-box green">
+              <i class="pi pi-trophy"></i>
+            </div>
+            <div class="action-info">
+              <h3 class="action-name">Giải đấu</h3>
+              <p class="action-desc">Danh sách các giải đấu CLB tham gia</p>
+            </div>
+            <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+          </router-link>
+
+          <router-link to="/club/edit" class="action-card">
+            <div class="card-glow"></div>
+            <div class="action-icon-box orange">
+              <i class="pi pi-pencil"></i>
+            </div>
+            <div class="action-info">
+              <h3 class="action-name">Cấu hình CLB</h3>
+              <p class="action-desc">Chỉnh sửa thông tin và logo câu lạc bộ</p>
+            </div>
+            <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+          </router-link>
+
+          <router-link :to="`/clubs/${club.id}`" class="action-card primary">
+            <div class="card-glow"></div>
+            <div class="action-icon-box blue">
+              <i class="pi pi-eye"></i>
+            </div>
+            <div class="action-info">
+              <h3 class="action-name">Trang công khai</h3>
+              <p class="action-desc">Xem giao diện CLB hiển thị với mọi người</p>
+            </div>
+            <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+          </router-link>
         </div>
 
         <!-- Recent members -->
@@ -233,116 +253,116 @@ onMounted(async () => {
 .no-club-state h2 { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.75rem; }
 .no-club-state p  { color: rgba(255,255,255,0.4); }
 
-/* Header */
-.dashboard-header {
-  display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;
-  margin-bottom: 2rem;
+/* Hero Section */
+.page-hero {
+  position: relative; margin-bottom: 2rem;
+  padding: 3rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 2.5rem; overflow: hidden;
 }
-.club-identity { display: flex; align-items: center; gap: 1.25rem; }
-.club-logo {
-  width: 80px; height: 80px; border-radius: 1rem; flex-shrink: 0; overflow: hidden;
+.hero-glow {
+  position: absolute; top: -100px; left: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+  pointer-events: none;
+}
+.hero-content { display: flex; align-items: center; gap: 2rem; position: relative; z-index: 1; }
+.club-logo-large {
+  width: 100px; height: 100px; border-radius: 1.5rem; flex-shrink: 0; overflow: hidden;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.75rem; font-weight: 800; color: white;
-  box-shadow: 0 8px 32px rgba(99,102,241,0.3);
+  font-size: 2.5rem; font-weight: 800; color: white;
+  box-shadow: 0 20px 40px rgba(99,102,241,0.3);
   border: 1px solid rgba(255,255,255,0.1);
 }
-.club-logo img { width: 100%; height: 100%; object-fit: cover; }
+.club-logo-large img { width: 100%; height: 100%; object-fit: cover; }
+.hero-title { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.1; margin: 0; }
+.hero-actions-box { margin-left: auto; }
+
 .club-role-tag {
   display: inline-flex; align-items: center; gap: 0.4rem;
   padding: 0.25rem 0.75rem; border-radius: 999px;
   background: rgba(168,85,247,0.15); color: #c084fc;
   border: 1px solid rgba(168,85,247,0.25);
   font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.75rem;
 }
-.club-name { font-size: 1.875rem; font-weight: 800; color: white; line-height: 1.15; margin-bottom: 0.5rem; }
-.club-status-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-.club-created { font-size: 0.8rem; color: rgba(255,255,255,0.35); }
 
 .btn-edit-club {
   display: inline-flex; align-items: center; gap: 0.5rem;
-  padding: 0.65rem 1.25rem;
+  padding: 0.75rem 1.5rem;
   background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.8); border-radius: 0.875rem;
-  font-size: 0.875rem; font-weight: 600; transition: all 0.2s;
+  color: white; border-radius: 1rem;
+  font-size: 0.9rem; font-weight: 700; transition: all 0.2s;
   text-decoration: none;
 }
-.btn-edit-club:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: white; }
+.btn-edit-club:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
 
-/* Status chips */
-.status-chip { padding: 0.3rem 0.75rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
-.sc-approved { background: rgba(34,197,94,0.15);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
-.sc-pending  { background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.25); }
-.sc-rejected { background: rgba(239,68,68,0.15);  color: #fca5a5; border: 1px solid rgba(239,68,68,0.25); }
-.sc-default  { background: rgba(107,114,128,0.2); color: #d1d5db; border: 1px solid rgba(107,114,128,0.3); }
-
-/* Stats grid */
-.stats-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;
-  margin-bottom: 1.5rem;
+/* Stats Overview */
+.stats-overview {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
+  margin-bottom: 2rem;
 }
-.stat-card {
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 1.25rem; padding: 1.25rem;
+.stat-item {
   display: flex; align-items: center; gap: 1rem;
-  transition: all 0.3s; position: relative; overflow: hidden;
+  padding: 1.25rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem;
 }
-.stat-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: var(--accent); opacity: 0; transition: opacity 0.3s;
-}
-.stat-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-3px); }
-.stat-card:hover::before { opacity: 1; }
-.stat-icon {
-  width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+.stat-icon-mini {
+  width: 44px; height: 44px; border-radius: 12px;
   display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
 }
-.stat-number { font-size: 2rem; font-weight: 800; color: white; line-height: 1; }
-.stat-label  { font-size: 0.8rem; color: rgba(255,255,255,0.45); margin-top: 0.2rem; }
-.stat-sub    { margin-top: 0.35rem; }
-.pending-badge {
-  font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 999px;
-  background: rgba(251,191,36,0.15); color: #fde68a; border: 1px solid rgba(251,191,36,0.2);
+.stat-val { display: block; font-size: 1.5rem; font-weight: 800; color: white; }
+.stat-lab { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+.stat-badge-mini {
+  font-size: 0.65rem; font-weight: 800; padding: 0.1rem 0.5rem; border-radius: 999px;
+  background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.2);
+  margin-top: 0.25rem; display: inline-block;
 }
-.link-sub { font-size: 0.75rem; color: #a5b4fc; font-weight: 600; text-decoration: none; }
-.link-sub:hover { color: white; }
 
-/* Section card */
-.section-card {
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 1.25rem; overflow: hidden; margin-bottom: 1.5rem;
+/* Action Grid */
+.action-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;
+  margin-bottom: 2rem;
 }
-.section-header {
-  display: flex; align-items: center; gap: 0.75rem;
-  padding: 1.125rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.06);
-  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.03));
+.action-card {
+  position: relative; padding: 2rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 2rem; text-decoration: none;
+  display: flex; align-items: center; gap: 1.5rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
-.section-icon {
-  width: 34px; height: 34px; border-radius: 9px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+.action-card:hover {
+  transform: translateY(-8px);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+}
+.action-card.primary {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08));
+  border-color: rgba(99, 102, 241, 0.2);
+}
+.action-icon-box {
+  width: 64px; height: 64px; border-radius: 1.25rem; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.85rem; color: white; flex-shrink: 0;
+  font-size: 1.5rem; transition: transform 0.3s;
 }
-.section-title { font-size: 1.05rem; font-weight: 700; color: white; flex: 1; }
-.section-link  { font-size: 0.8rem; color: #a5b4fc; font-weight: 600; text-decoration: none; }
-.section-link:hover { color: white; }
+.action-card:hover .action-icon-box { transform: scale(1.1); }
+.blue { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.green { background: rgba(16, 185, 129, 0.1); color: #34d399; }
+.orange { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
 
-/* Quick actions */
-.quick-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; padding: 1.5rem; }
-.qa-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
-  padding: 1.5rem 1rem; border-radius: 1rem; text-decoration: none;
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);
-  transition: all 0.3s; position: relative;
-}
-.qa-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); transform: translateY(-3px); }
-.qa-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
-.qa-label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.75); text-align: center; }
-.qa-badge {
-  position: absolute; top: 0.75rem; right: 0.75rem;
-  background: #ef4444; color: white; font-size: 0.65rem; font-weight: 700;
-  padding: 0.1rem 0.45rem; border-radius: 999px; min-width: 18px; text-align: center;
+.action-info { flex: 1; }
+.action-name { font-size: 1.25rem; font-weight: 700; color: white; margin: 0; }
+.action-desc { font-size: 0.9rem; color: rgba(255,255,255,0.4); margin: 0.4rem 0 0; line-height: 1.4; }
+
+.card-arrow { color: rgba(255,255,255,0.15); font-size: 1.25rem; transition: transform 0.3s, color 0.3s; }
+.action-card:hover .card-arrow { transform: translateX(5px); color: white; }
+.qa-badge-new {
+  background: #ef4444; color: white; font-size: 0.75rem; font-weight: 800;
+  padding: 0.2rem 0.6rem; border-radius: 999px;
 }
 
 /* Members list */

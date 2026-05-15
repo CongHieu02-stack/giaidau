@@ -8,39 +8,39 @@
           <div class="hero-icon"><i class="pi pi-flag"></i></div>
           <div>
             <h1 class="hero-title">Trọng tài Dashboard</h1>
-            <p class="hero-sub">Xin chào, {{ authStore.userDisplayName }}</p>
+            <p class="hero-subtitle">Chào mừng trở lại, <strong>{{ authStore.userDisplayName }}</strong>. Theo dõi và quản lý các trận đấu được phân công.</p>
           </div>
         </div>
       </div>
 
       <!-- Stats -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon upcoming"><i class="pi pi-calendar"></i></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ upcomingCount }}</div>
-            <div class="stat-label">Trận sắp tới</div>
+      <div class="stats-overview">
+        <div class="stat-item">
+          <div class="stat-icon-mini upcoming"><i class="pi pi-calendar"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ upcomingCount }}</span>
+            <span class="stat-lab">Trận sắp tới</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon live"><i class="pi pi-play"></i></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ liveCount }}</div>
-            <div class="stat-label">Đang diễn ra</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini live"><i class="pi pi-play"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ liveCount }}</span>
+            <span class="stat-lab">Đang diễn ra</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon done"><i class="pi pi-check-circle"></i></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ completedCount }}</div>
-            <div class="stat-label">Đã hoàn thành</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini done"><i class="pi pi-check-circle"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ completedCount }}</span>
+            <span class="stat-lab">Đã hoàn thành</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon total"><i class="pi pi-list"></i></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ matches.length }}</div>
-            <div class="stat-label">Tổng trận được giao</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini total"><i class="pi pi-list"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ matches.length }}</span>
+            <span class="stat-lab">Tổng trận</span>
           </div>
         </div>
       </div>
@@ -171,54 +171,49 @@ onMounted(async () => {
 
 /* Hero */
 .page-hero {
-  position: relative;
-  padding: 2rem;
-  background: rgba(255,255,255,0.03);
+  position: relative; margin-bottom: 2rem;
+  padding: 3rem; background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 1.5rem;
-  overflow: hidden;
+  border-radius: 2.5rem; overflow: hidden;
 }
 .hero-glow {
-  position: absolute; top: -60px; left: -60px;
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, rgba(245,158,11,0.18), transparent 70%);
+  position: absolute; top: -100px; left: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(245,158,11,0.15), transparent 70%);
   pointer-events: none;
 }
-.hero-content { display: flex; align-items: center; gap: 1rem; position: relative; z-index: 1; }
+.hero-content { display: flex; align-items: center; gap: 2rem; position: relative; z-index: 1; }
 .hero-icon {
-  width: 56px; height: 56px; border-radius: 1rem; flex-shrink: 0;
+  width: 80px; height: 80px; border-radius: 1.5rem; flex-shrink: 0;
   background: linear-gradient(135deg, #f59e0b, #ef4444);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; color: white;
-  box-shadow: 0 8px 24px rgba(245,158,11,0.4);
+  font-size: 2rem; color: white;
+  box-shadow: 0 20px 40px rgba(245,158,11,0.3);
 }
-.hero-title { font-size: 2rem; font-weight: 800; color: white; margin: 0; }
-.hero-sub { color: rgba(255,255,255,0.5); font-size: 0.9rem; margin-top: 0.25rem; }
+.hero-title { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.1; margin: 0; }
+.hero-subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.5); margin-top: 0.75rem; }
+.hero-subtitle strong { color: #fbbf24; }
 
 /* Stats */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+.stats-overview {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
+  margin-bottom: 2rem;
 }
-.stat-card {
+.stat-item {
   display: flex; align-items: center; gap: 1rem;
-  padding: 1.25rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 1rem;
+  padding: 1.25rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem;
 }
-.stat-icon {
-  width: 48px; height: 48px; border-radius: 0.75rem;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.25rem; flex-shrink: 0;
+.stat-icon-mini {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
 }
-.stat-icon.upcoming { background: rgba(59,130,246,0.15); color: #60a5fa; }
-.stat-icon.live { background: rgba(34,197,94,0.15); color: #4ade80; }
-.stat-icon.done { background: rgba(139,92,246,0.15); color: #a78bfa; }
-.stat-icon.total { background: rgba(245,158,11,0.15); color: #fbbf24; }
-.stat-value { font-size: 1.5rem; font-weight: 800; color: white; }
-.stat-label { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+.stat-icon-mini.upcoming { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.stat-icon-mini.live { background: rgba(34,197,94,0.15); color: #4ade80; }
+.stat-icon-mini.done { background: rgba(139,92,246,0.15); color: #a78bfa; }
+.stat-icon-mini.total { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.stat-val { display: block; font-size: 1.5rem; font-weight: 800; color: white; }
+.stat-lab { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
 
 /* Section Card */
 .section-card {

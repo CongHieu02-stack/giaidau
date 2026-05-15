@@ -3,25 +3,26 @@
     <div class="max-w-7xl mx-auto">
       
       <!-- Hero Header -->
-      <div class="dashboard-header mb-8">
-        <div class="header-main">
-          <div class="header-icon"><i class="pi pi-shield"></i></div>
+      <div class="page-hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+          <div class="hero-icon"><i class="pi pi-shield"></i></div>
           <div>
-            <h1 class="text-3xl font-bold text-white">Dashboard Quản lý CLB</h1>
-            <p class="text-white/50">Hệ thống quản trị và giám sát hoạt động các câu lạc bộ</p>
+            <h1 class="hero-title">Quản lý Câu lạc bộ</h1>
+            <p class="hero-subtitle">Hệ thống giám sát, phê duyệt và quản lý toàn bộ các câu lạc bộ trên MyLeague.</p>
           </div>
         </div>
-        
-        <!-- Stats Summary -->
-        <div class="stats-grid">
-          <div class="stat-card" v-for="s in statsItems" :key="s.label">
-            <div class="stat-content">
-              <span class="stat-label">{{ s.label }}</span>
-              <span class="stat-value" :style="{ color: s.color }">{{ s.value }}</span>
-            </div>
-            <div class="stat-icon-wrap" :style="{ background: s.bg, color: s.color }">
-              <i :class="s.icon"></i>
-            </div>
+      </div>
+      
+      <!-- Stats Summary -->
+      <div class="stats-overview">
+        <div class="stat-item" v-for="s in statsItems" :key="s.label">
+          <div class="stat-icon-mini" :style="{ background: s.bg, color: s.color }">
+            <i :class="s.icon"></i>
+          </div>
+          <div class="stat-details">
+            <span class="stat-val" :style="{ color: s.color }">{{ s.value }}</span>
+            <span class="stat-lab">{{ s.label }}</span>
           </div>
         </div>
       </div>
@@ -410,87 +411,44 @@ onMounted(loadClubs);
 </script>
 
 <style scoped>
-.dashboard-header {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+.page-hero {
+  position: relative; margin-bottom: 2rem;
+  padding: 3rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 2.5rem; overflow: hidden;
 }
+.hero-glow {
+  position: absolute; top: -100px; left: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+  pointer-events: none;
+}
+.hero-content { display: flex; align-items: center; gap: 2rem; position: relative; z-index: 1; }
+.hero-icon {
+  width: 80px; height: 80px; border-radius: 1.5rem; flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: white;
+  box-shadow: 0 20px 40px rgba(99,102,241,0.3);
+}
+.hero-title { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.1; margin: 0; }
+.hero-subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.5); margin-top: 0.75rem; }
 
-@media (min-width: 1024px) {
-  .dashboard-header {
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-  }
+.stats-overview {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
+  margin-bottom: 2rem;
 }
-
-.header-main {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
+.stat-item {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.25rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem;
 }
-
-.header-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 1rem;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 1.75rem;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+.stat-icon-mini {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
 }
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-
-@media (min-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-    min-width: 600px;
-  }
-}
-
-.stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  backdrop-filter: blur(10px);
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
-}
-
-.stat-value {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 800;
-}
-
-.stat-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.875rem;
-}
+.stat-val { display: block; font-size: 1.5rem; font-weight: 800; }
+.stat-lab { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
 
 /* Actions Bar */
 .actions-bar {

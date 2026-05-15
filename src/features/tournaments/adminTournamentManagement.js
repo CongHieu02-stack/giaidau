@@ -162,9 +162,9 @@ export async function approveTournamentRegistration(regId) {
 export async function rejectTournamentRegistration(regId, reason) {
   const { data, error } = await supabase
     .from('tournament_registrations')
-    .update({ 
+    .update({
       status: 'rejected',
-      rejection_reason: reason 
+      rejection_reason: reason
     })
     .eq('id', regId)
     .select()
@@ -208,8 +208,8 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
     if (tError) throw new Error(tError.message);
 
     // Use provided venueIds or fallback to tournament default venue
-    const targetVenueIds = (venueIds && venueIds.length > 0) 
-      ? venueIds 
+    const targetVenueIds = (venueIds && venueIds.length > 0)
+      ? venueIds
       : (tournament.venue_id ? [tournament.venue_id] : []);
 
     const { data: venues, error: vError } = await supabase
@@ -227,7 +227,7 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
       const { data: regs } = await supabase.from('tournament_registrations')
         .select('*, club:clubs(id, name, logo_url), user:profiles!tournament_registrations_user_id_fkey(id, full_name, avatar_url)')
         .eq('tournament_id', tournamentId).eq('status', 'approved');
-      
+
       if (!regs?.length) throw new Error('Không có vận động viên/đội nào được duyệt để bắt đầu.');
 
       const heatMatch = {
@@ -238,7 +238,7 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
         round: 1,
         venue_id: venueIds[0] || tournament.venue_id || null
       };
-      
+
       const { data: insertedMatch, error: mErr } = await supabase.from('matches').insert(heatMatch).select('id').single();
       if (mErr) throw new Error(mErr.message);
 
@@ -248,7 +248,7 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
         player_id: r.user_id || null,
         is_present: true
       }));
-      
+
       if (attendanceData.length > 0) {
         const { error: attErr } = await supabase.from('match_attendance').insert(attendanceData);
         if (attErr) throw new Error(`Lỗi khởi tạo danh sách VĐV: ${attErr.message}`);
@@ -263,13 +263,13 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
     // === KNOCKOUT FORMAT ===
     if (tournament.format === 'knockout') {
       let allTeams = draftGroups.flatMap(g => g.teams || []).filter(t => t && t.id);
-      
+
       // If no draft groups (started directly from UI for knockout), fetch approved teams
       if (allTeams.length === 0) {
         const { data: regs } = await supabase.from('tournament_registrations')
           .select('*, club:clubs(id, name, logo_url), user:profiles!tournament_registrations_user_id_fkey(id, full_name, avatar_url)')
           .eq('tournament_id', tournamentId).eq('status', 'approved');
-          
+
         allTeams = (regs || []).map(r => tournament.participant_type === 'individual'
           ? (r.user ? { id: r.user.id, name: r.user.full_name, avatar_url: r.user.avatar_url } : null)
           : (r.club ? { id: r.club.id, name: r.club.name, logo_url: r.club.logo_url } : null)
@@ -279,15 +279,15 @@ export async function startTournament(tournamentId, draftGroups, venueIds) {
       if (allTeams.length < 2) throw new Error('Cần ít nhất 2 đội để bắt đầu giải đấu loại trực tiếp');
 
       const bracketMatches = buildKnockoutBracket(tournamentId, allTeams, venues, startDate, matchTimes, tournament.participant_type);
-      
+
       // Insert matches one-by-one to get IDs for linking
       const idMap = [];
       for (const m of bracketMatches) {
-        const { 
-          nextIdx, loserNextIdx, tempIdx, displayIdx, 
+        const {
+          nextIdx, loserNextIdx, tempIdx, displayIdx,
           home_source, away_source,
           home_club, away_club, venue, home_user, away_user,
-          ...dbData 
+          ...dbData
         } = m;
         const { data: inserted, error: iErr } = await supabase.from('matches').insert(dbData).select('id').single();
         if (iErr) throw new Error(iErr.message);
@@ -365,32 +365,32 @@ export async function startTournamentWithMatches(tournamentId, bracketMatches) {
     const idMap = []; // { tempIdx, realId, nextIdx, loserNextIdx }
     for (const m of bracketMatches) {
       // Strip ALL non-DB fields
-      const { 
-        nextIdx, loserNextIdx, tempIdx, displayIdx, 
+      const {
+        nextIdx, loserNextIdx, tempIdx, displayIdx,
         home_source, away_source,
         home_club, away_club, venue, home_user, away_user,
-        ...dbData 
+        ...dbData
       } = m;
-      
+
       const { data: inserted, error: iErr } = await supabase.from('matches').insert(dbData).select('id').single();
       if (iErr) throw new Error(iErr.message);
-      idMap.push({ 
-        tempIdx: tempIdx ?? idMap.length, 
-        realId: inserted.id, 
-        nextIdx: nextIdx ?? null, 
-        loserNextIdx: loserNextIdx ?? null 
+      idMap.push({
+        tempIdx: tempIdx ?? idMap.length,
+        realId: inserted.id,
+        nextIdx: nextIdx ?? null,
+        loserNextIdx: loserNextIdx ?? null
       });
     }
 
     // Link next_match_id AND loser_next_match_id
     for (const item of idMap) {
       const updates = {};
-      
+
       if (item.nextIdx !== null && item.nextIdx !== undefined) {
         const target = idMap.find(i => i.tempIdx === item.nextIdx);
         if (target) updates.next_match_id = target.realId;
       }
-      
+
       if (item.loserNextIdx !== null && item.loserNextIdx !== undefined) {
         const loserTarget = idMap.find(i => i.tempIdx === item.loserNextIdx);
         if (loserTarget) updates.loser_next_match_id = loserTarget.realId;
@@ -486,13 +486,13 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
   // 1. Determine base power of 2 (P) where P <= N
   let P = 1;
   while (P * 2 <= N) P *= 2;
-  
+
   // Preliminary round matches (R1)
   const numR1Matches = N - P;
   const byeTeamsCount = N - 2 * numR1Matches;
-  
+
   const rounds = [];
-  
+
   // --- ROUND 1 (Preliminary) ---
   const r1Matches = [];
   if (numR1Matches > 0) {
@@ -516,7 +516,7 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
   for (let i = 0; i < numR2Matches; i++) {
     const m = make(2, 1, i);
     m.match_type = 'regular';
-    
+
     // Link winners from R1 (if any)
     const p1 = r1Matches[i * 2];
     const p2 = r1Matches[i * 2 + 1];
@@ -544,12 +544,12 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
     for (let i = 0; i < numMatches; i++) {
       const m = make(currRoundNum, currRoundNum - 1, i);
       m.match_type = 'regular';
-      
+
       const p1 = prevRoundMatches[i * 2];
       const p2 = prevRoundMatches[i * 2 + 1];
       if (p1) p1.nextIdx = m.tempIdx;
       if (p2) p2.nextIdx = m.tempIdx;
-      
+
       currRoundMatches.push(m);
       allMatches.push(m);
     }
@@ -562,23 +562,23 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
   // Create Third Place match first so it gets a lower index (earlier time slot)
   const lastMatchInArray = allMatches[allMatches.length - 1];
   const semifinals = allMatches.filter(m => m.nextIdx === lastMatchInArray.tempIdx);
-  
+
   if (semifinals.length === 2) {
     const thirdPlace = make(currRoundNum, currRoundNum - 1, 0); // pos 0 for top?
     thirdPlace.match_type = 'third_place';
     thirdPlace.bracket_type = 'third_place';
     semifinals[0].loserNextIdx = thirdPlace.tempIdx;
     semifinals[1].loserNextIdx = thirdPlace.tempIdx;
-    
+
     // Create the real Final match last
     const finalMatch = make(currRoundNum, currRoundNum - 1, 1); // pos 1 for bottom?
     finalMatch.match_type = 'final';
     finalMatch.bracket_type = 'winner';
-    
+
     // Update semifinals to point to this new finalMatch
     semifinals[0].nextIdx = finalMatch.tempIdx;
     semifinals[1].nextIdx = finalMatch.tempIdx;
-    
+
     // Remove the placeholder lastMatchInArray and add our new ones
     allMatches.pop();
     allMatches.push(thirdPlace);
@@ -592,10 +592,10 @@ export function buildKnockoutBracket(tournamentId, teams, venues, startDate, mat
   allMatches.forEach(m => {
     if (m.match_type === 'final') return;
     if (m.match_type === 'third_place') return;
-    
+
     const roundMatches = allMatches.filter(x => x.round === m.round && x.bracket_type === 'winner');
     const totalInRound = roundMatches.length;
-    
+
     if (m.round === 1 && numR1Matches > 0) m.match_type = 'preliminary';
     else if (totalInRound === 2) m.match_type = 'semifinal';
     else if (totalInRound === 4) m.match_type = 'quarterfinal';
@@ -636,7 +636,7 @@ export async function advanceKnockoutWinner(matchId) {
           const u = {};
           if (!next[hf]) u[hf] = winnerId;
           else if (!next[af]) u[af] = winnerId;
-          
+
           if (Object.keys(u).length > 0) {
             await supabase.from('matches').update(u).eq('id', match.next_match_id);
           }
@@ -653,7 +653,7 @@ export async function advanceKnockoutWinner(matchId) {
           const u = {};
           if (!loserNext[hf]) u[hf] = loserId;
           else if (!loserNext[af]) u[af] = loserId;
-          
+
           if (Object.keys(u).length > 0) {
             await supabase.from('matches').update(u).eq('id', match.loser_next_match_id);
           }
@@ -663,19 +663,19 @@ export async function advanceKnockoutWinner(matchId) {
 
     // 3. Special: Champion & Runner-up
     if (match.match_type === 'final') {
-      await supabase.from('tournaments').update({ 
-        champion_club_id: winnerId, 
-        runner_up_id: loserId, 
-        updated_at: new Date().toISOString() 
+      await supabase.from('tournaments').update({
+        champion_club_id: winnerId,
+        runner_up_id: loserId,
+        updated_at: new Date().toISOString()
       }).eq('id', match.tournament_id);
       await checkKnockoutComplete(match.tournament_id);
     }
-    
+
     // 4. Special: Third Place
     if (match.match_type === 'third_place') {
-      await supabase.from('tournaments').update({ 
-        third_place_id: winnerId, 
-        updated_at: new Date().toISOString() 
+      await supabase.from('tournaments').update({
+        third_place_id: winnerId,
+        updated_at: new Date().toISOString()
       }).eq('id', match.tournament_id);
       await checkKnockoutComplete(match.tournament_id);
     }
@@ -698,9 +698,9 @@ async function checkKnockoutComplete(tournamentId) {
   const thirdDone = thirdPlaceMatch ? thirdPlaceMatch.status === 'completed' : true; // Nếu không có trận hạng 3, coi như đã xong
 
   if (finalDone && thirdDone) {
-    await supabase.from('tournaments').update({ 
-      status: 'completed', 
-      updated_at: new Date().toISOString() 
+    await supabase.from('tournaments').update({
+      status: 'completed',
+      updated_at: new Date().toISOString()
     }).eq('id', tournamentId);
   }
 }
@@ -757,20 +757,20 @@ export async function checkAndFinalizeTournament(tournamentId) {
 
     if (tournament.tournament_mode === 'single_heat') {
       console.log('[HeatFinalize] Starting for tournament:', tournamentId);
-      
+
       // Special logic for Heat: Get all attendances from the match
       const { data: matchData, error: matchError } = await supabase.from('matches').select('id').eq('tournament_id', tournamentId).limit(1);
-      
+
       if (matchError) {
         console.error('[HeatFinalize] Match query error:', matchError);
         return { success: false, error: matchError.message };
       }
-      
+
       if (!matchData?.length) {
         console.warn('[HeatFinalize] No matches found for tournament:', tournamentId);
         return { success: false, error: 'Không tìm thấy trận đấu của giải Heat' };
       }
-      
+
       const mid = matchData[0].id;
       console.log('[HeatFinalize] Found match:', mid);
 
@@ -818,7 +818,7 @@ export async function checkAndFinalizeTournament(tournamentId) {
         console.error('[HeatFinalize] Tournament update error:', updateError);
         throw new Error(`Lỗi cập nhật giải đấu: ${updateError.message}`);
       }
-      
+
       console.log('[HeatFinalize] Successfully finalized tournament:', tournamentId);
       return { success: true };
     }

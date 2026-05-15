@@ -1,109 +1,119 @@
 <template>
   <div class="super-admin-dashboard">
-    <div class="container">
-      <h1 class="page-title">Dashboard Quản trị viên hệ thống</h1>
-      <p class="page-subtitle">Xin chào {{ authStore.userDisplayName }}</p>
+    <div class="max-w-7xl mx-auto">
+      <!-- Hero Section -->
+      <div class="page-hero">
+        <div class="hero-glow"></div>
+        <div class="hero-content">
+          <div class="hero-icon"><i class="pi pi-desktop"></i></div>
+          <div>
+            <h1 class="hero-title">Dashboard Quản lý hệ thống</h1>
+            <p class="hero-subtitle">Chào mừng trở lại, <strong>{{ authStore.userDisplayName }}</strong>. Đây là bảng điều khiển quản trị toàn diện của MyLeague.</p>
+          </div>
+        </div>
+      </div>
 
       <!-- Stats Grid -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon users">👥</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.total_users }}</div>
-            <div class="stat-label">Người dùng</div>
+      <div class="stats-overview">
+        <div class="stat-item">
+          <div class="stat-icon-mini users"><i class="pi pi-users"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ stats.total_users }}</span>
+            <span class="stat-lab">Người dùng</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon clubs">🏢</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.total_clubs }}</div>
-            <div class="stat-label">Câu lạc bộ</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini clubs"><i class="pi pi-building"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ stats.total_clubs }}</span>
+            <span class="stat-lab">Câu lạc bộ</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon tournaments">🏆</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.active_tournaments }}</div>
-            <div class="stat-label">Giải đấu đang diễn ra</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini tourneys"><i class="pi pi-trophy"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ stats.active_tournaments }}</span>
+            <span class="stat-lab">Giải đấu</span>
           </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon referees">⚖️</div>
-          <div class="stat-info">
-            <div class="stat-value">{{ stats.total_referees }}</div>
-            <div class="stat-label">Trọng tài</div>
+        <div class="stat-item">
+          <div class="stat-icon-mini refs"><i class="pi pi-shield"></i></div>
+          <div class="stat-details">
+            <span class="stat-val">{{ stats.total_referees }}</span>
+            <span class="stat-lab">Trọng tài</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Quick Actions -->
-      <div class="quick-actions">
-        <h2>Quản lý nhanh</h2>
-        <div class="action-grid">
-          <router-link to="/admin/users" class="action-card">
-            <div class="action-icon">👤</div>
-            <div class="action-text">
-              <div class="action-title">Quản lý người dùng</div>
-              <div class="action-desc">Khóa/mở khóa, phân quyền</div>
-            </div>
-          </router-link>
-          
-          <router-link to="/admin/sports" class="action-card">
-            <div class="action-icon">🏅</div>
-            <div class="action-text">
-              <div class="action-title">Quản lý bộ môn</div>
-              <div class="action-desc">Thêm, sửa, xóa bộ môn</div>
-            </div>
-          </router-link>
-          
-          <router-link to="/club-admin/approvals" class="action-card">
-            <div class="action-icon">🏢</div>
-            <div class="action-text">
-              <div class="action-title">Quản lý CLB</div>
-              <div class="action-desc">{{ stats.pending_club_approvals }} CLB chờ duyệt</div>
-            </div>
-          </router-link>
-          
-          <router-link to="/admin/tournaments" class="action-card">
-            <div class="action-icon">🏆</div>
-            <div class="action-text">
-              <div class="action-title">Quản lý giải đấu</div>
-              <div class="action-desc">{{ stats.pending_tournament_regs }} đăng ký chờ duyệt</div>
-            </div>
-          </router-link>
-
-          <router-link to="/admin/tournaments/create" class="action-card">
-            <div class="action-icon">➕</div>
-            <div class="action-text">
-              <div class="action-title">Tạo giải đấu mới</div>
-              <div class="action-desc">Khởi tạo giải đấu mới</div>
-            </div>
-          </router-link>
-          
-          <!-- <router-link to="/admin/system" class="action-card">
-            <div class="action-icon">⚙️</div>
-            <div class="action-text">
-              <div class="action-title">Cài đặt hệ thống</div>
-              <div class="action-desc">Cấu hình hệ thống</div>
-            </div>
-          </router-link> -->
         </div>
       </div>
 
-      <!-- Pending Approvals -->
-      <div class="pending-section" v-if="stats.pending_club_approvals > 0 || stats.pending_tournament_regs > 0">
-        <h2>Chờ phê duyệt</h2>
-        <div class="pending-list">
-          <div class="pending-item warning" v-if="stats.pending_club_approvals > 0">
-            <span class="pending-icon">⚠️</span>
-            <span>{{ stats.pending_club_approvals }} câu lạc bộ đang chờ duyệt</span>
-            <router-link to="/club-admin/approvals" class="pending-link">Xem ngay →</router-link>
+      <!-- Action Grid -->
+      <div class="action-grid">
+        <router-link to="/admin/users" class="action-card">
+          <div class="card-glow"></div>
+          <div class="action-icon-box blue">
+            <i class="pi pi-users"></i>
           </div>
-          <div class="pending-item warning" v-if="stats.pending_tournament_regs > 0">
-            <span class="pending-icon">⚠️</span>
-            <span>{{ stats.pending_tournament_regs }} đăng ký giải đấu chờ duyệt</span>
-            <router-link to="/tournament-admin/tournaments" class="pending-link">Xem ngay →</router-link>
+          <div class="action-info">
+            <h3 class="action-name">Quản lý người dùng</h3>
+            <p class="action-desc">Khóa/mở khóa, phân quyền và quản lý tài khoản</p>
           </div>
+          <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+        </router-link>
+
+        <router-link to="/admin/sports" class="action-card">
+          <div class="card-glow"></div>
+          <div class="action-icon-box purple">
+            <i class="pi pi-star"></i>
+          </div>
+          <div class="action-info">
+            <h3 class="action-name">Quản lý bộ môn</h3>
+            <p class="action-desc">Thêm, sửa, xóa các bộ môn thi đấu</p>
+          </div>
+          <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+        </router-link>
+
+        <router-link to="/club-admin/approvals" class="action-card" :class="{ 'has-pending': stats.pending_club_approvals > 0 }">
+          <div class="card-glow"></div>
+          <div class="action-icon-box green">
+            <i class="pi pi-check-circle"></i>
+          </div>
+          <div class="action-info">
+            <h3 class="action-name">Phê duyệt CLB</h3>
+            <p class="action-desc">{{ stats.pending_club_approvals > 0 ? stats.pending_club_approvals + ' CLB đang chờ duyệt' : 'Quản lý danh sách câu lạc bộ' }}</p>
+          </div>
+          <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+        </router-link>
+
+        <router-link to="/admin/tournaments" class="action-card">
+          <div class="card-glow"></div>
+          <div class="action-icon-box orange">
+            <i class="pi pi-trophy"></i>
+          </div>
+          <div class="action-info">
+            <h3 class="action-name">Quản lý giải đấu</h3>
+            <p class="action-desc">Danh sách và cấu hình các giải đấu toàn hệ thống</p>
+          </div>
+          <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+        </router-link>
+
+        <router-link to="/admin/tournaments/create" class="action-card primary">
+          <div class="card-glow"></div>
+          <div class="action-icon-box blue">
+            <i class="pi pi-plus"></i>
+          </div>
+          <div class="action-info">
+            <h3 class="action-name">Tạo giải đấu mới</h3>
+            <p class="action-desc">Khởi tạo giải đấu mới cho cộng đồng</p>
+          </div>
+          <div class="card-arrow"><i class="pi pi-chevron-right"></i></div>
+        </router-link>
+      </div>
+
+      <!-- Additional Pending Section if needed -->
+      <div class="pending-summary" v-if="stats.pending_club_approvals > 0">
+        <div class="alert-box warning">
+          <i class="pi pi-exclamation-triangle"></i>
+          <span>Bạn có <strong>{{ stats.pending_club_approvals }}</strong> câu lạc bộ đang chờ phê duyệt.</span>
+          <router-link to="/club-admin/approvals" class="alert-link">Xem ngay →</router-link>
         </div>
       </div>
     </div>
@@ -124,8 +134,7 @@ const stats = ref({
   active_tournaments: 0,
   completed_tournaments: 0,
   pending_member_requests: 0,
-  pending_club_approvals: 0,
-  pending_tournament_regs: 0
+  pending_club_approvals: 0
 });
 
 const loading = ref(true);
@@ -187,7 +196,7 @@ async function loadStatsManual() {
     .from('tournaments')
     .select('*', { count: 'exact' })
     .in('status', ['ongoing', 'registration_open']);
-  
+
   stats.value = {
     total_users: usersCount || 0,
     total_referees: refereesCount || 0,
@@ -203,197 +212,121 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.super-admin-dashboard {
-  padding: 2rem 0;
-}
+.super-admin-dashboard { padding: 2rem 1.5rem; }
+.max-w-7xl { max-width: 80rem; margin: 0 auto; }
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
+/* ── Hero ── */
+.page-hero {
+  position: relative; margin-bottom: 2rem;
+  padding: 3rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 2.5rem; overflow: hidden;
 }
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: white;
-  margin-bottom: 0.5rem;
+.hero-glow {
+  position: absolute; top: -100px; left: -100px;
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15), transparent 70%);
+  pointer-events: none;
 }
+.hero-content { display: flex; align-items: center; gap: 2rem; position: relative; z-index: 1; }
+.hero-icon {
+  width: 80px; height: 80px; border-radius: 1.5rem; flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; color: white;
+  box-shadow: 0 20px 40px rgba(99,102,241,0.3);
+}
+.hero-title { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.1; margin: 0; }
+.hero-subtitle { font-size: 1.1rem; color: rgba(255,255,255,0.5); margin-top: 0.75rem; }
+.hero-subtitle strong { color: #818cf8; }
 
-.page-subtitle {
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.7);
+/* ── Stats Overview ── */
+.stats-overview {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;
   margin-bottom: 2rem;
 }
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
+.stat-item {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.25rem; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 1.5rem;
 }
-
-@media (min-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.stat-icon-mini {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
 }
+.stat-icon-mini.users { background: rgba(59,130,246,0.1); color: #60a5fa; }
+.stat-icon-mini.clubs { background: rgba(16,185,129,0.1); color: #34d399; }
+.stat-icon-mini.tourneys { background: rgba(245,158,11,0.1); color: #fbbf24; }
+.stat-icon-mini.refs { background: rgba(139,92,246,0.1); color: #a78bfa; }
+.stat-val { display: block; font-size: 1.5rem; font-weight: 800; color: white; }
+.stat-lab { display: block; font-size: 0.8rem; color: rgba(255,255,255,0.4); }
 
-.stat-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.stat-icon {
-  font-size: 2rem;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.75rem;
-  background: rgba(59, 130, 246, 0.2);
-}
-
-.stat-icon.users { background: rgba(59, 130, 246, 0.2); }
-.stat-icon.clubs { background: rgba(16, 185, 129, 0.2); }
-.stat-icon.tournaments { background: rgba(245, 158, 11, 0.2); }
-.stat-icon.referees { background: rgba(139, 92, 246, 0.2); }
-
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: white;
-  line-height: 1;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 0.25rem;
-}
-
-/* Quick Actions */
-.quick-actions {
-  margin-bottom: 2rem;
-}
-
-.quick-actions h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 1rem;
-}
-
+/* ── Action Grid ── */
 .action-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 1.5rem;
+  margin-bottom: 2rem;
 }
-
-@media (min-width: 640px) {
-  .action-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .action-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
 .action-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.75rem;
-  text-decoration: none;
-  transition: all 0.2s ease;
+  position: relative; padding: 2rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 2rem; text-decoration: none;
+  display: flex; align-items: center; gap: 1.5rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
-
 .action-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+  transform: translateY(-8px);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.3);
 }
-
-.action-icon {
-  font-size: 1.5rem;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(59, 130, 246, 0.2);
-  border-radius: 0.5rem;
+.action-card.primary {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.08));
+  border-color: rgba(99, 102, 241, 0.2);
 }
-
-.action-title {
-  font-weight: 600;
-  color: white;
-  font-size: 1rem;
+.action-card.has-pending {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
 }
-
-.action-desc {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 0.25rem;
+.action-icon-box {
+  width: 64px; height: 64px; border-radius: 1.25rem; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; transition: transform 0.3s;
 }
+.action-card:hover .action-icon-box { transform: scale(1.1); }
 
-/* Pending Section */
-.pending-section {
+.blue { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+.purple { background: rgba(139, 92, 246, 0.1); color: #a78bfa; }
+.green { background: rgba(16, 185, 129, 0.1); color: #34d399; }
+.orange { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
+
+.action-info { flex: 1; }
+.action-name { font-size: 1.25rem; font-weight: 700; color: white; margin: 0; }
+.action-desc { font-size: 0.9rem; color: rgba(255,255,255,0.4); margin: 0.4rem 0 0; line-height: 1.4; }
+
+.card-arrow { color: rgba(255,255,255,0.15); font-size: 1.25rem; transition: transform 0.3s, color 0.3s; }
+.action-card:hover .card-arrow { transform: translateX(5px); color: white; }
+
+/* ── Alert Box ── */
+.pending-summary { margin-top: 2rem; }
+.alert-box {
+  display: flex; align-items: center; gap: 1rem;
+  padding: 1.25rem 2rem; border-radius: 1.5rem;
+  font-size: 1rem; color: white;
+}
+.alert-box.warning {
   background: rgba(245, 158, 11, 0.1);
   border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 1rem;
-  padding: 1.5rem;
 }
+.alert-box i { font-size: 1.25rem; color: #fbbf24; }
+.alert-link { margin-left: auto; color: #fbbf24; font-weight: 700; text-decoration: none; }
+.alert-link:hover { text-decoration: underline; }
 
-.pending-section h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 1rem;
-}
-
-.pending-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.pending-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 0.5rem;
-  color: white;
-  font-size: 0.875rem;
-}
-
-.pending-item.warning {
-  background: rgba(245, 158, 11, 0.2);
-}
-
-.pending-link {
-  margin-left: auto;
-  color: #60a5fa;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.pending-link:hover {
-  text-decoration: underline;
+@media (max-width: 768px) {
+  .page-hero { padding: 2rem; }
+  .hero-title { font-size: 1.75rem; }
+  .action-card { padding: 1.5rem; }
+  .stats-overview { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
