@@ -346,15 +346,6 @@
                     <i class="pi pi-user-edit mr-1"></i>
                     {{ match.referee?.full_name || 'Đã gán' }}
                   </span>
-                  <button 
-                    v-if="!readOnly && match.id" 
-                    type="button" 
-                    class="ref-btn" 
-                    @click="openRefereeModal(match)"
-                    title="Gán trọng tài"
-                  >
-                    <i class="pi pi-cog"></i>
-                  </button>
                 </div>
               </div>
             </div>

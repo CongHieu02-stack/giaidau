@@ -46,7 +46,7 @@
                     {{ team.isPresent ? 'Hiện diện' : 'Vắng' }}
                   </span>
                 </td>
-                <td class="stat points">{{ team.value !== null ? team.value : '-' }}</td>
+                <td class="stat points">{{ team.value !== null ? team.value + ' ' + (tournament.unit || '') : '-' }}</td>
               </tr>
             </tbody>
             <tbody v-else>
@@ -111,7 +111,7 @@
                 {{ team.isPresent ? 'Hiện diện' : 'Vắng' }}
               </span>
             </td>
-            <td class="stat points">{{ team.value !== null ? team.value : '-' }}</td>
+            <td class="stat points">{{ team.value !== null ? team.value + ' ' + (tournament.unit || '') : '-' }}</td>
           </tr>
         </tbody>
         <tbody v-else>
@@ -260,7 +260,7 @@ td {
 }
 
 .stat {
-  width: 60px;
+  min-width: 60px;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -276,10 +276,11 @@ td {
 .negative { color: #f87171; }
 
 .status-pill {
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 .status-pill.present { background: rgba(34, 197, 94, 0.2); color: #86efac; }
 .status-pill.absent { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
