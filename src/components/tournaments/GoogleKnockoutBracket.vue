@@ -1,14 +1,18 @@
 <template>
-  <div class="bracket-container">
+  <div class="bracket-container" ref="bracketContainerRef">
     <div v-if="!matches || matches.length === 0" class="empty-state">
       <i class="pi pi-calendar-times"></i>
       <p>Chưa có lịch thi đấu</p>
     </div>
 
-    <div v-else class="single-elim-layout" ref="bracketContainerRef">
+    <div v-else class="single-elim-layout" ref="layoutRef">
       <!-- SVG LINES OVERLAY -->
       <svg class="bracket-lines-overlay" :width="svgSize.width" :height="svgSize.height">
-        <path v-for="line in bracketLines" :key="line.id" :d="line.path" :class="['bracket-line', { 'winner-line': line.isWinner }]" />
+        <g v-for="line in bracketLines" :key="line.id">
+          <path :d="line.path" :class="['bracket-line', { 'winner-line': line.isWinner }]" />
+          <!-- Arrow head -->
+          <polygon v-if="line.isWinner" :points="line.arrowPoints" class="bracket-arrow" />
+        </g>
       </svg>
       <!-- MAIN BRACKET FLOW -->
       <div class="rounds-flow">
@@ -51,6 +55,7 @@ const emit = defineEmits(['assign-referee']);
 const router = useRouter();
 
 const bracketContainerRef = ref(null);
+const layoutRef = ref(null);
 const bracketLines = ref([]);
 const svgSize = ref({ width: 0, height: 0 });
 
@@ -173,6 +178,7 @@ const MatchCard = defineComponent({
       const posClass = bracketPos % 2 === 0 ? 'pos-top' : 'pos-bottom';
 
       return h('div', { 
+        id: `match-${m.id}`,
         class: ['match-card', m.match_type + '-card', posClass, { 'is-clickable': true, 'has-winner': hasWinner }],
         'data-winner': winnerSide,
         onClick: handleCardClick 
@@ -234,15 +240,27 @@ const finalAndThirdPlace = computed(() => {
 });
 
 // ========== SVG LINE DRAWING LOGIC ==========
-const updateLines = () => {
-  if (!bracketContainerRef.value) return;
-  
-  // Size SVG to cover the entire scrollable layout
-  const scrollWidth = bracketContainerRef.value.scrollWidth;
-  const scrollHeight = bracketContainerRef.value.scrollHeight;
-  svgSize.value = { width: scrollWidth, height: scrollHeight };
+function getRelativePos(el, parent) {
+  let x = 0;
+  let y = 0;
+  let current = el;
+  while (current && current !== parent && current !== document.body) {
+    x += current.offsetLeft;
+    y += current.offsetTop;
+    current = current.offsetParent;
+  }
+  return { x, y };
+}
 
-  const containerRect = bracketContainerRef.value.getBoundingClientRect();
+const updateLines = () => {
+  if (!bracketContainerRef.value || !layoutRef.value) return;
+  
+  // Size SVG to cover the entire layout
+  svgSize.value = { 
+    width: layoutRef.value.offsetWidth, 
+    height: layoutRef.value.offsetHeight 
+  };
+
   const lines = [];
 
   props.matches.forEach(m => {
@@ -269,23 +287,21 @@ const updateLines = () => {
       const endEl = document.getElementById(`team-${nextM.id}-${targetSide}`);
 
       if (startEl && endEl) {
-        const sRect = startEl.getBoundingClientRect();
-        const eRect = endEl.getBoundingClientRect();
-
-        const scrollLeft = bracketContainerRef.value.scrollLeft;
-        const scrollTop = bracketContainerRef.value.scrollTop;
+        const layoutEl = layoutRef.value;
+        const startPos = getRelativePos(startEl, layoutEl);
+        const endPos = getRelativePos(endEl, layoutEl);
 
         let startX, startY;
         if (winnerSide) {
-          startX = sRect.right - containerRect.left + scrollLeft + 25; // Account for the arrow icon width
-          startY = sRect.top + sRect.height / 2 - containerRect.top + scrollTop;
+          startX = startPos.x + startEl.offsetWidth + 10;
+          startY = startPos.y + startEl.offsetHeight / 2;
         } else {
-          startX = sRect.right - containerRect.left + scrollLeft;
-          startY = sRect.top + sRect.height / 2 - containerRect.top + scrollTop;
+          startX = startPos.x + startEl.offsetWidth;
+          startY = startPos.y + startEl.offsetHeight / 2;
         }
         
-        const endX = eRect.left - containerRect.left + scrollLeft - 10;
-        const endY = eRect.top + eRect.height / 2 - containerRect.top + scrollTop;
+        const endX = endPos.x - 10;
+        const endY = endPos.y + endEl.offsetHeight / 2;
 
         const midX = startX + (endX - startX) / 2;
         
@@ -417,8 +433,8 @@ watch(() => props.matches, () => {
 }
 
 /* SVG Lines Overlay */
-.bracket-container { position: relative; }
-.single-elim-layout { position: relative; }
+.bracket-container { position: relative; width: 100%; overflow-x: auto; padding: 20px 0; }
+.single-elim-layout { position: relative; min-width: max-content; }
 
 .bracket-lines-overlay {
   position: absolute;
@@ -430,8 +446,20 @@ watch(() => props.matches, () => {
 
 .bracket-line {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.08);
+  stroke: rgba(255, 255, 255, 0.15);
   stroke-width: 2px;
+  transition: all 0.3s;
+}
+
+.winner-line {
+  stroke: #8b5cf6;
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.5));
+}
+
+.bracket-arrow {
+  fill: #8b5cf6;
+  transition: all 0.3s;
 }
 
 .bracket-line.winner-line {
