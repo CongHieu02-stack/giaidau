@@ -87,9 +87,18 @@ const userClubs = ref([]);
 const canRegister = computed(() => {
   if (myRegistration.value) return false;
   if (!authStore.isAuthenticated) return true;
+  
+  const participantType = props.tournament.participantType || props.tournament.participant_type || 'club';
+  const isIndividual = participantType === 'individual';
+  
+  // For individual tournaments, anyone can join.
+  // For club tournaments, only managers/leaders can join.
   const isManager = authStore.isClubLeader || authStore.isClubDeputy || authStore.isClubAdmin || authStore.isAdmin;
   const hasManagedClub = userClubs.value && userClubs.value.length > 0;
-  return (isManager || hasManagedClub) && 
+  
+  const canUserRegister = isIndividual || isManager || hasManagedClub;
+
+  return canUserRegister && 
          props.tournament.status === 'registration_open' &&
          (props.tournament.approvedCount || 0) < (props.tournament.maxTeams || 16);
 });

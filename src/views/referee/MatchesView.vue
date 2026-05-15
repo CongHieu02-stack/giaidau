@@ -289,7 +289,8 @@ onMounted(async () => {
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 1.25rem;
   padding: 1.25rem;
-  display: flex; flex-direction: column; gap: 1rem;
+  display: flex; flex-direction: column;
+  height: 100%;
   transition: all 0.3s;
   opacity: 0; animation: fadeUp 0.4s ease forwards;
 }
@@ -308,6 +309,14 @@ onMounted(async () => {
 }
 .match-card.card-paused {
   border-color: rgba(251,191,36,0.3);
+}
+
+.match-card > * {
+  margin-bottom: 1rem;
+}
+
+.match-card > *:last-child {
+  margin-bottom: 0;
 }
 
 /* Card Status */
@@ -363,7 +372,10 @@ onMounted(async () => {
 }
 
 /* Card Info */
-.card-info { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.card-info { 
+  display: flex; flex-wrap: wrap; gap: 0.75rem; 
+  min-height: 2.5rem; /* Ensure consistent height for info section */
+}
 .info-item {
   font-size: 0.72rem; color: rgba(255,255,255,0.4);
   display: flex; align-items: center; gap: 0.3rem;
@@ -371,7 +383,11 @@ onMounted(async () => {
 .info-item i { font-size: 0.65rem; }
 
 /* Card Action */
-.card-actions { display: flex; gap: 0.5rem; }
+.card-actions { 
+  display: flex; gap: 0.5rem; 
+  margin-top: auto; /* Push to bottom */
+  align-items: stretch;
+}
 .action-btn {
   display: flex; align-items: center; justify-content: center; gap: 0.4rem;
   padding: 0.6rem;
