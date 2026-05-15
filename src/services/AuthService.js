@@ -240,9 +240,26 @@ export class AuthService {
 
       // Check password complexity
       if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) {
-        return Result.err('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+        return Result.err('Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường và 1 số');
       }
 
+      // 1. Get current user's email
+      const { data: { user }, error: userError } = await this.client.auth.getUser();
+      if (userError || !user) {
+        return Result.err('Không tìm thấy phiên đăng nhập. Vui lòng tải lại trang.');
+      }
+
+      // 2. Verify current password by attempting to sign in
+      const { error: verifyError } = await this.client.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword
+      });
+
+      if (verifyError) {
+        return Result.err('Mật khẩu hiện tại không chính xác.');
+      }
+
+      // 3. Update to new password
       const { error } = await this.client.auth.updateUser({
         password: newPassword
       });
