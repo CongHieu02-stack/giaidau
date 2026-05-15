@@ -165,10 +165,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth.js';
 import { clubRepository } from '../../repositories/ClubRepository.js';
 import { supabase } from '../../config/supabase.js';
 
+const toast = useToast();
 const authStore = useAuthStore();
 const clubs = ref([]);
 const searchQuery = ref('');
@@ -191,7 +193,12 @@ const hasJoinedAnyClub = computed(() => {
 
 const openCreateModal = () => {
   if (hasJoinedAnyClub.value) {
-    alert('Bạn đã tham gia hoặc đang chờ duyệt ở một câu lạc bộ khác. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.');
+    toast.add({ 
+      severity: 'warn', 
+      summary: 'Không thể tạo CLB', 
+      detail: 'Bạn đã tham gia hoặc đang chờ duyệt ở một câu lạc bộ khác. Mỗi thành viên chỉ được tham gia 1 câu lạc bộ.', 
+      life: 5000 
+    });
     return;
   }
   showCreateModal.value = true;
@@ -364,7 +371,7 @@ const handleJoin = async (club) => {
     userMemberships.value[club.id] = 'pending';
   } catch (err) {
     console.error(err);
-    alert('Lỗi khi tham gia câu lạc bộ: ' + err.message);
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: 'Lỗi khi tham gia câu lạc bộ: ' + err.message, life: 5000 });
   } finally {
     joiningClubId.value = null;
   }
