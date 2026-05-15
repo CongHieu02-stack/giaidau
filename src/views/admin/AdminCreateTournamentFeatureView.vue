@@ -65,12 +65,27 @@
 
             <label class="field">
               <span>{{ form.participantType === 'individual' ? 'Số người chơi tối thiểu' : 'Số CLB tối thiểu' }}</span>
-              <input v-model.number="form.minTeams" type="number" min="2" :max="form.maxTeams" required>
+              <input 
+                v-model.number="form.minTeams" 
+                type="number" 
+                min="2" 
+                :max="form.maxTeams" 
+                required
+                oninvalid="this.setCustomValidity('Số lượng tối thiểu phải từ 2 trở lên')"
+                oninput="this.setCustomValidity('')"
+              >
             </label>
 
             <label class="field">
               <span>{{ form.participantType === 'individual' ? 'Số lượng người chơi tham gia tối đa' : 'Số lượng CLB tham gia tối đa' }}</span>
-              <input v-model.number="form.maxTeams" type="number" min="2" required>
+              <input 
+                v-model.number="form.maxTeams" 
+                type="number" 
+                min="2" 
+                required
+                oninvalid="this.setCustomValidity('Số lượng tối đa phải từ 2 trở lên')"
+                oninput="this.setCustomValidity('')"
+              >
             </label>
 
             <label class="field" v-if="form.participantType !== 'individual'">

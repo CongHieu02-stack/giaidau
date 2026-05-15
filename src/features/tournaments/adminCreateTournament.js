@@ -45,12 +45,12 @@ export function validateTournamentForm(form) {
   const maxTeams = Number(form.maxTeams);
   const minTeams = Number(form.minTeams);
 
-  if (!Number.isInteger(maxTeams) || maxTeams < 2) {
-    return 'Số lượng câu lạc bộ tham gia phải từ 2 trở lên.';
+  if (!Number.isInteger(maxTeams) || maxTeams <= 1) {
+    return 'Số lượng tham gia phải là số nguyên và lớn hơn 1.';
   }
 
-  if (!Number.isInteger(minTeams) || minTeams < 2 || minTeams > maxTeams) {
-    return 'Số câu lạc bộ tối thiểu phải từ 2 và không lớn hơn số lượng tham gia.';
+  if (!Number.isInteger(minTeams) || minTeams <= 1 || minTeams > maxTeams) {
+    return 'Số lượng tối thiểu phải là số nguyên, lớn hơn 1 và không vượt quá số lượng tối đa.';
   }
 
   const maxPlayers = Number(form.maxPlayersPerMatch);

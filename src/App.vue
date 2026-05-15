@@ -53,10 +53,10 @@ html, body {
   flex: 1;
   background-color: #080b1a;
   background-image: 
-    radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 60%, rgba(139, 92, 246, 0.08) 0%, transparent 45%),
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 70%),
+    radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   background-attachment: fixed;
 }
@@ -72,7 +72,7 @@ html, body {
   }
 }
 
-/* Page transition animations */
+/* ── Page transition animations ── */
 .page-enter-active,
 .page-leave-active {
   transition: all 0.3s ease;
@@ -80,23 +80,26 @@ html, body {
 
 .page-enter-from {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(15px);
 }
 
 .page-leave-to {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(-15px);
 }
 
-/* Global PrimeVue customizations */
-.p-button {
-  border-radius: 8px;
-  transition: all 0.3s ease;
+/* ── Micro-interactions ── */
+button, .p-button, .btn-join, .secondary-button, .primary-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active, .p-button:active, .btn-join:active, .secondary-button:active, .primary-button:active {
+  transform: scale(0.97);
 }
 
 .p-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
 }
 
 .p-card {

@@ -71,6 +71,8 @@
                 min="2"
                 :disabled="readOnly"
                 required
+                oninvalid="this.setCustomValidity('Số lượng CLB phải từ 2 trở lên')"
+                oninput="this.setCustomValidity('')"
               >
             </label>
 
