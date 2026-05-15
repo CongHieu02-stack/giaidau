@@ -294,6 +294,54 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Suspend Reason Modal -->
+    <Transition name="modal">
+      <div v-if="showSuspendModal" class="modal-overlay" @click.self="showSuspendModal = false">
+        <div class="modal-content suspension-modal">
+          <div class="modal-glow"></div>
+          <div class="modal-header">
+            <div class="modal-title">
+              <div class="title-icon-wrapper warning">
+                <i class="pi pi-exclamation-triangle"></i>
+              </div>
+              <div>
+                <h2>Lý do khóa tài khoản</h2>
+                <p>Vui lòng cung cấp lý do khóa tài khoản này</p>
+              </div>
+            </div>
+            <button @click="showSuspendModal = false" class="close-btn">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="input-group">
+              <label class="input-label">Lý do</label>
+              <textarea 
+                v-model="suspendReason" 
+                placeholder="Nhập lý do chi tiết tại đây..."
+                rows="4"
+                class="reason-textarea"
+                autofocus
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button @click="showSuspendModal = false" class="secondary-button">Hủy</button>
+            <button 
+              @click="confirmSuspend" 
+              class="primary-button suspend-confirm-btn"
+              :disabled="!suspendReason.trim()"
+            >
+              <i class="pi pi-ban"></i>
+              Xác nhận khóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -305,6 +353,10 @@ const users = ref([]);
 const loading = ref(true);
 const searchQuery = ref('');
 const selectedUser = ref(null);
+
+const showSuspendModal = ref(false);
+const suspendReason = ref('');
+const userToSuspendId = ref(null);
 
 const availableRoles = [
   { value: 'user', label: 'Thành viên', icon: 'pi pi-user' },
@@ -407,11 +459,24 @@ const updateRole = async (id, role) => {
   }
 };
 
-const suspendUser = async (id) => {
-  const reason = prompt('Lý do khóa:');
-  if (reason) {
-    await userRepository.updateStatus(id, 'suspended', reason);
-    loadUsers();
+const suspendUser = (id) => {
+  userToSuspendId.value = id;
+  suspendReason.value = '';
+  showSuspendModal.value = true;
+};
+
+const confirmSuspend = async () => {
+  if (!suspendReason.value.trim()) {
+    return;
+  }
+  
+  await userRepository.updateStatus(userToSuspendId.value, 'suspended', suspendReason.value);
+  showSuspendModal.value = false;
+  loadUsers();
+  
+  // Close the detail modal if it's open for this user
+  if (selectedUser.value && selectedUser.value.id === userToSuspendId.value) {
+    selectedUser.value.status = 'suspended';
   }
 };
 
@@ -853,17 +918,103 @@ onMounted(loadUsers);
 /* Modal Transitions */
 .modal-enter-active,
 .modal-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
+  transform: scale(0.95);
 }
 
-.modal-enter-from .modal-content,
-.modal-leave-to .modal-content {
-  transform: scale(0.9) translateY(20px);
+/* Suspension Modal Specifics */
+.suspension-modal {
+  max-width: 500px !important;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.title-icon-wrapper.warning {
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+
+.input-group {
+  margin-top: 1rem;
+}
+
+.input-label {
+  display: block;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 0.75rem;
+}
+
+.reason-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: white;
+  padding: 1rem;
+  font-size: 0.875rem;
+  resize: none;
+  transition: all 0.3s ease;
+}
+
+.reason-textarea:focus {
+  outline: none;
+  border-color: #ef4444;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.secondary-button {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.secondary-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.primary-button.suspend-confirm-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  color: white;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.primary-button.suspend-confirm-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+}
+
+.primary-button.suspend-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 /* Modal Styles */

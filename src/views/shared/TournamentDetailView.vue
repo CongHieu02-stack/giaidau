@@ -606,6 +606,26 @@
         </div>
       </div>
 
+
+      <!-- Reject Reason Dialog -->
+      <Dialog v-model:visible="showRejectModal" header="Lý do từ chối" :modal="true" :style="{ width: '450px' }" class="custom-tournament-dialog">
+        <div class="flex flex-column gap-3 py-2">
+          <p class="text-sm text-white/70">Vui lòng nhập lý do từ chối đăng ký này:</p>
+          <textarea 
+            v-model="rejectReason" 
+            placeholder="Nhập lý do..." 
+            rows="4" 
+            class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-red-500/50 transition-colors"
+          ></textarea>
+        </div>
+        <template #footer>
+          <button class="action-btn secondary" @click="showRejectModal = false">Hủy</button>
+          <button class="btn-join bg-red-600 hover:bg-red-700" @click="confirmReject" :disabled="!rejectReason.trim()">
+            Xác nhận từ chối
+          </button>
+        </template>
+      </Dialog>
+
       <!-- Not Found -->
       <div v-else class="not-found">
         <i class="pi pi-exclamation-circle not-found-icon"></i>
@@ -662,6 +682,10 @@ const assigningReferee = ref(false);
 const availableReferees = ref([]);
 const selectedRefereeId = ref(null);
 const activeMatch = ref(null);
+
+const showRejectModal = ref(false);
+const rejectReason = ref('');
+const regToRejectId = ref(null);
 
 const statusClass = computed(() => {
   const classes = {
@@ -1126,23 +1150,15 @@ const processApprove = async (regId) => {
 };
 
 const handleReject = (regId) => {
-  confirmService.require({
-    message: 'Bạn có chắc chắn muốn từ chối câu lạc bộ này?',
-    header: 'Xác nhận từ chối',
-    icon: 'pi pi-times-circle',
-    acceptClass: 'p-button-danger',
-    acceptLabel: 'Từ chối',
-    rejectLabel: 'Quay lại',
-    accept: () => {
-      const reason = prompt('Nhập lý do từ chối:');
-      if (reason === null) return;
-      if (!reason.trim()) {
-        toast.add({ severity: 'warn', summary: 'Cảnh báo', detail: 'Vui lòng nhập lý do từ chối', life: 3000 });
-        return;
-      }
-      processReject(regId, reason);
-    }
-  });
+  regToRejectId.value = regId;
+  rejectReason.value = '';
+  showRejectModal.value = true;
+};
+
+const confirmReject = () => {
+  if (!rejectReason.value.trim()) return;
+  processReject(regToRejectId.value, rejectReason.value);
+  showRejectModal.value = false;
 };
 
 const processReject = async (regId, reason) => {

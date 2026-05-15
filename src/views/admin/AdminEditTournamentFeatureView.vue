@@ -449,6 +449,25 @@
           </button>
         </template>
       </Dialog>
+
+      <!-- Reject Registration Dialog -->
+      <Dialog v-model:visible="showRejectRegModal" header="Lý do từ chối đăng ký" :modal="true" :style="{ width: '450px' }" class="custom-admin-dialog">
+        <div class="flex flex-column gap-3 py-2">
+          <p class="text-sm text-white/70">Vui lòng nhập lý do từ chối đăng ký này:</p>
+          <textarea 
+            v-model="rejectRegReason" 
+            placeholder="Nhập lý do..." 
+            rows="4" 
+            class="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-red-500/50 transition-colors"
+          ></textarea>
+        </div>
+        <template #footer>
+          <button class="secondary-button" @click="showRejectRegModal = false">Hủy</button>
+          <button class="primary-button bg-red-600 hover:bg-red-700 border-none" @click="confirmRejectRegistration" :disabled="!rejectRegReason.trim()">
+            Xác nhận từ chối
+          </button>
+        </template>
+      </Dialog>
     </div>
   </div>
 </template>
@@ -501,6 +520,10 @@ const assigningReferee = ref(false);
 const availableReferees = ref([]);
 const selectedRefereeId = ref(null);
 const activeMatch = ref(null);
+
+const showRejectRegModal = ref(false);
+const rejectRegReason = ref('');
+const regToRejectId = ref(null);
 
 const getInitials = (name) => {
   if (!name) return 'A';
@@ -717,23 +740,25 @@ async function handleApprove(regId) {
 }
 
 async function handleReject(regId) {
-  const reason = prompt('Nhập lý do từ chối đăng ký:');
-  if (reason === null) return;
-  if (!reason.trim()) {
-    alert('Vui lòng nhập lý do từ chối.');
-    return;
-  }
+  regToRejectId.value = regId;
+  rejectRegReason.value = '';
+  showRejectRegModal.value = true;
+}
+
+async function confirmRejectRegistration() {
+  if (!rejectRegReason.value.trim()) return;
   
   try {
-    const result = await rejectTournamentRegistration(regId, reason);
+    const result = await rejectTournamentRegistration(regToRejectId.value, rejectRegReason.value);
     if (result.success) {
-      successMessage.value = 'Đã từ chối đăng ký.';
+      toast.add({ severity: 'success', summary: 'Thành công', detail: 'Đã từ chối đăng ký.', life: 3000 });
+      showRejectRegModal.value = false;
       await loadTournament();
     } else {
-      errorMessage.value = result.error;
+      toast.add({ severity: 'error', summary: 'Lỗi', detail: result.error, life: 3000 });
     }
   } catch (error) {
-    errorMessage.value = error.message || 'Lỗi khi từ chối đăng ký.';
+    toast.add({ severity: 'error', summary: 'Lỗi', detail: error.message || 'Lỗi khi từ chối đăng ký.', life: 3000 });
   }
 }
 
