@@ -220,7 +220,7 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-.auth-page { min-height: 100vh; display: flex; }
+.auth-page { min-height: 100vh; display: flex; text-align: left; }
 
 /* Left */
 .left-panel {
@@ -237,11 +237,11 @@ const handleRegister = async () => {
 @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
 
 .left-inner { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; padding: 3rem; }
-.brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; margin-bottom: auto; }
+.brand { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; margin-bottom: 2rem; }
 .brand-icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #8b5cf6, #ec4899); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: white; box-shadow: 0 8px 20px rgba(139,92,246,0.4); }
 .brand-name { font-size: 1.5rem; font-weight: 800; background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
-.hero-text { margin: 3rem 0 2rem; }
+.hero-text { margin: 3rem 0 2rem; text-align: left; }
 .hero-text h2 { font-size: 2.5rem; font-weight: 800; color: white; line-height: 1.2; margin-bottom: 1rem; }
 .hero-text p { color: rgba(255,255,255,0.55); font-size: 1rem; line-height: 1.65; }
 
@@ -252,15 +252,15 @@ const handleRegister = async () => {
 .step-info strong { color: white; font-size: 0.9rem; }
 .step-info span { color: rgba(255,255,255,0.5); font-size: 0.8rem; }
 
-.left-footer { display: flex; align-items: center; gap: 0.75rem; }
+.left-footer { display: flex; align-items: center; gap: 0.75rem; margin-top: auto; }
 .avatar-stack { display: flex; }
 .av { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #0d0b28; margin-left: -8px; }
 .av:first-child { margin-left: 0; }
 .left-footer span { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
 
 /* Right */
-.right-panel { flex: 1; display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1.5rem; background: #080618; overflow-y: auto; }
-.form-card { width: 100%; max-width: 460px; padding: 1rem 0 2rem; animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1); }
+.right-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; background: #080618; overflow-y: auto; }
+.form-card { width: 100%; max-width: 460px; padding: 2rem 0; animation: slideIn 0.4s cubic-bezier(0.16,1,0.3,1); }
 @keyframes slideIn { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
 .form-header { text-align: center; margin-bottom: 1.75rem; }
@@ -268,11 +268,11 @@ const handleRegister = async () => {
 .form-header h1 { font-size: 1.75rem; font-weight: 800; color: white; margin-bottom: 0.375rem; }
 .form-header p { color: rgba(255,255,255,0.45); font-size: 0.9rem; }
 
-.auth-form { display: flex; flex-direction: column; gap: 1rem; }
+.auth-form { display: flex; flex-direction: column; gap: 1rem; text-align: left; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
 
 .field-group { display: flex; flex-direction: column; gap: 0.35rem; }
-.field-group label:not(.check-label) { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.65); }
+.field-group label:not(.check-label) { font-size: 0.8rem; font-weight: 600; color: rgba(255,255,255,0.65); text-align: left; }
 .req { color: #f87171; }
 
 .input-wrap { position: relative; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.75rem; transition: all 0.2s; }
@@ -317,7 +317,7 @@ input:-webkit-autofill:active {
 .eye-btn:hover { color: rgba(255,255,255,0.65); }
 
 .field-error { font-size: 0.75rem; color: #fca5a5; }
-.field-hint { font-size: 0.73rem; color: rgba(255,255,255,0.35); }
+.field-hint { font-size: 0.73rem; color: rgba(255,255,255,0.35); text-align: left; margin-top: 0.2rem; }
 
 .check-label { display: flex; align-items: flex-start; gap: 0.625rem; cursor: pointer; }
 .checkbox { width: 15px; height: 15px; border-radius: 4px; margin-top: 2px; accent-color: #8b5cf6; flex-shrink: 0; }

@@ -156,6 +156,7 @@ const handleLogin = async () => {
 .auth-page {
   min-height: 100vh;
   display: flex;
+  text-align: left;
 }
 
 /* ── Left Panel ── */
@@ -187,7 +188,7 @@ const handleLogin = async () => {
 
 .brand {
   display: flex; align-items: center; gap: 0.75rem;
-  text-decoration: none; margin-bottom: auto;
+  text-decoration: none; margin-bottom: 2rem;
 }
 .brand-icon {
   width: 44px; height: 44px; border-radius: 12px;
@@ -216,7 +217,7 @@ const handleLogin = async () => {
 }
 .feat span { color: rgba(255,255,255,0.7); font-size: 0.9rem; }
 
-.left-footer { display: flex; align-items: center; gap: 0.75rem; }
+.left-footer { display: flex; align-items: center; gap: 0.75rem; margin-top: auto; }
 .avatar-stack { display: flex; }
 .av { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #0d0b28; margin-left: -8px; }
 .av:first-child { margin-left: 0; }
@@ -264,7 +265,7 @@ const handleLogin = async () => {
 }
 
 /* Form */
-.auth-form { display: flex; flex-direction: column; gap: 1.125rem; }
+.auth-form { display: flex; flex-direction: column; gap: 1.125rem; text-align: left; }
 
 .field-group { display: flex; flex-direction: column; gap: 0.4rem; }
 .field-group label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.7); }

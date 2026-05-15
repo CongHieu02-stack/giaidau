@@ -142,54 +142,47 @@
           <h2>Bố cục & Lịch thi đấu</h2>
           <div class="header-actions">
             <template v-if="tournament.status !== 'ongoing' || localMatches.length > 0 || (matches && matches.length === 0)">
-              <!-- Knockout Seeding Button -->
-              <button 
-                v-if="tournament.tournament_mode !== 'single_heat' && !showSeeding && !localMatches.length"
-                type="button" 
-                class="secondary-button" 
-                :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly"
-                @click="startSeeding"
-              >
-                <i class="pi pi-sort-alt mr-1"></i>
-                Xếp hạt giống
-              </button>
 
-              <!-- Knockout Preview Button -->
-              <button 
-                v-if="tournament.tournament_mode !== 'single_heat' && !localMatches.length"
-                type="button" 
-                class="primary-button knockout-start" 
-                :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly || generatingMatches"
-                @click="handlePreviewBracket"
-              >
-                <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-sitemap'"></i>
-                {{ generatingMatches ? 'Đang tạo...' : 'Tạo sơ đồ thi đấu' }}
-              </button>
-
-              <!-- Single Heat Start Button (Direct) -->
-              <button 
-                v-if="tournament.tournament_mode === 'single_heat' && matches.length === 0"
-                type="button" 
-                class="primary-button" 
-                :disabled="tournament.approved_count < 1 || readOnly || saving"
-                @click="handleStartSingleHeat"
-              >
-                <i class="pi pi-play mr-1"></i>
-                Bắt đầu giải (Một lượt)
-              </button>
-              
-              <template v-else>
-                <button type="button" class="secondary-button" @click="localMatches = []">
-                  <i class="pi pi-refresh mr-1"></i> Làm lại
-                </button>
+              <!-- Knockout Mode Buttons -->
+              <template v-if="tournament.tournament_mode !== 'single_heat'">
                 <button 
+                  v-if="!localMatches.length"
                   type="button" 
-                  class="primary-button save-bracket-btn" 
-                  @click="handleSaveBracket"
-                  :disabled="savingBracket"
+                  class="primary-button knockout-start" 
+                  :disabled="tournament.approved_count < (tournament.min_teams || 2) || readOnly || generatingMatches"
+                  @click="handlePreviewBracket"
                 >
-                  <i :class="savingBracket ? 'pi pi-spinner pi-spin' : 'pi pi-save'"></i>
-                  Xác nhận & Lưu lịch thi đấu
+                  <i :class="generatingMatches ? 'pi pi-spinner pi-spin' : 'pi pi-sitemap'"></i>
+                  {{ generatingMatches ? 'Đang tạo...' : 'Tạo sơ đồ thi đấu' }}
+                </button>
+
+                <template v-else>
+                  <button type="button" class="secondary-button" @click="localMatches = []">
+                    <i class="pi pi-refresh mr-1"></i> Làm lại
+                  </button>
+                  <button 
+                    type="button" 
+                    class="primary-button save-bracket-btn" 
+                    @click="handleSaveBracket"
+                    :disabled="savingBracket"
+                  >
+                    <i :class="savingBracket ? 'pi pi-spinner pi-spin' : 'pi pi-save'"></i>
+                    Xác nhận & Lưu lịch thi đấu
+                  </button>
+                </template>
+              </template>
+
+              <!-- Single Heat Mode Button -->
+              <template v-else>
+                <button 
+                  v-if="matches.length === 0"
+                  type="button" 
+                  class="primary-button" 
+                  :disabled="tournament.approved_count < 1 || readOnly || saving"
+                  @click="handleStartSingleHeat"
+                >
+                  <i class="pi pi-play mr-1"></i>
+                  Bắt đầu giải (Một lượt)
                 </button>
               </template>
             </template>

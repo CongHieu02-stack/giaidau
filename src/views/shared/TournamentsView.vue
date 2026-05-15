@@ -11,7 +11,7 @@
           </div>
           <div>
             <h1 class="hero-title">Giải đấu</h1>
-            <p class="hero-subtitle">Khám phá các giải đấu đang và sắp diễn ra</p>
+            <p class="hero-subtitle">Khám phá các giải đấu thể thao hấp dẫn nhất</p>
           </div>
         </div>
 
@@ -120,10 +120,10 @@ const typeOptions = [
 
 const statusOptions = [
   { value: '', label: 'Tất cả', icon: 'pi pi-list' },
-  { value: 'upcoming', label: 'Sắp diễn ra', icon: 'pi pi-clock' },
   { value: 'registration_open', label: 'Mở đăng ký', icon: 'pi pi-user-plus' },
   { value: 'ongoing', label: 'Đang diễn ra', icon: 'pi pi-play' },
   { value: 'completed', label: 'Đã kết thúc', icon: 'pi pi-check-circle' },
+  { value: 'cancelled', label: 'Giải đã hủy', icon: 'pi pi-times-circle' },
 ];
 
 const filteredTournaments = computed(() => {
@@ -142,6 +142,7 @@ const statsPills = computed(() => [
   { val: tournaments.value.filter(t => t.status === 'registration_open').length, label: 'Đang mở đăng ký' },
   { val: tournaments.value.filter(t => t.status === 'ongoing').length, label: 'Đang diễn ra' },
   { val: tournaments.value.filter(t => t.status === 'completed').length, label: 'Đã kết thúc' },
+  { val: tournaments.value.filter(t => t.status === 'cancelled').length, label: 'Đã hủy' },
 ]);
 
 onMounted(async () => {

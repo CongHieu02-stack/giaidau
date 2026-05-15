@@ -86,7 +86,6 @@
         <button @click="openEventModal('goal','away')" class="ev-btn"><span class="ev-icon goal">⚽</span>Ghi bàn ({{ match.away_club?.name || match.away_user?.full_name }})</button>
         <button @click="openEventModal('yellow_card',null)" class="ev-btn"><span class="card-icon yellow large"></span>Thẻ vàng</button>
         <button @click="openEventModal('red_card',null)" class="ev-btn"><span class="card-icon red large"></span>Thẻ đỏ</button>
-        <button @click="openEventModal('substitution_in',null)" class="ev-btn"><span class="ev-icon sub">🔄</span>Thay người</button>
       </div>
 
       <h3 class="panel-title" style="margin-top:1.5rem">Diễn biến trận đấu</h3>
