@@ -238,12 +238,12 @@
                           
                           <div class="match-actions-simple">
                             <!-- Assign Referee Button -->
-                            <button v-if="canManage" 
+                            <button v-if="canManage && canSetReferee(match)" 
                                     class="action-btn-simple" 
                                     :class="{'primary': !match.referee_id}"
                                     @click="openRefereeModal(match)"
                                     title="Phân công trọng tài">
-                              <i class="pi pi-user-plus"></i>
+                              <i class="pi pi-cog"></i>
                             </button>
                             
                             <RouterLink :to="`/matches/${match.id}`" class="action-btn-simple" title="Chi tiết">
@@ -1014,6 +1014,14 @@ const isByeMatch = (m) => {
   return !h || !a;
 };
 
+const canSetReferee = (m) => {
+  if (!m) return false;
+  // Only prevent setting referee if the match is already completed/finished
+  // We allow it for 'scheduled', 'in_progress', etc.
+  if (m.status === 'completed' || m.status === 'finished') return false;
+  return true;
+};
+
 const getTeamName = (match, side) => {
   const team = side === 'home' ? (match.home_club || match.home_user) : (match.away_club || match.away_user);
   return team?.name || team?.full_name || 'TBD';
@@ -1151,6 +1159,10 @@ const processReject = async (regId, reason) => {
 };
 
 const openRefereeModal = async (match) => {
+  if (!canSetReferee(match)) {
+    toast.add({ severity: 'warn', summary: 'Thông báo', detail: 'Không thể phân công trọng tài cho trận đấu đã kết thúc hoặc có tỉ số', life: 3000 });
+    return;
+  }
   activeMatch.value = match;
   selectedRefereeId.value = match.referee_id;
   showRefereeModal.value = true;
@@ -2842,9 +2854,9 @@ onMounted(async () => {
 }
 
 .action-btn-simple.primary {
-  background: rgba(99, 102, 241, 0.2);
-  color: #818cf8;
-  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+  border-color: rgba(139, 92, 246, 0.3);
 }
 
 .action-btn-simple.primary:hover {

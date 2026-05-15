@@ -177,36 +177,42 @@ const MatchCard = defineComponent({
       const bracketPos = props.match.bracket_position ?? 0;
       const posClass = bracketPos % 2 === 0 ? 'pos-top' : 'pos-bottom';
 
-      return h('div', { 
-        id: `match-${m.id}`,
-        class: ['match-card', m.match_type + '-card', posClass, { 'is-clickable': true, 'has-winner': hasWinner }],
-        'data-winner': winnerSide,
-        onClick: handleCardClick 
-      }, [
-        h('div', { class: 'card-top' }, [
-          h('span', { class: ['match-badge', bi.cls] }, bi.label),
-          h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
-        ]),
-        h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')]),
+        const canSetReferee = (match) => {
+          if (!match) return false;
+          if (match.status === 'completed' || match.status === 'finished') return false;
+          return true;
+        };
 
-        // Referee Info & Actions
-        h('div', { class: 'card-footer' }, [
-          h('div', { class: 'referee-info' }, [
-            h('i', { class: 'pi pi-user-edit' }),
-            h('span', { class: 'ref-name' }, m.referee?.full_name || m.referee_name || 'Chưa có trọng tài')
+        return h('div', { 
+          id: `match-${m.id}`,
+          class: ['match-card', m.match_type + '-card', posClass, { 'is-clickable': true, 'has-winner': hasWinner }],
+          'data-winner': winnerSide,
+          onClick: handleCardClick 
+        }, [
+          h('div', { class: 'card-top' }, [
+            h('span', { class: ['match-badge', bi.cls] }, bi.label),
+            h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
           ]),
-          props.adminMode ? h('button', { 
-            class: 'ref-assign-btn',
-            title: 'Phân công trọng tài',
-            onClick: (e) => {
-              e.stopPropagation();
-              emit('assign-referee', m);
-            }
-          }, [
-            h('i', { class: 'pi pi-cog' })
-          ]) : null
-        ])
-      ]);
+          h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')]),
+
+          // Referee Info & Actions
+          h('div', { class: 'card-footer' }, [
+            h('div', { class: 'referee-info' }, [
+              h('i', { class: 'pi pi-user-edit' }),
+              h('span', { class: 'ref-name' }, m.referee?.full_name || m.referee_name || 'Chưa có trọng tài')
+            ]),
+            props.adminMode && canSetReferee(m) ? h('button', { 
+              class: 'ref-assign-btn',
+              title: 'Phân công trọng tài',
+              onClick: (e) => {
+                e.stopPropagation();
+                emit('assign-referee', m);
+              }
+            }, [
+              h('i', { class: 'pi pi-cog' })
+            ]) : null
+          ])
+        ]);
     };
   }
 });
