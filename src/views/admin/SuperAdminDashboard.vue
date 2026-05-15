@@ -131,6 +131,8 @@ const stats = ref({
 const loading = ref(true);
 
 async function loadStats() {
+  if (!authStore.isSuperAdmin) return;
+  
   try {
     // Load from dashboard stats view
     const { data, error } = await supabase
@@ -154,6 +156,8 @@ async function loadStats() {
 }
 
 async function loadStatsManual() {
+  if (!authStore.isSuperAdmin) return;
+  
   // Load users count
   const { count: usersCount } = await supabase
     .from('profiles')
