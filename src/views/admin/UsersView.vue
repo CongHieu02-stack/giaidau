@@ -310,6 +310,68 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Lock User Reason Modal -->
+    <Transition name="modal">
+      <div v-if="showLockModal" class="modal-overlay lock-modal" @click.self="closeLockModal">
+        <div class="modal-content mini">
+          <div class="modal-glow red"></div>
+          <div class="modal-header">
+            <div class="modal-title">
+              <div class="title-icon-wrapper red">
+                <i class="pi pi-exclamation-triangle"></i>
+              </div>
+              <div>
+                <h2>Khóa tài khoản</h2>
+                <p>Nhập lý do để vô hiệu hóa người dùng này</p>
+              </div>
+            </div>
+            <button @click="closeLockModal" class="close-btn">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="target-user-info" v-if="userToLock">
+              <div class="mini-avatar" :style="{ backgroundColor: userToLock.avatarColor }">
+                <img v-if="userToLock.avatarUrl" :src="userToLock.avatarUrl" />
+                <span v-else>{{ userToLock.initials }}</span>
+              </div>
+              <div class="mini-details">
+                <p class="mini-name">{{ userToLock.fullName }}</p>
+                <p class="mini-email">{{ userToLock.email }}</p>
+              </div>
+            </div>
+
+            <div class="reason-input-group">
+              <label for="lockReason">Lý do khóa <span class="required">*</span></label>
+              <textarea 
+                id="lockReason" 
+                v-model="lockReason" 
+                placeholder="Ví dụ: Vi phạm điều khoản cộng đồng, Spam, Tài khoản giả mạo..."
+                rows="4"
+                class="premium-textarea"
+                ref="reasonInput"
+              ></textarea>
+              <p class="input-hint">Lý do này sẽ được ghi vào lịch sử và người dùng có thể nhìn thấy.</p>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="footer-btn secondary" @click="closeLockModal">Hủy bỏ</button>
+            <button 
+              class="footer-btn danger" 
+              @click="confirmSuspend" 
+              :disabled="!lockReason.trim() || suspending"
+            >
+              <i v-if="suspending" class="pi pi-spinner pi-spin mr-2"></i>
+              <i v-else class="pi pi-lock mr-2"></i>
+              Xác nhận khóa
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -322,9 +384,16 @@ const authStore = useAuthStore();
 
 const users = ref([]);
 const loading = ref(true);
+const suspending = ref(false);
 const searchQuery = ref('');
 const selectedRole = ref('');
 const selectedUser = ref(null);
+
+// Lock Modal State
+const showLockModal = ref(false);
+const lockReason = ref('');
+const userToLock = ref(null);
+const reasonInput = ref(null);
 
 const isOtherSuperAdmin = computed(() => {
   return selectedUser.value?.role === 'super_admin' && selectedUser.value?.id !== authStore.user?.id;
@@ -445,11 +514,51 @@ const updateRole = async (id, role) => {
   }
 };
 
-const suspendUser = async (id) => {
-  const reason = prompt('Lý do khóa:');
-  if (reason) {
-    await userRepository.updateStatus(id, 'suspended', reason);
-    loadUsers();
+const suspendUser = (id) => {
+  const user = users.value.find(u => u.id === id);
+  if (!user) return;
+  
+  userToLock.value = user;
+  lockReason.value = '';
+  showLockModal.value = true;
+  
+  // Auto focus textarea after transition
+  setTimeout(() => {
+    reasonInput.value?.focus();
+  }, 300);
+};
+
+const closeLockModal = () => {
+  if (suspending.value) return;
+  showLockModal.value = false;
+  userToLock.value = null;
+  lockReason.value = '';
+};
+
+const confirmSuspend = async () => {
+  if (!userToLock.value || !lockReason.value.trim() || suspending.value) return;
+  
+  suspending.value = true;
+  try {
+    const result = await userRepository.updateStatus(userToLock.value.id, 'suspended', lockReason.value.trim());
+    if (result.isOk()) {
+      // Update local state
+      const user = users.value.find(u => u.id === userToLock.value.id);
+      if (user) user.status = 'suspended';
+      if (selectedUser.value && selectedUser.value.id === userToLock.value.id) {
+        selectedUser.value.status = 'suspended';
+      }
+      
+      showLockModal.value = false;
+      userToLock.value = null;
+      lockReason.value = '';
+    } else {
+      alert('Khóa tài khoản thất bại: ' + result.getError());
+    }
+  } catch (err) {
+    console.error('Suspend error:', err);
+  } finally {
+    suspending.value = false;
   }
 };
 
@@ -1365,6 +1474,163 @@ onMounted(loadUsers);
   
   .role-selector {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Modal Extensions */
+.modal-content.mini {
+  max-width: 480px;
+}
+
+.modal-glow.red {
+  background: radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.2), transparent 70%);
+}
+
+.title-icon-wrapper.red {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.target-user-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.mini-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.mini-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mini-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.mini-name {
+  font-weight: 600;
+  color: white;
+  font-size: 0.95rem;
+}
+
+.mini-email {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.reason-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reason-input-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.required {
+  color: #ef4444;
+}
+
+.premium-textarea {
+  width: 100%;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.9rem;
+  resize: none;
+  transition: all 0.3s ease;
+}
+
+.premium-textarea:focus {
+  outline: none;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.1);
+}
+
+.input-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.modal-footer {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.footer-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.footer-btn.secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.footer-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.footer-btn.danger {
+  background: #ef4444;
+  border: none;
+  color: white;
+}
+
+.footer-btn.danger:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+.footer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 640px) {
+  .modal-content.mini {
+    width: 95%;
+    margin: 1rem;
   }
 }
 </style>
