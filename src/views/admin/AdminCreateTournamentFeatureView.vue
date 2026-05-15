@@ -69,7 +69,7 @@
             </label>
 
             <label class="field">
-              <span>{{ form.participantType === 'individual' ? 'Số lượng người chơi tham gia' : 'Số lượng CLB tham gia' }}</span>
+              <span>{{ form.participantType === 'individual' ? 'Số lượng người chơi tham gia tối đa' : 'Số lượng CLB tham gia tối đa' }}</span>
               <input v-model.number="form.maxTeams" type="number" min="2" required>
             </label>
 
