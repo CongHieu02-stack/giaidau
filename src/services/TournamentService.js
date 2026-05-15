@@ -2,6 +2,7 @@
  * Tournament Service
  * SRP: Tournament business logic and operations
  */
+import { supabase } from '../config/supabase.js';
 import { tournamentRepository } from '../repositories/TournamentRepository.js';
 import { clubRepository } from '../repositories/ClubRepository.js';
 import { Tournament } from '../domain/Tournament.js';
@@ -170,20 +171,35 @@ export class TournamentService {
           return Result.err(`Số lượng vận động viên phải bằng đúng ${tournament.maxPlayersPerMatch}`);
         }
 
-        // Validate player IDs belong to the club
-        const { data: clubMembers, error: membersError } = await supabase
-          .from('club_members')
-          .select('user_id')
-          .eq('club_id', clubId)
-          .eq('status', 'approved')
-          .in('user_id', playerIds);
+        // Validate player IDs belong to the club (including leader and deputy)
+        const { data: clubData, error: clubDataError } = await supabase
+          .from('clubs')
+          .select('leader_id, deputy_id')
+          .eq('id', clubId)
+          .single();
 
-        if (membersError) {
-          return Result.err('Lỗi khi kiểm tra danh sách vận động viên');
+        if (clubDataError) {
+          return Result.err('Lỗi khi kiểm tra thông tin câu lạc bộ');
         }
 
-        if (clubMembers.length !== playerIds.length) {
-          return Result.err('Một số vận động viên không thuộc câu lạc bộ này hoặc chưa được duyệt');
+        const specialUserIds = [clubData.leader_id, clubData.deputy_id].filter(id => id);
+        const regularPlayerIds = playerIds.filter(id => !specialUserIds.includes(id));
+
+        if (regularPlayerIds.length > 0) {
+          const { data: clubMembers, error: membersError } = await supabase
+            .from('club_members')
+            .select('user_id')
+            .eq('club_id', clubId)
+            .eq('status', 'approved')
+            .in('user_id', regularPlayerIds);
+
+          if (membersError) {
+            return Result.err('Lỗi khi kiểm tra danh sách vận động viên');
+          }
+
+          if (clubMembers.length !== regularPlayerIds.length) {
+            return Result.err('Một số vận động viên không thuộc câu lạc bộ này hoặc chưa được duyệt');
+          }
         }
 
         // Register club logic in domain (if any)
@@ -418,4 +434,3 @@ export class TournamentService {
 }
 
 export const tournamentService = new TournamentService();
-import { supabase } from '../config/supabase.js';

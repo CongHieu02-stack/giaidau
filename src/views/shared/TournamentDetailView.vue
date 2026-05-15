@@ -920,10 +920,15 @@ const handleClubSelect = async (clubId) => {
   if (tournament.value?.maxPlayersPerMatch > 0) {
     clubMembersLoading.value = true;
     try {
-      // 1. Fetch club leader
+      // 1. Fetch club leader and deputy
       const { data: clubData, error: clubErr } = await supabase
         .from('clubs')
-        .select('leader_id, leader:profiles!clubs_leader_id_fkey(id, full_name, email, avatar_url)')
+        .select(`
+          leader_id, 
+          leader:profiles!clubs_leader_id_fkey(id, full_name, email, avatar_url),
+          deputy_id,
+          deputy:profiles!clubs_deputy_id_fkey(id, full_name, email, avatar_url)
+        `)
         .eq('id', clubId)
         .single();
 
@@ -938,13 +943,23 @@ const handleClubSelect = async (clubId) => {
       
       let allParticipants = memberData || [];
       
-      // 3. Add leader if not already in members
+      // 3. Add leader and deputy if not already in members
       if (clubData?.leader) {
         const isLeaderAlreadyIn = allParticipants.some(m => m.user_id === clubData.leader_id);
         if (!isLeaderAlreadyIn) {
           allParticipants.unshift({
             user_id: clubData.leader_id,
             profile: clubData.leader
+          });
+        }
+      }
+
+      if (clubData?.deputy) {
+        const isDeputyAlreadyIn = allParticipants.some(m => m.user_id === clubData.deputy_id);
+        if (!isDeputyAlreadyIn) {
+          allParticipants.push({
+            user_id: clubData.deputy_id,
+            profile: clubData.deputy
           });
         }
       }
