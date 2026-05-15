@@ -5,7 +5,11 @@
       <p>Chưa có lịch thi đấu</p>
     </div>
 
-    <div v-else class="single-elim-layout">
+    <div v-else class="single-elim-layout" ref="bracketContainerRef">
+      <!-- SVG LINES OVERLAY -->
+      <svg class="bracket-lines-overlay" :width="svgSize.width" :height="svgSize.height">
+        <path v-for="line in bracketLines" :key="line.id" :d="line.path" :class="['bracket-line', { 'winner-line': line.isWinner }]" />
+      </svg>
       <!-- MAIN BRACKET FLOW -->
       <div class="rounds-flow">
         <div v-for="round in allRounds" :key="'round-' + round.num" class="round-column">
@@ -40,11 +44,15 @@
 </template>
 
 <script setup>
-import { computed, h, defineComponent } from 'vue';
+import { ref, computed, h, defineComponent, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 const emit = defineEmits(['assign-referee']);
 const router = useRouter();
+
+const bracketContainerRef = ref(null);
+const bracketLines = ref([]);
+const svgSize = ref({ width: 0, height: 0 });
 
 const props = defineProps({
   matches: { type: Array, default: () => [] },
@@ -141,7 +149,8 @@ const MatchCard = defineComponent({
           (e.club_id === sideId || e.player_id === sideId) && e.type === 'red_card'
         ).length;
 
-        return h('div', { class: ['team-row', { winner: won }] }, [
+        const rowId = `team-${m.id}-${side}`;
+        return h('div', { id: rowId, class: ['team-row', { winner: won }] }, [
           h('div', { class: 'team-logo' }, [
             logo ? h('img', { src: logo }) : h('i', { class: iconCls })
           ]),
@@ -157,8 +166,15 @@ const MatchCard = defineComponent({
         ]);
       };
 
+      const hasWinner = isWinner('home') || isWinner('away');
+      const winnerSide = isWinner('home') ? 'home' : (isWinner('away') ? 'away' : null);
+      
+      const bracketPos = props.match.bracket_position ?? 0;
+      const posClass = bracketPos % 2 === 0 ? 'pos-top' : 'pos-bottom';
+
       return h('div', { 
-        class: ['match-card', m.match_type + '-card', { 'is-clickable': true }],
+        class: ['match-card', m.match_type + '-card', posClass, { 'is-clickable': true, 'has-winner': hasWinner }],
+        'data-winner': winnerSide,
         onClick: handleCardClick 
       }, [
         h('div', { class: 'card-top' }, [
@@ -166,6 +182,7 @@ const MatchCard = defineComponent({
           h('span', { class: 'card-meta' }, `${m.match_time || ''}`)
         ]),
         h('div', { class: 'card-teams' }, [teamRow('home'), teamRow('away')]),
+
         // Referee Info & Actions
         h('div', { class: 'card-footer' }, [
           h('div', { class: 'referee-info' }, [
@@ -215,30 +232,124 @@ const finalAndThirdPlace = computed(() => {
       return 1;
     });
 });
+
+// ========== SVG LINE DRAWING LOGIC ==========
+const updateLines = () => {
+  if (!bracketContainerRef.value) return;
+  
+  // Size SVG to cover the entire scrollable layout
+  const scrollWidth = bracketContainerRef.value.scrollWidth;
+  const scrollHeight = bracketContainerRef.value.scrollHeight;
+  svgSize.value = { width: scrollWidth, height: scrollHeight };
+
+  const containerRect = bracketContainerRef.value.getBoundingClientRect();
+  const lines = [];
+
+  props.matches.forEach(m => {
+    if (m.next_match_id) {
+      const nextM = props.matches.find(nm => nm.id === m.next_match_id);
+      if (!nextM) return;
+
+      let winnerSide = null;
+      if (m.status === 'completed') {
+        if (m.home_score > m.away_score) winnerSide = 'home';
+        else if (m.away_score > m.home_score) winnerSide = 'away';
+      }
+      
+      const parents = props.matches.filter(pm => pm.next_match_id === nextM.id).sort((a, b) => (a.bracket_position || 0) - (b.bracket_position || 0));
+      const isHomeInNext = parents.length > 0 && parents[0].id === m.id;
+      const targetSide = isHomeInNext ? 'home' : 'away';
+
+      let startEl = document.getElementById(`team-${m.id}-${winnerSide || 'home'}`);
+      if (!winnerSide) {
+        // If no winner yet, draw from the right center of the match card
+        startEl = document.getElementById(`match-${m.id}`);
+      }
+      
+      const endEl = document.getElementById(`team-${nextM.id}-${targetSide}`);
+
+      if (startEl && endEl) {
+        const sRect = startEl.getBoundingClientRect();
+        const eRect = endEl.getBoundingClientRect();
+
+        const scrollLeft = bracketContainerRef.value.scrollLeft;
+        const scrollTop = bracketContainerRef.value.scrollTop;
+
+        let startX, startY;
+        if (winnerSide) {
+          startX = sRect.right - containerRect.left + scrollLeft + 25; // Account for the arrow icon width
+          startY = sRect.top + sRect.height / 2 - containerRect.top + scrollTop;
+        } else {
+          startX = sRect.right - containerRect.left + scrollLeft;
+          startY = sRect.top + sRect.height / 2 - containerRect.top + scrollTop;
+        }
+        
+        const endX = eRect.left - containerRect.left + scrollLeft - 10;
+        const endY = eRect.top + eRect.height / 2 - containerRect.top + scrollTop;
+
+        const midX = startX + (endX - startX) / 2;
+        
+        // Smooth bezier curve connecting exact rows
+        const path = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+
+        const arrowSize = 6;
+        const arrowPoints = `${endX},${endY} ${endX - arrowSize},${endY - arrowSize} ${endX - arrowSize},${endY + arrowSize}`;
+
+        lines.push({
+          id: `${m.id}-${nextM.id}`,
+          path,
+          arrowPoints,
+          isWinner: !!winnerSide
+        });
+      }
+    }
+  });
+  bracketLines.value = lines;
+};
+
+onMounted(() => {
+  window.addEventListener('resize', updateLines);
+  setTimeout(() => {
+    updateLines();
+    setTimeout(updateLines, 1000); // Re-calculate after fonts/images load
+  }, 200);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateLines);
+});
+
+watch(() => props.matches, () => {
+  nextTick(() => setTimeout(updateLines, 200));
+}, { deep: true });
+
 </script>
 
 <style>
 .bracket-container { width: 100%; overflow-x: auto; padding: 20px 0; }
 .empty-state { padding: 4rem; text-align: center; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1); }
-.rounds-flow { display: flex; gap: 40px; padding: 0 20px; min-width: max-content; }
-.round-column { display: flex; flex-direction: column; width: 280px; }
+.rounds-flow { display: flex; gap: 60px; padding: 0 40px; min-width: max-content; }
+.round-column { display: flex; flex-direction: column; width: 280px; position: relative; }
 .round-col-header { 
   font-size: 0.75rem; font-weight: 800; color: #a78bfa; text-align: center; 
   padding: 10px; background: rgba(139,92,246,0.1); border-radius: 8px; margin-bottom: 24px;
   text-transform: uppercase; letter-spacing: 1px;
+  border: 1px solid rgba(139,92,246,0.2);
 }
-.round-col-matches { display: flex; flex-direction: column; gap: 20px; justify-content: space-around; flex: 1; }
+.round-col-matches { display: flex; flex-direction: column; gap: 30px; justify-content: space-around; flex: 1; }
 
 /* Match Card */
 .bracket-container .match-card {
   background: rgba(30,31,45,0.95); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px; padding: 12px; transition: all 0.2s;
+  position: relative;
+  z-index: 2;
 }
 .bracket-container .match-card.is-clickable { cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 .bracket-container .match-card.is-clickable:hover { 
-  border-color: rgba(255,255,255,0.25); 
+  border-color: rgba(139, 92, 246, 0.4); 
   transform: translateY(-4px) scale(1.02); 
-  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5), 0 0 15px rgba(139, 92, 246, 0.2);
   background: rgba(255,255,255,0.08);
 }
 
@@ -251,13 +362,31 @@ const finalAndThirdPlace = computed(() => {
 .bracket-container .badge-third { background: rgba(59,130,246,0.2); color: #60a5fa; }
 .bracket-container .card-meta { font-size: 0.65rem; color: rgba(255,255,255,0.4); font-weight: 600; }
 
-.bracket-container .card-teams { display: flex; flex-direction: column; gap: 4px; }
-.bracket-container .team-row { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: rgba(255,255,255,0.02); }
-.bracket-container .team-row.winner { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); }
-.bracket-container .team-logo { width: 24px !important; height: 24px !important; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; }
+.bracket-container .card-teams { display: flex; flex-direction: column; gap: 6px; }
+.bracket-container .team-row { 
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; 
+  border-radius: 8px; background: rgba(255,255,255,0.03); 
+  position: relative;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+}
+.bracket-container .team-row.winner { 
+  background: rgba(16,185,129,0.15); 
+  border-color: rgba(16,185,129,0.3);
+  box-shadow: inset 0 0 10px rgba(16,185,129,0.05);
+}
+.bracket-container .team-row.winner .team-name { color: #34d399; }
+.bracket-container .team-row.winner .team-score { color: #34d399; }
+
+.bracket-container .team-logo { 
+  width: 28px !important; height: 28px !important; border-radius: 50%; 
+  overflow: hidden; flex-shrink: 0; background: rgba(255,255,255,0.05); 
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,255,255,0.1);
+}
 .bracket-container .team-logo img { width: 100% !important; height: 100% !important; object-fit: cover; }
-.bracket-container .team-name { flex: 1; font-size: 0.8rem; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bracket-container .team-name.placeholder { color: rgba(255,255,255,0.3); font-style: italic; }
+.bracket-container .team-name { flex: 1; font-size: 0.85rem; font-weight: 600; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bracket-container .team-name.placeholder { color: rgba(255,255,255,0.25); font-style: italic; font-size: 0.75rem; }
 
 .bracket-container .team-cards { display: flex; gap: 4px; margin-right: 8px; }
 .bracket-container .card-icon {
@@ -265,10 +394,56 @@ const finalAndThirdPlace = computed(() => {
   display: flex; align-items: center; justify-content: center;
   font-size: 10px; font-weight: 800; color: rgba(0,0,0,0.8);
 }
-.bracket-container .card-icon.yellow { background: #fbbf24; box-shadow: 0 0 8px rgba(251,191,36,0.4); }
-.bracket-container .card-icon.red { background: #ef4444; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
+.bracket-container .card-icon.yellow { background: #fbbf24; }
+.bracket-container .card-icon.red { background: #ef4444; }
 
-.bracket-container .team-score { font-size: 0.9rem; font-weight: 800; color: white; min-width: 20px; text-align: right; }
+.bracket-container .team-score { font-size: 1rem; font-weight: 800; color: white; min-width: 24px; text-align: right; }
+
+/* Winner Arrow */
+.winner-flow-arrow {
+  position: absolute;
+  right: -25px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8b5cf6;
+  font-size: 1.2rem;
+  animation: arrow-bounce 1s infinite;
+  z-index: 5;
+}
+
+@keyframes arrow-bounce {
+  0%, 100% { transform: translate(0, -50%); opacity: 0.5; }
+  50% { transform: translate(5px, -50%); opacity: 1; }
+}
+
+/* SVG Lines Overlay */
+.bracket-container { position: relative; }
+.single-elim-layout { position: relative; }
+
+.bracket-lines-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bracket-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 2px;
+}
+
+.bracket-line.winner-line {
+  stroke: #8b5cf6;
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.5));
+}
+
+.bracket-arrow {
+  fill: #8b5cf6;
+  filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.5));
+}
 
 /* Card Footer & Referee */
 .bracket-container .card-footer {
@@ -316,3 +491,4 @@ const finalAndThirdPlace = computed(() => {
   transform: scale(1.1);
 }
 </style>
+

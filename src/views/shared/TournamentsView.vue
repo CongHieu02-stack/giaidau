@@ -30,16 +30,32 @@
             </button>
           </div>
 
-          <div class="filter-chips">
-            <button
-              v-for="opt in statusOptions"
-              :key="opt.value"
-              :class="['chip', { active: filterStatus === opt.value }]"
-              @click="filterStatus = opt.value"
-            >
-              <i :class="opt.icon"></i>
-              {{ opt.label }}
-            </button>
+          <div class="filters-group">
+            <div class="filter-chips">
+              <button
+                v-for="opt in typeOptions"
+                :key="opt.value"
+                :class="['chip', 'type-chip', { active: filterType === opt.value }]"
+                @click="filterType = opt.value"
+              >
+                <i :class="opt.icon"></i>
+                {{ opt.label }}
+              </button>
+            </div>
+            
+            <div class="filter-divider"></div>
+            
+            <div class="filter-chips">
+              <button
+                v-for="opt in statusOptions"
+                :key="opt.value"
+                :class="['chip', { active: filterStatus === opt.value }]"
+                @click="filterStatus = opt.value"
+              >
+                <i :class="opt.icon"></i>
+                {{ opt.label }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -92,8 +108,15 @@ import { tournamentRepository } from '../../repositories/TournamentRepository.js
 
 const tournaments = ref([]);
 const filterStatus = ref('');
+const filterType = ref('');
 const searchQuery = ref('');
 const loading = ref(false);
+
+const typeOptions = [
+  { value: '', label: 'Tất cả thể thức', icon: 'pi pi-sitemap' },
+  { value: 'individual', label: 'Giải Cá nhân', icon: 'pi pi-user' },
+  { value: 'club', label: 'Giải Câu lạc bộ', icon: 'pi pi-users' },
+];
 
 const statusOptions = [
   { value: '', label: 'Tất cả', icon: 'pi pi-list' },
@@ -106,6 +129,7 @@ const statusOptions = [
 const filteredTournaments = computed(() => {
   let list = tournaments.value;
   if (filterStatus.value) list = list.filter(t => t.status === filterStatus.value);
+  if (filterType.value) list = list.filter(t => t.participantType === filterType.value || t.participant_type === filterType.value);
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
     list = list.filter(t => t.name?.toLowerCase().includes(q));
@@ -236,6 +260,24 @@ onMounted(async () => {
 
 .clear-ico:hover { background: rgba(239,68,68,0.3); color: #fca5a5; }
 
+.filters-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.filter-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255,255,255,0.1);
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .filter-divider { display: block; }
+}
+
 .filter-chips {
   display: flex; flex-wrap: wrap; gap: 0.5rem;
 }
@@ -249,6 +291,13 @@ onMounted(async () => {
   border: 1px solid rgba(255,255,255,0.1);
   color: rgba(255,255,255,0.6);
   cursor: pointer; transition: all 0.2s;
+}
+
+.chip.type-chip.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.25), rgba(139,92,246,0.2));
+  border-color: rgba(59,130,246,0.5);
+  color: #93c5fd;
+  box-shadow: 0 0 12px rgba(59,130,246,0.15);
 }
 
 .chip:hover { background: rgba(255,255,255,0.1); color: white; }
