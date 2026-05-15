@@ -663,20 +663,22 @@ export async function advanceKnockoutWinner(matchId) {
 
     // 3. Special: Champion & Runner-up
     if (match.match_type === 'final') {
-      await supabase.from('tournaments').update({
-        champion_club_id: winnerId,
-        runner_up_id: loserId,
-        updated_at: new Date().toISOString()
-      }).eq('id', match.tournament_id);
+      const up = { updated_at: new Date().toISOString() };
+      if (!isInd) {
+        up.champion_club_id = winnerId;
+        up.runner_up_id = loserId;
+      }
+      await supabase.from('tournaments').update(up).eq('id', match.tournament_id);
       await checkKnockoutComplete(match.tournament_id);
     }
 
     // 4. Special: Third Place
     if (match.match_type === 'third_place') {
-      await supabase.from('tournaments').update({
-        third_place_id: winnerId,
-        updated_at: new Date().toISOString()
-      }).eq('id', match.tournament_id);
+      const up = { updated_at: new Date().toISOString() };
+      if (!isInd) {
+        up.third_place_id = winnerId;
+      }
+      await supabase.from('tournaments').update(up).eq('id', match.tournament_id);
       await checkKnockoutComplete(match.tournament_id);
     }
 
@@ -798,17 +800,22 @@ export async function checkAndFinalizeTournament(tournamentId) {
 
       console.log('[HeatFinalize] Sorted results:', sorted.length);
 
-      const winnerId = sorted[0]?.player_id || sorted[0]?.club_id;
-      const runnerUpId = sorted[1]?.player_id || sorted[1]?.club_id;
-      const thirdPlaceId = sorted[2]?.player_id || sorted[2]?.club_id;
+      const winnerId = sorted[0]?.player_id || sorted[0]?.club_id || null;
+      const runnerUpId = sorted[1]?.player_id || sorted[1]?.club_id || null;
+      const thirdPlaceId = sorted[2]?.player_id || sorted[2]?.club_id || null;
 
       const updateData = {
         status: 'completed',
-        champion_club_id: winnerId,
-        runner_up_id: runnerUpId,
-        third_place_id: thirdPlaceId,
         updated_at: new Date().toISOString()
       };
+
+      // Only set club IDs if this is a club tournament to avoid FK violations
+      // For individual tournaments, the podium is calculated dynamically from standings anyway
+      if (tournament.participant_type !== 'individual') {
+        updateData.champion_club_id = winnerId;
+        updateData.runner_up_id = runnerUpId;
+        updateData.third_place_id = thirdPlaceId;
+      }
 
       console.log('[HeatFinalize] Updating tournament with:', updateData);
 
@@ -845,9 +852,18 @@ export async function checkAndFinalizeTournament(tournamentId) {
     });
 
     const sorted = Object.values(standings).sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
-    await supabase.from('tournaments').update({
-      status: 'completed', champion_club_id: sorted[0]?.id, runner_up_id: sorted[1]?.id, third_place_id: sorted[2]?.id, updated_at: new Date().toISOString()
-    }).eq('id', tournamentId);
+    
+    const updatePayload = {
+      status: 'completed', 
+      updated_at: new Date().toISOString()
+    };
+    if (tournament.participant_type !== 'individual') {
+      updatePayload.champion_club_id = sorted[0]?.id;
+      updatePayload.runner_up_id = sorted[1]?.id;
+      updatePayload.third_place_id = sorted[2]?.id;
+    }
+    
+    await supabase.from('tournaments').update(updatePayload).eq('id', tournamentId);
     return { success: true };
   } catch (error) {
     console.error('[checkAndFinalizeTournament]', error);
