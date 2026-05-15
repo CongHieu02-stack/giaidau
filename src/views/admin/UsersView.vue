@@ -10,17 +10,28 @@
           </h1>
           <p class="page-subtitle">Quản lý và phân quyền người dùng hệ thống</p>
         </div>
-        <div class="search-box">
-          <i class="pi pi-search search-icon"></i>
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            placeholder="Tìm kiếm theo tên hoặc email..."
-            class="search-input"
-          />
-          <button v-if="searchQuery" @click="searchQuery = ''" class="clear-btn">
-            <i class="pi pi-times"></i>
-          </button>
+        <div class="header-controls">
+          <div class="filter-box">
+            <i class="pi pi-filter filter-icon"></i>
+            <select v-model="selectedRole" class="filter-select">
+              <option value="">Tất cả vai trò</option>
+              <option v-for="role in filterRoles" :key="role.value" :value="role.value">
+                {{ role.label }}
+              </option>
+            </select>
+          </div>
+          <div class="search-box">
+            <i class="pi pi-search search-icon"></i>
+            <input 
+              v-model="searchQuery" 
+              type="text" 
+              placeholder="Tìm kiếm theo tên hoặc email..."
+              class="search-input"
+            />
+            <button v-if="searchQuery" @click="searchQuery = ''" class="clear-btn">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -251,17 +262,22 @@
                     <i class="pi pi-id-card"></i>
                     Phân quyền
                   </label>
-                  <div class="role-selector">
+                  <div class="role-selector" :class="{ 'opacity-50 pointer-events-none': isOtherSuperAdmin }">
                     <button 
                       v-for="role in availableRoles" 
                       :key="role.value"
                       :class="['role-btn', { active: selectedUser.role === role.value }]"
                       @click="updateRole(selectedUser.id, role.value)"
+                      :disabled="isOtherSuperAdmin"
                     >
                       <i :class="role.icon"></i>
                       {{ role.label }}
                     </button>
                   </div>
+                  <p v-if="isOtherSuperAdmin" class="text-xs text-red-400 mt-2">
+                    <i class="pi pi-exclamation-triangle mr-1"></i>
+                    Không thể thay đổi vai trò của Super Admin khác
+                  </p>
                 </div>
                 
                 <div class="action-group">
@@ -300,26 +316,44 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { userRepository } from '../../repositories/UserRepository.js';
+import { useAuthStore } from '../../stores/auth.js';
+
+const authStore = useAuthStore();
 
 const users = ref([]);
 const loading = ref(true);
 const searchQuery = ref('');
+const selectedRole = ref('');
 const selectedUser = ref(null);
 
-const availableRoles = [
-  { value: 'user', label: 'Thành viên', icon: 'pi pi-user' },
-  { value: 'referee', label: 'Trọng tài', icon: 'pi pi-flag' },
-  { value: 'tournament_admin', label: 'Admin QL Giải đấu', icon: 'pi pi-trophy' },
-  { value: 'club_admin', label: 'Admin QL Câu lạc bộ', icon: 'pi pi-shield' }
+const isOtherSuperAdmin = computed(() => {
+  return selectedUser.value?.role === 'super_admin' && selectedUser.value?.id !== authStore.user?.id;
+});
+
+const filterRoles = [
+  { value: 'user', label: 'Thành viên' },
+  { value: 'referee', label: 'Trọng tài' },
+  { value: 'tournament_admin', label: 'Admin QL Giải đấu' },
+  { value: 'club_admin', label: 'Admin QL Câu lạc bộ' },
+  { value: 'super_admin', label: 'Super Admin' }
 ];
 
 const filteredUsers = computed(() => {
-  if (!searchQuery.value) return users.value;
-  const query = searchQuery.value.toLowerCase();
-  return users.value.filter(user => 
-    user.fullName?.toLowerCase().includes(query) ||
-    user.email?.toLowerCase().includes(query)
-  );
+  let list = users.value;
+  
+  if (selectedRole.value) {
+    list = list.filter(u => u.role === selectedRole.value);
+  }
+  
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    list = list.filter(user => 
+      user.fullName?.toLowerCase().includes(query) ||
+      user.email?.toLowerCase().includes(query)
+    );
+  }
+  
+  return list;
 });
 
 const activeCount = computed(() => users.value.filter(u => u.status === 'active').length);
@@ -390,6 +424,10 @@ const formatDate = (date) => {
 };
 
 const updateRole = async (id, role) => {
+  if (isOtherSuperAdmin.value) {
+    alert('Không thể thay đổi vai trò của Super Admin khác!');
+    return;
+  }
   const result = await userRepository.updateRole(id, role);
   if (result.isOk()) {
     // Update the selected user in modal
@@ -419,6 +457,13 @@ const unlockUser = async (id) => {
   await userRepository.updateStatus(id, 'active');
   loadUsers();
 };
+
+const availableRoles = [
+  { value: 'user', label: 'Thành viên', icon: 'pi pi-user' },
+  { value: 'referee', label: 'Trọng tài', icon: 'pi pi-flag' },
+  { value: 'tournament_admin', label: 'Admin QL Giải đấu', icon: 'pi pi-trophy' },
+  { value: 'club_admin', label: 'Admin QL Câu lạc bộ', icon: 'pi pi-shield' }
+];
 
 const loadUsers = async () => {
   loading.value = true;
@@ -467,6 +512,52 @@ onMounted(loadUsers);
 .page-subtitle {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.875rem;
+}
+
+/* Header Controls */
+.header-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-box {
+  position: relative;
+  min-width: 200px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 2.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  color: white;
+  font-size: 0.875rem;
+  appearance: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.filter-select option {
+  background: #1e1b4b;
+  color: white;
 }
 
 /* Search Box */

@@ -138,6 +138,28 @@
         </div>
       </div>
 
+      <!-- ── JOINED CLUBS SECTION ───────────────────── -->
+      <div v-if="joinedClubs.length > 0" class="info-card mt-6">
+        <div class="card-header">
+          <span class="card-title">
+            <i class="pi pi-users"></i>
+            Câu lạc bộ đã tham gia
+          </span>
+        </div>
+        <div class="clubs-grid">
+          <RouterLink v-for="club in joinedClubs" :key="club.id" :to="`/clubs/${club.id}`" class="club-item">
+            <div class="club-logo-wrap">
+              <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" class="club-logo-img" />
+              <div v-else class="club-logo-placeholder">{{ club.name[0] }}</div>
+            </div>
+            <div class="club-info-mini">
+              <p class="club-name-mini">{{ club.name }}</p>
+              <p class="club-member-tag">Thành viên</p>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+
     </div><!-- /profile-body -->
 
     <!-- ── MODAL ────────────────────────────────────── -->
@@ -207,22 +229,25 @@ const authStore = useAuthStore();
 // ---- Stats ----
 const statsLoading = ref(true);
 const stats = reactive({ clubs: 0, tournaments: 0 });
+const joinedClubs = ref([]);
 
 async function loadStats() {
   const userId = authStore.user?.id;
   if (!userId) { statsLoading.value = false; return; }
   try {
-    const { count: clubCount } = await supabase
-      .from('club_members').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('status', 'approved');
+    const { data: memberRows, count: clubCount, error: memberError } = await supabase
+      .from('club_members')
+      .select('id, club:clubs(id, name, logo_url)', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('status', 'approved');
+    
+    if (memberError) throw memberError;
+    
     stats.clubs = clubCount ?? 0;
+    joinedClubs.value = memberRows?.map(m => m.club).filter(c => c) || [];
 
-    const { data: memberRows } = await supabase
-      .from('club_members').select('club_id')
-      .eq('user_id', userId).eq('status', 'approved');
-
-    if (memberRows?.length > 0) {
-      const clubIds = memberRows.map(r => r.club_id);
+    if (joinedClubs.value.length > 0) {
+      const clubIds = joinedClubs.value.map(c => c.id);
       const { count: tourneyCount } = await supabase
         .from('tournament_registrations')
         .select('tournament_id', { count: 'exact', head: true })
@@ -656,6 +681,101 @@ async function saveProfile() {
 
 .info-lbl { font-size: 0.75rem; color: rgba(255,255,255,0.45); margin-bottom: 0.15rem; }
 .info-val { font-size: 0.9375rem; color: #fff; font-weight: 500; }
+
+/* ═══════════════════════════════════
+   CLUBS GRID
+   ════════════════════════════════════ */
+.clubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.club-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 1rem;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.club-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(167, 139, 250, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.club-logo-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.club-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.club-logo-placeholder {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.3);
+  text-transform: uppercase;
+}
+
+.club-info-mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.club-name-mini {
+  font-weight: 700;
+  color: white;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.club-member-tag {
+  font-size: 0.7rem;
+  color: #a78bfa;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.view-all-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.view-all-link:hover {
+  color: #a78bfa;
+}
+
+.mt-6 { margin-top: 1.5rem; }
 
 /* ═══════════════════════════════════
    MODAL
