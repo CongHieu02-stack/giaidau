@@ -6,40 +6,70 @@
     </div>
 
     <div v-else class="single-elim-layout" ref="layoutRef">
-      <!-- SVG LINES OVERLAY -->
-      <svg class="bracket-lines-overlay" :width="svgSize.width" :height="svgSize.height">
-        <g v-for="line in bracketLines" :key="line.id">
-          <path :d="line.path" :class="['bracket-line', { 'winner-line': line.isWinner }]" />
-          <!-- Arrow head -->
-          <polygon v-if="line.isWinner" :points="line.arrowPoints" class="bracket-arrow" />
-        </g>
-      </svg>
-      <!-- MAIN BRACKET FLOW -->
-      <div class="rounds-flow">
-        <div v-for="round in allRounds" :key="'round-' + round.num" class="round-column">
-          <div class="round-col-header">{{ round.name }}</div>
-          <div class="round-col-matches">
-            <MatchCard v-for="match in round.matches" :key="match.id"
-              :match="match" 
-              :participantType="participantType" 
-              :allMatches="matches" 
-              :adminMode="adminMode"
-              @assign-referee="(m) => $emit('assign-referee', m)"
-            />
-          </div>
+      <!-- ZOOM CONTROLS -->
+      <div class="bracket-controls">
+        <button @click="zoomOut" class="control-btn" title="Thu nhỏ">
+          <i class="pi pi-minus"></i>
+        </button>
+        <div class="zoom-level">
+          <i class="pi pi-search-plus mr-1"></i>
+          {{ Math.round(scale * 100) }}%
         </div>
+        <button @click="zoomIn" class="control-btn" title="Phóng to">
+          <i class="pi pi-plus"></i>
+        </button>
+        <button @click="resetZoom" class="control-btn" title="Đặt lại">
+          <i class="pi pi-refresh"></i>
+        </button>
+      </div>
 
-        <!-- FINALS COLUMN (CHUNG KẾT & TRANH HẠNG 3) -->
-        <div v-if="finalAndThirdPlace.length" class="round-column finals-column">
-          <div class="round-col-header">CHUNG KẾT & TRANH HẠNG 3</div>
-          <div class="round-col-matches">
-            <MatchCard v-for="match in finalAndThirdPlace" :key="match.id"
-              :match="match" 
-              :participantType="participantType" 
-              :allMatches="matches" 
-              :adminMode="adminMode"
-              @assign-referee="(m) => $emit('assign-referee', m)"
-            />
+      <!-- SCROLLABLE AREA -->
+      <div 
+        class="bracket-scroll-wrapper" 
+        ref="scrollWrapperRef"
+        @wheel="handleWheel"
+        @mousedown="startDragging"
+        @mousemove="onDragging"
+        @mouseup="stopDragging"
+        @mouseleave="stopDragging"
+      >
+        <div class="zoom-content" :style="bracketStyle">
+          <!-- SVG LINES OVERLAY -->
+          <svg class="bracket-lines-overlay" :width="svgSize.width" :height="svgSize.height">
+            <g v-for="line in bracketLines" :key="line.id">
+              <path :d="line.path" :class="['bracket-line', { 'winner-line': line.isWinner }]" />
+              <!-- Arrow head -->
+              <polygon v-if="line.isWinner" :points="line.arrowPoints" class="bracket-arrow" />
+            </g>
+          </svg>
+          <!-- MAIN BRACKET FLOW -->
+          <div class="rounds-flow">
+            <div v-for="round in allRounds" :key="'round-' + round.num" class="round-column">
+              <div class="round-col-header">{{ round.name }}</div>
+              <div class="round-col-matches">
+                <MatchCard v-for="match in round.matches" :key="match.id"
+                  :match="match" 
+                  :participantType="participantType" 
+                  :allMatches="matches" 
+                  :adminMode="adminMode"
+                  @assign-referee="(m) => $emit('assign-referee', m)"
+                />
+              </div>
+            </div>
+
+            <!-- FINALS COLUMN -->
+            <div v-if="finalAndThirdPlace.length" class="round-column finals-column">
+              <div class="round-col-header">CHUNG KẾT & TRANH HẠNG 3</div>
+              <div class="round-col-matches">
+                <MatchCard v-for="match in finalAndThirdPlace" :key="match.id"
+                  :match="match" 
+                  :participantType="participantType" 
+                  :allMatches="matches" 
+                  :adminMode="adminMode"
+                  @assign-referee="(m) => $emit('assign-referee', m)"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -58,6 +88,65 @@ const bracketContainerRef = ref(null);
 const layoutRef = ref(null);
 const bracketLines = ref([]);
 const svgSize = ref({ width: 0, height: 0 });
+const scale = ref(1);
+
+const bracketStyle = computed(() => ({
+  transform: `scale(${scale.value})`,
+  transformOrigin: 'left top',
+  transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+}));
+
+const zoomIn = () => {
+  if (scale.value < 2) scale.value = Math.min(2, scale.value + 0.1);
+};
+
+const zoomOut = () => {
+  if (scale.value > 0.5) scale.value = Math.max(0.5, scale.value - 0.1);
+};
+
+const resetZoom = () => {
+  scale.value = 1;
+};
+
+const handleWheel = (e) => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    if (e.deltaY < 0) zoomIn();
+    else zoomOut();
+  }
+};
+
+// Panning functionality
+const isDragging = ref(false);
+const startX = ref(0);
+const startY = ref(0);
+const scrollLeft = ref(0);
+const scrollTop = ref(0);
+const scrollWrapperRef = ref(null);
+
+const startDragging = (e) => {
+  if (e.target.closest('.match-card')) return; // Don't pan if clicking a card
+  isDragging.value = true;
+  startX.value = e.pageX - scrollWrapperRef.value.offsetLeft;
+  startY.value = e.pageY - scrollWrapperRef.value.offsetTop;
+  scrollLeft.value = scrollWrapperRef.value.scrollLeft;
+  scrollTop.value = scrollWrapperRef.value.scrollTop;
+};
+
+const stopDragging = () => {
+  isDragging.value = false;
+};
+
+const onDragging = (e) => {
+  if (!isDragging.value) return;
+  e.preventDefault();
+  const x = e.pageX - scrollWrapperRef.value.offsetLeft;
+  const y = e.pageY - scrollWrapperRef.value.offsetTop;
+  const walkX = (x - startX.value);
+  const walkY = (y - startY.value);
+  scrollWrapperRef.value.scrollLeft = scrollLeft.value - walkX;
+  scrollWrapperRef.value.scrollTop = scrollTop.value - walkY;
+};
 
 const props = defineProps({
   matches: { type: Array, default: () => [] },
@@ -348,8 +437,67 @@ watch(() => props.matches, () => {
 </script>
 
 <style>
-.bracket-container { width: 100%; overflow-x: auto; padding: 20px 0; }
+.bracket-container { width: 100%; overflow: auto; padding: 20px 0; position: relative; min-height: 500px; }
 .empty-state { padding: 4rem; text-align: center; color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1); }
+
+/* Zoom Controls */
+.bracket-controls {
+  position: sticky;
+  left: 20px;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 16, 26, 0.8);
+  backdrop-filter: blur(8px);
+  padding: 6px 12px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: fit-content;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.control-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.control-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: #a78bfa;
+}
+.zoom-level {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 50px;
+  text-align: center;
+}
+
+.bracket-scroll-wrapper {
+  width: 100%;
+  overflow: auto;
+  padding-bottom: 40px;
+  cursor: grab;
+}
+.bracket-scroll-wrapper:active { cursor: grabbing; }
+
+.zoom-content {
+  transform-origin: 0 0;
+  width: max-content;
+  position: relative;
+}
+
 .rounds-flow { display: flex; gap: 60px; padding: 0 40px; min-width: max-content; }
 .round-column { display: flex; flex-direction: column; width: 280px; position: relative; }
 .round-col-header { 
