@@ -160,6 +160,12 @@ async function loadStatsManual() {
     .select('*', { count: 'exact' })
     .eq('status', 'active');
   
+  // Load referees count
+  const { count: refereesCount } = await supabase
+    .from('profiles')
+    .select('*', { count: 'exact' })
+    .eq('role', 'referee');
+  
   // Load clubs count
   const { count: clubsCount } = await supabase
     .from('clubs')
@@ -180,6 +186,7 @@ async function loadStatsManual() {
   
   stats.value = {
     total_users: usersCount || 0,
+    total_referees: refereesCount || 0,
     total_clubs: clubsCount || 0,
     pending_club_approvals: pendingClubs || 0,
     active_tournaments: activeTournaments || 0
