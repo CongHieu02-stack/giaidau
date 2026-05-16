@@ -38,8 +38,18 @@ export class AuthService {
       // Get user profile
       let profileResult = await this.userRepo.findById(data.user.id);
 
+      // 1. Check if user is locked (suspended/banned)
+      if (profileResult.isOk()) {
+        const profile = profileResult.getValue();
+        if (profile && typeof profile.isLocked === 'function' && profile.isLocked()) {
+          // Force sign out from Supabase Auth
+          await this.client.auth.signOut();
+          return Result.err('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.');
+        }
+      }
+
       // If profile doesn't exist, create it
-      if (profileResult.isErr()) {
+      if (profileResult.isErr() || !profileResult.getValue()) {
         console.log('Profile not found, creating...');
         const fullName = data.user.user_metadata?.full_name || email.split('@')[0];
 
@@ -324,6 +334,15 @@ export class AuthService {
 
       const profileResult = await this.userRepo.findById(session.user.id);
       console.log('[AuthService.getCurrentUser] profileResult:', profileResult);
+
+      if (profileResult.isOk()) {
+        const profile = profileResult.getValue();
+        if (profile && typeof profile.isLocked === 'function' && profile.isLocked()) {
+          console.warn('[AuthService.getCurrentUser] User is locked, signing out...');
+          await this.client.auth.signOut();
+          return Result.err('Tài khoản của bạn đã bị khóa.');
+        }
+      }
 
       if (profileResult.isErr()) {
         console.warn('[AuthService.getCurrentUser] Profile load failed, using fallback');
