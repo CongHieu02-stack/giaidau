@@ -289,6 +289,9 @@
                     v-if="selectedUser.status === 'active'"
                     @click="suspendUser(selectedUser.id)"
                     class="status-btn suspend"
+                    :disabled="isOtherSuperAdmin"
+                    :class="{ 'opacity-50 cursor-not-allowed': isOtherSuperAdmin }"
+                    :title="isOtherSuperAdmin ? 'Không thể khóa tài khoản Super Admin khác' : ''"
                   >
                     <i class="pi pi-ban"></i>
                     <span>Khóa tài khoản</span>
@@ -298,11 +301,17 @@
                     v-else
                     @click="unlockUser(selectedUser.id)"
                     class="status-btn unlock"
+                    :disabled="isOtherSuperAdmin"
+                    :class="{ 'opacity-50 cursor-not-allowed': isOtherSuperAdmin }"
                   >
                     <i class="pi pi-check-circle"></i>
                     <span>Mở khóa tài khoản</span>
                     <small>Kích hoạt lại tài khoản này</small>
                   </button>
+                  <p v-if="isOtherSuperAdmin" class="text-xs text-red-400 mt-2">
+                    <i class="pi pi-exclamation-triangle mr-1"></i>
+                    Không thể thay đổi trạng thái của Super Admin khác
+                  </p>
                 </div>
               </div>
             </div>
@@ -517,6 +526,11 @@ const updateRole = async (id, role) => {
 const suspendUser = (id) => {
   const user = users.value.find(u => u.id === id);
   if (!user) return;
+
+  if (user.role === 'super_admin' && user.id !== authStore.user?.id) {
+    alert('Không thể khóa tài khoản của Super Admin khác!');
+    return;
+  }
   
   userToLock.value = user;
   lockReason.value = '';
@@ -537,6 +551,12 @@ const closeLockModal = () => {
 
 const confirmSuspend = async () => {
   if (!userToLock.value || !lockReason.value.trim() || suspending.value) return;
+
+  if (userToLock.value.role === 'super_admin' && userToLock.value.id !== authStore.user?.id) {
+    alert('Không thể khóa tài khoản của Super Admin khác!');
+    showLockModal.value = false;
+    return;
+  }
   
   suspending.value = true;
   try {
