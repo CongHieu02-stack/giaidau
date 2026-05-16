@@ -139,22 +139,25 @@
       </div>
 
       <!-- ── JOINED CLUBS SECTION ───────────────────── -->
-      <div v-if="joinedClubs.length > 0" class="info-card mt-6">
+      <div v-if="userClubs.length > 0" class="info-card mt-6">
         <div class="card-header">
           <span class="card-title">
             <i class="pi pi-users"></i>
-            Câu lạc bộ đã tham gia
+            Câu lạc bộ của tôi
           </span>
         </div>
         <div class="clubs-grid">
-          <RouterLink v-for="club in joinedClubs" :key="club.id" :to="`/clubs/${club.id}`" class="club-item">
+          <RouterLink v-for="club in userClubs" :key="club.id" :to="`/clubs/${club.id}`" class="club-item">
             <div class="club-logo-wrap">
               <img v-if="club.logo_url" :src="club.logo_url" :alt="club.name" class="club-logo-img" />
               <div v-else class="club-logo-placeholder">{{ club.name[0] }}</div>
             </div>
             <div class="club-info-mini">
               <p class="club-name-mini">{{ club.name }}</p>
-              <p class="club-member-tag">Thành viên</p>
+              <div class="flex items-center gap-2">
+                <p class="club-member-tag">{{ getClubRoleLabel(club.userRole) }}</p>
+                <span v-if="club.status === 'pending'" class="status-mini pending">Chờ duyệt</span>
+              </div>
             </div>
           </RouterLink>
         </div>
@@ -229,29 +232,63 @@ const authStore = useAuthStore();
 // ---- Stats ----
 const statsLoading = ref(true);
 const stats = reactive({ clubs: 0, tournaments: 0 });
-const joinedClubs = ref([]);
+const userClubs = ref([]);
 
 async function loadStats() {
   const userId = authStore.user?.id;
   if (!userId) { statsLoading.value = false; return; }
   try {
-    const { data: memberRows, count: clubCount, error: memberError } = await supabase
+    // 1. Fetch clubs where user is an approved member
+    const { data: memberRows, error: memberError } = await supabase
       .from('club_members')
-      .select('id, club:clubs(id, name, logo_url)', { count: 'exact' })
+      .select('role, club:clubs(id, name, logo_url, status)')
       .eq('user_id', userId)
       .eq('status', 'approved');
     
     if (memberError) throw memberError;
-    
-    stats.clubs = clubCount ?? 0;
-    joinedClubs.value = memberRows?.map(m => m.club).filter(c => c) || [];
 
-    if (joinedClubs.value.length > 0) {
-      const clubIds = joinedClubs.value.map(c => c.id);
+    // 2. Fetch clubs where user is the leader or deputy (regardless of club status)
+    const { data: managedClubs, error: managedError } = await supabase
+      .from('clubs')
+      .select('id, name, logo_url, status, leader_id, deputy_id')
+      .or(`leader_id.eq.${userId},deputy_id.eq.${userId}`);
+
+    if (managedError) throw managedError;
+
+    // Merge logic: use a Map to avoid duplicates and prioritize manager roles
+    const clubMap = new Map();
+
+    memberRows?.forEach(m => {
+      if (m.club) {
+        clubMap.set(m.club.id, {
+          ...m.club,
+          userRole: m.role || 'member'
+        });
+      }
+    });
+
+    managedClubs?.forEach(c => {
+      const role = c.leader_id === userId ? 'leader' : 'deputy';
+      clubMap.set(c.id, {
+        id: c.id,
+        name: c.name,
+        logo_url: c.logo_url,
+        status: c.status,
+        userRole: role
+      });
+    });
+
+    userClubs.value = Array.from(clubMap.values());
+    stats.clubs = userClubs.value.length;
+
+    // 3. Count tournaments for all associated clubs
+    if (userClubs.value.length > 0) {
+      const clubIds = userClubs.value.map(c => c.id);
       const { count: tourneyCount } = await supabase
         .from('tournament_registrations')
         .select('tournament_id', { count: 'exact', head: true })
-        .in('club_id', clubIds).eq('status', 'approved');
+        .in('club_id', clubIds)
+        .eq('status', 'approved');
       stats.tournaments = tourneyCount ?? 0;
     }
   } catch (err) {
@@ -259,6 +296,15 @@ async function loadStats() {
   } finally {
     statsLoading.value = false;
   }
+}
+
+function getClubRoleLabel(role) {
+  const labels = {
+    leader: 'Trưởng CLB',
+    deputy: 'Phó CLB',
+    member: 'Thành viên'
+  };
+  return labels[role] || 'Thành viên';
 }
 
 onMounted(() => loadStats());
@@ -759,6 +805,19 @@ async function saveProfile() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.status-mini {
+  font-size: 0.65rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.status-mini.pending {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(251, 191, 36, 0.3);
 }
 
 .view-all-link {
